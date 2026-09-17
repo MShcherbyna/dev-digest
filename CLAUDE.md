@@ -47,3 +47,8 @@ Docker (Postgres only — API and web run on the host).
 
 Per-package only — see [README.md](README.md#useful-scripts). Don't
 duplicate them here.
+
+
+## GIT 
+
+Always use the branch name as a commit prefix, unless it is `main`.
