@@ -7,6 +7,12 @@ describe("formatCost", () => {
     expect(formatCost(undefined)).toBe("—");
   });
 
+  it("renders a dash for non-finite input instead of throwing or showing $NaN", () => {
+    expect(formatCost(NaN)).toBe("—");
+    expect(formatCost(Infinity)).toBe("—");
+    expect(formatCost(-Infinity)).toBe("—");
+  });
+
   it("renders $0.00 for a genuinely free run (distinct from missing data)", () => {
     expect(formatCost(0)).toBe("$0.00");
   });
