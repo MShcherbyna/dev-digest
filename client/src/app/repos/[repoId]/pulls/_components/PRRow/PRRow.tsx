@@ -56,7 +56,7 @@ export function PRRow({ pr, repoId }: { pr: PrMeta; repoId: string }) {
         )}
       </div>
       <div style={s.findingsCell}>
-        <FindingsSummary pr={pr} repoId={repoId} />
+        <FindingsSummary pr={pr} />
       </div>
       <div>
         <Badge dot color={st.c} bg="transparent">

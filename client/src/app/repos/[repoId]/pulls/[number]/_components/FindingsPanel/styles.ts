@@ -2,6 +2,15 @@ import type { CSSProperties } from "react";
 
 /** Co-located styles for FindingsPanel (extracted from inline styles). */
 export const s = {
+  countsRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 13,
+    fontWeight: 600,
+    marginBottom: 10,
+  } satisfies CSSProperties,
+  countsSep: { color: "var(--text-muted)", fontWeight: 400 } satisfies CSSProperties,
   toolbar: {
     display: "flex",
     alignItems: "center",

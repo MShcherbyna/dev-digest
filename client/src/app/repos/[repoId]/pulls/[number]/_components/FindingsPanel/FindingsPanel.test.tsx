@@ -94,4 +94,15 @@ describe("FindingsPanel (smoke)", () => {
     expect(screen.getByText("N+1 query")).toBeInTheDocument();
     expect(screen.queryByText("Hardcoded secret")).not.toBeInTheDocument();
   });
+
+  it("shows a read-only counts row (only present severities) separate from the 3 filter buttons", () => {
+    renderWithIntl(<FindingsPanel findings={MIXED_FINDINGS} prId="pr1" />);
+    // counts row: "1 CRITICAL · 1 WARNING" (no SUGGESTION — none present)
+    expect(screen.getByText("1 CRITICAL")).toBeInTheDocument();
+    expect(screen.getByText("1 WARNING")).toBeInTheDocument();
+    // filter row always has all 3 buttons, regardless of which severities are present
+    expect(screen.getByRole("button", { name: "Critical" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Warning" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Suggestion" })).toBeInTheDocument();
+  });
 });

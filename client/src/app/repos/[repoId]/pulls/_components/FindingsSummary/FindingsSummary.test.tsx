@@ -4,20 +4,16 @@ import type { PrMeta } from "@/lib/types";
 import type { ReviewRecord } from "@devdigest/shared";
 import { FindingsSummary } from "./FindingsSummary";
 
-const push = vi.fn();
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push }),
-}));
-
 let reviews: ReviewRecord[] | undefined;
+const usePrReviews = vi.fn((_prId: string | null) => ({ data: reviews }));
 vi.mock("@/lib/hooks/reviews", () => ({
-  usePrReviews: () => ({ data: reviews }),
+  usePrReviews: (prId: string | null) => usePrReviews(prId),
 }));
 
 afterEach(() => {
   cleanup();
-  push.mockClear();
   reviews = undefined;
+  usePrReviews.mockClear();
 });
 
 function pr(o: Partial<PrMeta>): PrMeta {
@@ -73,70 +69,33 @@ const REVIEW: ReviewRecord = {
       accepted_at: null,
       dismissed_at: null,
     },
-    {
-      id: "f2",
-      severity: "WARNING",
-      category: "perf",
-      title: "N+1 query in user list endpoint",
-      file: "src/api/users.ts",
-      start_line: 45,
-      end_line: 52,
-      rationale: "Loop calls db.posts.findMany once per user.",
-      suggestion: null,
-      confidence: 0.86,
-      kind: "finding",
-      trifecta_components: null,
-      evidence: null,
-      review_id: "r1",
-      accepted_at: null,
-      dismissed_at: null,
-    },
   ],
 };
 
 describe("FindingsSummary", () => {
   it("shows a dash for a PR that was never reviewed", () => {
-    render(<FindingsSummary pr={pr({ findings: null })} repoId="repo-1" />);
+    render(<FindingsSummary pr={pr({ findings: null })} />);
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
   it("shows a clean-PR message when reviewed with zero findings", () => {
-    render(<FindingsSummary pr={pr({ findings: { critical: 0, warning: 0, suggestion: 0 } })} repoId="repo-1" />);
+    render(<FindingsSummary pr={pr({ findings: { critical: 0, warning: 0, suggestion: 0 } })} />);
     expect(screen.getByText("0 findings")).toBeInTheDocument();
   });
 
-  it("shows the severity breakdown and opens a preview popover on hover", () => {
-    reviews = [REVIEW];
-    render(<FindingsSummary pr={pr({})} repoId="repo-1" />);
+  it("shows the severity breakdown from PrMeta.findings without fetching reviews first", () => {
+    render(<FindingsSummary pr={pr({})} />);
     expect(screen.getByText("1 CRITICAL")).toBeInTheDocument();
     expect(screen.getByText("1 WARNING")).toBeInTheDocument();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // the reviews query is disabled (prId null) until the popover opens
+    expect(usePrReviews).toHaveBeenLastCalledWith(null);
+  });
 
+  it("only fetches reviews once the popover opens (hover), and passes its findings through", () => {
+    reviews = [REVIEW];
+    render(<FindingsSummary pr={pr({})} />);
     fireEvent.mouseEnter(screen.getByText("1 CRITICAL").closest("div")!);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(usePrReviews).toHaveBeenLastCalledWith("pr-1");
     expect(screen.getByText("Hardcoded Stripe secret key")).toBeInTheDocument();
-
-    fireEvent.mouseLeave(screen.getByText("1 CRITICAL").closest("div")!);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("clicking the trigger pins the popover open even after the mouse leaves", () => {
-    reviews = [REVIEW];
-    render(<FindingsSummary pr={pr({})} repoId="repo-1" />);
-    const trigger = screen.getByRole("button", { name: "Findings by severity" });
-    fireEvent.click(trigger);
-    fireEvent.mouseLeave(trigger.parentElement!);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-
-    fireEvent.click(trigger);
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("clicking a finding in the popover navigates to the PR detail page filtered to its severity", () => {
-    reviews = [REVIEW];
-    render(<FindingsSummary pr={pr({})} repoId="repo-1" />);
-    fireEvent.click(screen.getByRole("button", { name: "Findings by severity" }));
-    fireEvent.click(screen.getByText("N+1 query in user list endpoint"));
-    expect(push).toHaveBeenCalledWith("/repos/repo-1/pulls/482?tab=findings&severity=WARNING");
   });
 });

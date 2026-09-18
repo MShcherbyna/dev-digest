@@ -5,9 +5,9 @@
  * and shows the review score ring.
  */
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { RunSummary } from "@devdigest/shared";
+import type { RunSummary, ReviewRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
 import { RunHistory } from "./RunHistory";
 
@@ -35,10 +35,10 @@ function run(o: Partial<RunSummary>): RunSummary {
   };
 }
 
-function renderRuns(runs: RunSummary[]) {
+function renderRuns(runs: RunSummary[], reviews: ReviewRecord[] = []) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      <RunHistory runs={runs} onOpenTrace={() => {}} />
+      <RunHistory runs={runs} reviews={reviews} onOpenTrace={() => {}} />
     </NextIntlClientProvider>,
   );
 }
@@ -62,6 +62,50 @@ describe("RunHistory — outcome badge", () => {
     renderRuns([run({ status: "done", findings_count: 3, blockers: 0, score: 72 })]);
     expect(screen.getByText("reviewed")).toBeInTheDocument();
     expect(screen.queryByText(/blockers/)).not.toBeInTheDocument();
+  });
+
+  it("shows a severity breakdown + hover popover (like the PR list) when a matching review is loaded", () => {
+    const review: ReviewRecord = {
+      id: "rev-1",
+      pr_id: "pr-1",
+      agent_id: "a1",
+      run_id: "run-1",
+      agent_name: "Security Reviewer",
+      kind: "review",
+      verdict: "request_changes",
+      summary: null,
+      score: 17,
+      model: "claude-sonnet-4-6",
+      created_at: "2026-09-18T12:52:52.000Z",
+      findings: [
+        {
+          id: "f1",
+          severity: "CRITICAL",
+          category: "security",
+          title: "SSRF via unvalidated webhook URL",
+          file: "src/webhooks.ts",
+          start_line: 61,
+          end_line: 74,
+          rationale: "The callback_url is fetched without an allowlist.",
+          suggestion: null,
+          confidence: 0.9,
+          kind: "finding",
+          trifecta_components: null,
+          evidence: null,
+          review_id: "rev-1",
+          accepted_at: null,
+          dismissed_at: null,
+        },
+      ],
+    };
+    renderRuns([run({ status: "done", findings_count: 1, blockers: 1, score: 17 })], [review]);
+    // the plain "N finding(s)" fallback text is gone, replaced by the breakdown
+    expect(screen.queryByText("1 finding(s)")).not.toBeInTheDocument();
+    expect(screen.getByText("1 CRITICAL")).toBeInTheDocument();
+
+    fireEvent.mouseEnter(screen.getByText("1 CRITICAL").closest("div")!);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("SSRF via unvalidated webhook URL")).toBeInTheDocument();
   });
 
   it("a failed run reads 'error'", () => {

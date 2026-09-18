@@ -223,6 +223,27 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     // the one CRITICAL finding (line 11), dropped the WARNING (line 999).
     expect(listed.findings).toEqual({ critical: 1, warning: 0, suggestion: 0 });
 
+    // Re-running a second agent on the same PR should ADD to the PR-list
+    // cost, not replace it — the list's cost column sums every successful
+    // run's cost for the PR, not just the latest one.
+    const agent2 = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'Perf', provider: 'openai', model: 'gpt-4.1', system_prompt: 'perf' },
+      })
+    ).json();
+    await app.inject({
+      method: 'POST',
+      url: `/pulls/${pr.id}/review`,
+      payload: { agentId: agent2.id },
+    });
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 2 });
+    const pulls2 = (await app.inject({ method: 'GET', url: `/repos/${pr.repoId}/pulls` })).json();
+    const listed2 = pulls2.find((p: { id: string }) => p.id === pr.id);
+    // Each run costs 0.001 (MockLLMProvider) — two successful runs sum to 0.002.
+    expect(listed2.cost_usd).toBeCloseTo(0.002, 5);
+
     await app.close();
   });
 

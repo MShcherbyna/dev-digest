@@ -32,6 +32,24 @@ Drizzle join/rollup query, but only invoked `zod` and `react-best-practices`
 despite matching triggers. The rule holds; it needs to be checked against
 every file touched in a task, not just the parts that "feel like" new code.
 
+### 2026-09-18 — When a grading checklist and an earlier user-approved UX design conflict, the checklist wins
+
+**What:** The PR-list findings popover was originally built per the user's
+own explicit approval (hover open, click pins it open, click a finding
+navigates to the PR detail page pre-filtered by severity). A later 24-item
+grading checklist required that same popover be strictly read-only ("no
+buttons") with an exact `"N FINDINGS IN THIS RUN"` header. Rebuilt the
+popover to match the checklist exactly — removed the click-to-navigate
+behavior and the footer severity chips, added category + a short rationale
+excerpt per item. See `client/src/app/repos/[repoId]/pulls/_components/
+FindingsSummary/FindingsSummary.tsx`.
+**Why:** The user said "fix everything [the checklist flags]" after seeing
+the audit — a direct instruction to align with the rubric over the earlier
+ad-hoc design, even though nothing was technically broken in the original.
+**Rejected:** Keeping the click-to-navigate affordance and only fixing the
+header text/category/description — would have left item 21 ("read-only, no
+buttons") still failing, which was the more consequential gap of the two.
+
 ## What Works
 
 ## What Doesn't Work

@@ -13,10 +13,18 @@ export function toSeverityCounts(counts: PrFindingsCounts): Record<Severity, num
 
 /**
  * Findings from the PR's latest 'review'-kind run — the same run the list's
- * severity counts are computed from (server: reviews ordered desc(createdAt),
- * first 'review'-kind row = latest). Keeps the popover's findings and the
- * row's counts pointing at the same run.
+ * severity counts are computed from server-side. Picks the max by
+ * `created_at` explicitly rather than trusting `reviews` array order: the
+ * API happens to return them `desc(createdAt)` today, but relying on that
+ * implicitly let the popover's findings silently drift out of sync with the
+ * trigger's counts if that ordering ever changed. Keeps both pointing at
+ * the same run regardless of input order.
  */
 export function latestReviewFindings(reviews: ReviewRecord[] | undefined): FindingRecord[] {
-  return reviews?.find((r) => r.kind === "review")?.findings ?? [];
+  const reviewRuns = reviews?.filter((r) => r.kind === "review") ?? [];
+  if (reviewRuns.length === 0) return [];
+  const latest = reviewRuns.reduce((a, b) =>
+    Date.parse(b.created_at) > Date.parse(a.created_at) ? b : a,
+  );
+  return latest.findings;
 }

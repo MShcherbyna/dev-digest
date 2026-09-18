@@ -3,8 +3,10 @@
 import React from "react";
 import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
-import type { RunSummary, PrCommit } from "@devdigest/shared";
+import type { RunSummary, PrCommit, ReviewRecord } from "@devdigest/shared";
 import { formatCost } from "@/lib/format";
+import { SeverityFindingsBreakdown } from "../../../_components/SeverityFindingsBreakdown";
+import { countBySeverity } from "../../../_components/SeverityFindingsBreakdown/helpers";
 
 /**
  * PR timeline — every agent run interleaved with the PR's commits, newest-first
@@ -88,12 +90,17 @@ function tsOf(s: string | null | undefined): number {
 export function RunHistory({
   runs,
   commits = [],
+  reviews = [],
   onOpenTrace,
   onGoToReview,
   onDelete,
 }: {
   runs: RunSummary[];
   commits?: PrCommit[];
+  /** Persisted reviews (each run's findings) — keyed by `run_id` below so
+   *  each Timeline row can show its OWN severity breakdown + hover popover,
+   *  same as the PR list's Findings column. */
+  reviews?: ReviewRecord[];
   /** Open the trace + log drawer for a run (the logs icon). */
   onOpenTrace: (runId: string) => void;
   /** Jump to this run's inline review accordion below (clicking the agent name). */
@@ -102,6 +109,10 @@ export function RunHistory({
 }) {
   const t = useTranslations("prReview");
   if (runs.length === 0 && commits.length === 0) return null;
+
+  const reviewByRunId = new Map(
+    reviews.filter((r): r is ReviewRecord & { run_id: string } => !!r.run_id).map((r) => [r.run_id, r]),
+  );
 
   const items: TimelineItem[] = [
     ...runs.map((run) => ({ kind: "run" as const, ts: tsOf(run.ran_at), run })),
@@ -189,12 +200,23 @@ export function RunHistory({
                   {r.error}
                 </div>
               )}
-              {settled && (
-                <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {t("runStatus.findings", { count: r.findings_count ?? 0 })}
-                  {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
-                </div>
-              )}
+              {settled &&
+                (() => {
+                  const review = reviewByRunId.get(r.run_id);
+                  if (review) {
+                    return (
+                      <SeverityFindingsBreakdown counts={countBySeverity(review.findings)} findings={review.findings} />
+                    );
+                  }
+                  // No matching review loaded yet — fall back to the plain
+                  // count/blockers text (still accurate, just not interactive).
+                  return (
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                      {t("runStatus.findings", { count: r.findings_count ?? 0 })}
+                      {(r.blockers ?? 0) > 0 ? t("runStatus.blockers", { count: r.blockers ?? 0 }) : ""}
+                    </div>
+                  );
+                })()}
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, fontSize: 11, color: "var(--text-muted)", flexShrink: 0 }}>
               {r.ran_at && <span>{new Date(r.ran_at).toLocaleTimeString()}</span>}

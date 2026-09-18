@@ -66,16 +66,30 @@ export function FindingsPanel({
     return () => window.removeEventListener("keydown", handler);
   }, [shown, focusIdx, action, prId]);
 
+  const presentSeverities = FILTERABLE_SEVERITIES.filter((sev) => (counts[sev] ?? 0) > 0);
+
   return (
     <div>
+      {presentSeverities.length > 0 && (
+        <div style={s.countsRow}>
+          {presentSeverities.map((sev, i) => (
+            <React.Fragment key={sev}>
+              {i > 0 && <span style={s.countsSep}>·</span>}
+              <span style={{ color: SEV[sev].c }}>
+                {counts[sev]} {SEV[sev].label.toUpperCase()}
+              </span>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
       <div style={s.toolbar}>
         <div style={s.severityChips}>
-          {FILTERABLE_SEVERITIES.filter((sev) => (counts[sev] ?? 0) > 0).map((sev) => (
+          {FILTERABLE_SEVERITIES.map((sev) => (
             <Chip
               key={sev}
               icon={SEV[sev].icon}
               color={SEV[sev].c}
-              count={counts[sev]}
               active={activeSeverity === sev}
               onClick={() => setSeverity(sev)}
             >

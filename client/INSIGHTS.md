@@ -24,7 +24,18 @@ read by the `engineering-insights` skill.
 - **2026-09-18** — No Popover/Tooltip primitive exists anywhere under
   `src/vendor/ui/kit/` (only `Modal.tsx`, `Drawer.tsx`, `Dropdown.tsx`).
   `Dropdown.tsx` is the closest analog but is click+outside-click only, no
-  hover support — any hover-triggered UI has to be built from scratch.
+  hover support — any hover-triggered UI has to be built from scratch: hover
+  uses `onMouseEnter`/`onMouseLeave` state, click uses a separate "pinned"
+  state ORed with hover so either can open it, and the outside-click/
+  Escape-close effect only attaches while pinned (mirrors `Dropdown.tsx`'s
+  pattern but gated). **Moved 2026-09-18** into a shared presentational
+  component once a second consumer needed the identical severity-breakdown
+  popover (PR list AND the PR detail page's Agent-runs Timeline row) — now
+  `pulls/_components/SeverityFindingsBreakdown/SeverityFindingsBreakdown.tsx`
+  (pure: takes `counts`/`findings` as props, no data-fetching of its own;
+  `FindingsSummary.tsx` and `RunHistory.tsx` are now thin callers that only
+  differ in how they source that data — one lazy-fetches via `usePrReviews`
+  on open, the other already has it from a `reviews: ReviewRecord[]` prop).
 
 ## Tool & Library Notes
 
