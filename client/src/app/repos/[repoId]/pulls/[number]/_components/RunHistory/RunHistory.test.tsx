@@ -5,7 +5,7 @@
  * and shows the review score ring.
  */
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { RunSummary, ReviewRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
@@ -101,9 +101,10 @@ describe("RunHistory — outcome badge", () => {
     renderRuns([run({ status: "done", findings_count: 1, blockers: 1, score: 17 })], [review]);
     // the plain "N finding(s)" fallback text is gone, replaced by the breakdown
     expect(screen.queryByText("1 finding(s)")).not.toBeInTheDocument();
-    expect(screen.getByText("1 CRITICAL")).toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Findings by severity" });
+    expect(within(trigger).getByText("1")).toBeInTheDocument();
 
-    fireEvent.mouseEnter(screen.getByText("1 CRITICAL").closest("div")!);
+    fireEvent.mouseEnter(trigger.parentElement!);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("SSRF via unvalidated webhook URL")).toBeInTheDocument();
   });

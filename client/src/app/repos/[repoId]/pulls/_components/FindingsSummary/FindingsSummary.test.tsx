@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import type { PrMeta } from "@/lib/types";
 import type { ReviewRecord } from "@devdigest/shared";
 import { FindingsSummary } from "./FindingsSummary";
@@ -83,10 +83,10 @@ describe("FindingsSummary", () => {
     expect(screen.getByText("0 findings")).toBeInTheDocument();
   });
 
-  it("shows the severity breakdown from PrMeta.findings without fetching reviews first", () => {
+  it("shows an icon+count severity breakdown from PrMeta.findings without fetching reviews first", () => {
     render(<FindingsSummary pr={pr({})} />);
-    expect(screen.getByText("1 CRITICAL")).toBeInTheDocument();
-    expect(screen.getByText("1 WARNING")).toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Findings by severity" });
+    expect(within(trigger).getAllByText("1")).toHaveLength(2); // one count per present severity
     // the reviews query is disabled (prId null) until the popover opens
     expect(usePrReviews).toHaveBeenLastCalledWith(null);
   });
@@ -94,7 +94,8 @@ describe("FindingsSummary", () => {
   it("only fetches reviews once the popover opens (hover), and passes its findings through", () => {
     reviews = [REVIEW];
     render(<FindingsSummary pr={pr({})} />);
-    fireEvent.mouseEnter(screen.getByText("1 CRITICAL").closest("div")!);
+    const trigger = screen.getByRole("button", { name: "Findings by severity" });
+    fireEvent.mouseEnter(trigger.parentElement!);
     expect(usePrReviews).toHaveBeenLastCalledWith("pr-1");
     expect(screen.getByText("Hardcoded Stripe secret key")).toBeInTheDocument();
   });

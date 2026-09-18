@@ -81,9 +81,7 @@ export function SeverityFindingsBreakdown({
             <React.Fragment key={sev}>
               {i > 0 && <span style={s.sep}>·</span>}
               <SevIcon size={12} style={{ color: SEV[sev].c }} />
-              <span style={{ color: SEV[sev].c }}>
-                {counts[sev]} {SEV[sev].label.toUpperCase()}
-              </span>
+              <span style={{ color: SEV[sev].c }}>{counts[sev]}</span>
             </React.Fragment>
           );
         })}

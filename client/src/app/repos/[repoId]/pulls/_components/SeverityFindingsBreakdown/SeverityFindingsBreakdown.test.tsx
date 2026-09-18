@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import type { FindingRecord } from "@devdigest/shared";
 import type { Severity } from "@devdigest/ui";
 import { SeverityFindingsBreakdown } from "./SeverityFindingsBreakdown";
@@ -56,13 +56,15 @@ describe("SeverityFindingsBreakdown", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("shows the severity breakdown and opens a read-only popover titled 'N FINDINGS IN THIS RUN' on hover", () => {
+  it("shows an icon+count breakdown (no severity-name text) and opens a read-only popover titled 'N FINDINGS IN THIS RUN' on hover", () => {
     render(<SeverityFindingsBreakdown counts={COUNTS} findings={FINDINGS} />);
-    expect(screen.getByText("1 CRITICAL")).toBeInTheDocument();
-    expect(screen.getByText("1 WARNING")).toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Findings by severity" });
+    expect(within(trigger).getAllByText("1")).toHaveLength(2); // one count per present severity
+    expect(screen.queryByText("CRITICAL")).not.toBeInTheDocument();
+    expect(screen.queryByText("WARNING")).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
-    fireEvent.mouseEnter(screen.getByText("1 CRITICAL").closest("div")!);
+    fireEvent.mouseEnter(trigger.parentElement!);
     const dialog = screen.getByRole("dialog");
     expect(dialog).toBeInTheDocument();
     expect(screen.getByText("2 FINDINGS IN THIS RUN")).toBeInTheDocument();
@@ -72,7 +74,7 @@ describe("SeverityFindingsBreakdown", () => {
     // read-only: no buttons/links inside the popover
     expect(dialog.querySelectorAll("button, a").length).toBe(0);
 
-    fireEvent.mouseLeave(screen.getByText("1 CRITICAL").closest("div")!);
+    fireEvent.mouseLeave(trigger.parentElement!);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -89,7 +91,8 @@ describe("SeverityFindingsBreakdown", () => {
       title: `Finding ${i}`,
     }));
     render(<SeverityFindingsBreakdown counts={countBySeverity(many)} findings={many} />);
-    fireEvent.mouseEnter(screen.getByText("8 CRITICAL").closest("div")!);
+    const trigger = screen.getByRole("button", { name: "Findings by severity" });
+    fireEvent.mouseEnter(trigger.parentElement!);
 
     for (const f of many) {
       expect(screen.getByText(f.title)).toBeInTheDocument();

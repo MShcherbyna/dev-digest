@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PrMeta } from "@/lib/types";
@@ -64,12 +64,13 @@ describe("PRRow — cost column (Run Cost Badge)", () => {
 });
 
 describe("PRRow — findings column", () => {
-  it("shows a severity breakdown for a reviewed PR", () => {
+  it("shows an icon+count severity breakdown for a reviewed PR (no severity-name text)", () => {
     renderRow(pr({ score: 61, findings: { critical: 2, warning: 4, suggestion: 0 } }));
-    expect(screen.getByText("2 CRITICAL")).toBeInTheDocument();
-    expect(screen.getByText("4 WARNING")).toBeInTheDocument();
-    // suggestion count is 0 — not rendered as a segment
-    expect(screen.queryByText(/SUGGESTION/)).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Findings by severity" });
+    expect(within(trigger).getByText("2")).toBeInTheDocument();
+    expect(within(trigger).getByText("4")).toBeInTheDocument();
+    // suggestion count is 0 — only 2 severity segments rendered (icon+count pairs)
+    expect(within(trigger).queryAllByText(/^\d+$/)).toHaveLength(2);
   });
 
   it("shows a dash for a PR that was never reviewed (findings absent)", () => {
