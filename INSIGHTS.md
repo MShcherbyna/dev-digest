@@ -25,6 +25,30 @@ copying nearby code patterns instead.
 **Rejected:** Treating "I can already see the pattern in adjacent code" as
 a substitute for consulting the dedicated skill — adjacent code shows what
 was done before, not whether it was a best practice worth repeating.
+**Recurred 2026-09-18** in the severity-counters session: edited
+`server/src/modules/pulls/routes.ts` (a Fastify route) and added a new
+Drizzle join/rollup query, but only invoked `zod` and `react-best-practices`
+— `fastify-best-practices` and `drizzle-orm-patterns` were skipped again
+despite matching triggers. The rule holds; it needs to be checked against
+every file touched in a task, not just the parts that "feel like" new code.
+
+### 2026-09-18 — When a grading checklist and an earlier user-approved UX design conflict, the checklist wins
+
+**What:** The PR-list findings popover was originally built per the user's
+own explicit approval (hover open, click pins it open, click a finding
+navigates to the PR detail page pre-filtered by severity). A later 24-item
+grading checklist required that same popover be strictly read-only ("no
+buttons") with an exact `"N FINDINGS IN THIS RUN"` header. Rebuilt the
+popover to match the checklist exactly — removed the click-to-navigate
+behavior and the footer severity chips, added category + a short rationale
+excerpt per item. See `client/src/app/repos/[repoId]/pulls/_components/
+FindingsSummary/FindingsSummary.tsx`.
+**Why:** The user said "fix everything [the checklist flags]" after seeing
+the audit — a direct instruction to align with the rubric over the earlier
+ad-hoc design, even though nothing was technically broken in the original.
+**Rejected:** Keeping the click-to-navigate affordance and only fixing the
+header text/category/description — would have left item 21 ("read-only, no
+buttons") still failing, which was the more consequential gap of the two.
 
 ## What Works
 
@@ -50,6 +74,15 @@ was done before, not whether it was a best practice worth repeating.
   Docker`, then poll `docker info` until it succeeds, before compose.
 
 ## Recurring Errors & Fixes
+
+- **2026-09-18** — `pnpm dev` failing with `EADDRINUSE` on :3000/:3001 usually
+  means dev servers are already running (e.g. the user's own editor session) —
+  don't fight it or kill unfamiliar processes. Both `tsx watch` (server) and
+  `next dev` (client) hot-reload on file changes, so verify against the
+  already-running instance instead: `curl localhost:3001/...` for API
+  changes, `curl` + grep the HTML for client changes. Only kill a process you
+  started yourself (check `ps` for the PID/start-time your own launch
+  printed) if your own launch attempt is what's left dangling.
 
 ## Session Notes
 

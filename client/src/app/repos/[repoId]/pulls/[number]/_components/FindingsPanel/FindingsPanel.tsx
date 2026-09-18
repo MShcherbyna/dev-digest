@@ -4,12 +4,13 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Toggle, EmptyState } from "@devdigest/ui";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Toggle, Chip, EmptyState, SEV } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { FindingCard } from "../FindingCard";
 import { useFindingAction } from "../../../../../../../lib/hooks/reviews";
-import { KEY_TO_ACTION } from "./constants";
-import { visibleFindings } from "./helpers";
+import { KEY_TO_ACTION, FILTERABLE_SEVERITIES } from "./constants";
+import { visibleFindings, severityCounts } from "./helpers";
 import { s } from "./styles";
 
 export function FindingsPanel({
@@ -25,10 +26,30 @@ export function FindingsPanel({
 }) {
   const t = useTranslations("prReview");
   const action = useFindingAction();
+  const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams();
   const [hideLow, setHideLow] = React.useState(false);
   const [focusIdx, setFocusIdx] = React.useState(0);
 
-  const shown = React.useMemo(() => visibleFindings(findings, hideLow), [findings, hideLow]);
+  // The active severity filter is shared by every FindingsPanel on the page
+  // (one per review run) via the `severity` URL param, so clicking a chip in
+  // one run's panel filters "Review Runs" as a whole — and a PR-list link can
+  // deep-link straight into a filtered state. Derived, not stored: no
+  // useState to keep in sync with the URL.
+  const activeSeverity = search.get("severity");
+  const setSeverity = (sev: string | null) => {
+    const sp = new URLSearchParams(search.toString());
+    if (sev == null || sev === activeSeverity) sp.delete("severity");
+    else sp.set("severity", sev);
+    router.replace(`${pathname}${sp.toString() ? `?${sp.toString()}` : ""}`);
+  };
+
+  const counts = severityCounts(findings);
+  const shown = React.useMemo(
+    () => visibleFindings(findings, hideLow, activeSeverity),
+    [findings, hideLow, activeSeverity],
+  );
 
   // j/k navigation + a/d shortcuts on the focused finding (keyboard).
   React.useEffect(() => {
@@ -45,9 +66,37 @@ export function FindingsPanel({
     return () => window.removeEventListener("keydown", handler);
   }, [shown, focusIdx, action, prId]);
 
+  const presentSeverities = FILTERABLE_SEVERITIES.filter((sev) => (counts[sev] ?? 0) > 0);
+
   return (
     <div>
+      {presentSeverities.length > 0 && (
+        <div style={s.countsRow}>
+          {presentSeverities.map((sev, i) => (
+            <React.Fragment key={sev}>
+              {i > 0 && <span style={s.countsSep}>·</span>}
+              <span style={{ color: SEV[sev].c }}>
+                {counts[sev]} {SEV[sev].label.toUpperCase()}
+              </span>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
       <div style={s.toolbar}>
+        <div style={s.severityChips}>
+          {FILTERABLE_SEVERITIES.map((sev) => (
+            <Chip
+              key={sev}
+              icon={SEV[sev].icon}
+              color={SEV[sev].c}
+              active={activeSeverity === sev}
+              onClick={() => setSeverity(sev)}
+            >
+              {SEV[sev].label}
+            </Chip>
+          ))}
+        </div>
         <div style={s.toggleGroup}>
           {t("panel.hideLowConfidence")}
           <Toggle on={hideLow} onChange={setHideLow} size={16} />

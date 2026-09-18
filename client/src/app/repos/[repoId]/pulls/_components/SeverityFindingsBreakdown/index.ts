@@ -1,0 +1,1 @@
+export { SeverityFindingsBreakdown } from "./SeverityFindingsBreakdown";

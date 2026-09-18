@@ -154,6 +154,16 @@ export type Repo = z.infer<typeof Repo>;
 export const PrStatus = z.enum(['needs_review', 'reviewed', 'stale', 'open', 'closed', 'merged']);
 export type PrStatus = z.infer<typeof PrStatus>;
 
+// Per-severity finding counts from a PR's latest review (list endpoint's
+// Findings column). A standalone schema since it's a self-contained shape,
+// reusable if another endpoint ever needs the same breakdown.
+export const PrFindingsCounts = z.object({
+  critical: z.number().int().nonnegative(),
+  warning: z.number().int().nonnegative(),
+  suggestion: z.number().int().nonnegative(),
+});
+export type PrFindingsCounts = z.infer<typeof PrFindingsCounts>;
+
 export const PrMeta = z.object({
   id: z.string().nullish(),
   number: z.number().int(),
@@ -173,6 +183,9 @@ export const PrMeta = z.object({
   // Cost of that same latest-review run (list endpoint only; null/absent
   // until reviewed, or when that run's cost is unknown).
   cost_usd: z.number().nullish(),
+  // Severity breakdown of that same latest-review run's findings (list
+  // endpoint only; null/absent until reviewed).
+  findings: PrFindingsCounts.nullish(),
 });
 export type PrMeta = z.infer<typeof PrMeta>;
 

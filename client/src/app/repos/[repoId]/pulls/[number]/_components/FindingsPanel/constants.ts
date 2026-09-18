@@ -11,6 +11,10 @@ export const SEVERITY_ORDER: Record<string, number> = {
 /** Confidence below this is hidden when "hide low confidence" is on. */
 export const LOW_CONFIDENCE_THRESHOLD = 0.65;
 
+/** Severities shown as filter chips, in display order (INFO isn't a real
+ *  emitted severity today — the shared Finding contract only allows these 3). */
+export const FILTERABLE_SEVERITIES = ["CRITICAL", "WARNING", "SUGGESTION"] as const;
+
 /** Keyboard shortcut → finding action. */
 export const KEY_TO_ACTION: Record<string, FindingActionKind> = {
   a: "accept",
