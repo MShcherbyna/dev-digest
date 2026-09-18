@@ -14,6 +14,12 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-09-18** — `server/src/modules/pulls/status.ts` already has a
+  unit-tested `rollupSeverities`/`SeverityCounts` aggregator, but it's
+  deliberately not wired into any route — `server/src/modules/pulls/
+  routes.ts:114-120` has a comment stating the severity breakdown is
+  intentionally not surfaced on the PR list. Read that comment before
+  wiring severity counts into the list endpoint.
 - The PR list's "latest review" columns (`GET /repos/:id/pulls`) are computed
   by one `IN`-query against `reviews`, ordered `desc(createdAt)`, first-seen-
   per-PR in JS — not a DB aggregate. A new metric that must come from the

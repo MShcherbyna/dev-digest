@@ -25,6 +25,12 @@ copying nearby code patterns instead.
 **Rejected:** Treating "I can already see the pattern in adjacent code" as
 a substitute for consulting the dedicated skill — adjacent code shows what
 was done before, not whether it was a best practice worth repeating.
+**Recurred 2026-09-18** in the severity-counters session: edited
+`server/src/modules/pulls/routes.ts` (a Fastify route) and added a new
+Drizzle join/rollup query, but only invoked `zod` and `react-best-practices`
+— `fastify-best-practices` and `drizzle-orm-patterns` were skipped again
+despite matching triggers. The rule holds; it needs to be checked against
+every file touched in a task, not just the parts that "feel like" new code.
 
 ## What Works
 
@@ -50,6 +56,15 @@ was done before, not whether it was a best practice worth repeating.
   Docker`, then poll `docker info` until it succeeds, before compose.
 
 ## Recurring Errors & Fixes
+
+- **2026-09-18** — `pnpm dev` failing with `EADDRINUSE` on :3000/:3001 usually
+  means dev servers are already running (e.g. the user's own editor session) —
+  don't fight it or kill unfamiliar processes. Both `tsx watch` (server) and
+  `next dev` (client) hot-reload on file changes, so verify against the
+  already-running instance instead: `curl localhost:3001/...` for API
+  changes, `curl` + grep the HTML for client changes. Only kill a process you
+  started yourself (check `ps` for the PID/start-time your own launch
+  printed) if your own launch attempt is what's left dangling.
 
 ## Session Notes
 

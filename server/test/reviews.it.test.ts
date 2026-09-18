@@ -219,6 +219,9 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     const listed = pulls.find((p: { id: string }) => p.id === pr.id);
     expect(listed.score).toBe(65);
     expect(listed.cost_usd).toBe(0.001);
+    // findings severity breakdown, from the same run — grounding kept only
+    // the one CRITICAL finding (line 11), dropped the WARNING (line 999).
+    expect(listed.findings).toEqual({ critical: 1, warning: 0, suggestion: 0 });
 
     await app.close();
   });

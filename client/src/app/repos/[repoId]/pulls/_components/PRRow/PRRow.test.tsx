@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PrMeta } from "@/lib/types";
 import messages from "../../../../../../../messages/en/prReview.json";
 import { PRRow } from "./PRRow";
@@ -33,10 +34,13 @@ function pr(o: Partial<PrMeta>): PrMeta {
 }
 
 function renderRow(row: PrMeta) {
+  const qc = new QueryClient();
   return render(
-    <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      <PRRow pr={row} repoId="repo-1" />
-    </NextIntlClientProvider>,
+    <QueryClientProvider client={qc}>
+      <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
+        <PRRow pr={row} repoId="repo-1" />
+      </NextIntlClientProvider>
+    </QueryClientProvider>,
   );
 }
 
@@ -54,7 +58,27 @@ describe("PRRow — cost column (Run Cost Badge)", () => {
   });
 
   it("shows a dash for a reviewed PR whose run has no cost data (unpriced model)", () => {
-    renderRow(pr({ score: 61, cost_usd: null }));
+    renderRow(pr({ score: 61, cost_usd: null, findings: { critical: 0, warning: 0, suggestion: 0 } }));
     expect(screen.getByText("—")).toBeInTheDocument();
+  });
+});
+
+describe("PRRow — findings column", () => {
+  it("shows a severity breakdown for a reviewed PR", () => {
+    renderRow(pr({ score: 61, findings: { critical: 2, warning: 4, suggestion: 0 } }));
+    expect(screen.getByText("2 CRITICAL")).toBeInTheDocument();
+    expect(screen.getByText("4 WARNING")).toBeInTheDocument();
+    // suggestion count is 0 — not rendered as a segment
+    expect(screen.queryByText(/SUGGESTION/)).not.toBeInTheDocument();
+  });
+
+  it("shows a dash for a PR that was never reviewed (findings absent)", () => {
+    renderRow(pr({ score: null, findings: null }));
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("shows a clean-PR message when reviewed with zero findings", () => {
+    renderRow(pr({ score: 95, findings: { critical: 0, warning: 0, suggestion: 0 } }));
+    expect(screen.getByText("0 findings")).toBeInTheDocument();
   });
 });

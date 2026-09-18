@@ -14,6 +14,18 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-09-18** — The PR list has no "Findings" column live in
+  `PRRow.tsx`/`constants.ts` (`COLUMN_KEYS` has no `findings` entry) even
+  though design screenshots show one — but a matching unused type,
+  `PrRowView.findings: { CRITICAL, WARNING, SUGGESTION }`, already sits at
+  `client/src/lib/types.ts:37-48` with zero other references. Before
+  building a findings-count UI, check for this kind of pre-staged
+  dead type/view-model instead of inventing a new shape.
+- **2026-09-18** — No Popover/Tooltip primitive exists anywhere under
+  `src/vendor/ui/kit/` (only `Modal.tsx`, `Drawer.tsx`, `Dropdown.tsx`).
+  `Dropdown.tsx` is the closest analog but is click+outside-click only, no
+  hover support — any hover-triggered UI has to be built from scratch.
+
 ## Tool & Library Notes
 
 ## Recurring Errors & Fixes
