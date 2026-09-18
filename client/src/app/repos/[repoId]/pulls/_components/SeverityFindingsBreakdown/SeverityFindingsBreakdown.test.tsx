@@ -82,6 +82,25 @@ describe("SeverityFindingsBreakdown", () => {
     expect(screen.getByText("Loading…")).toBeInTheDocument();
   });
 
+  it("renders every finding (no '+N more' truncation) and scrolls the list instead of growing the popover", () => {
+    const many: FindingRecord[] = Array.from({ length: 8 }, (_, i) => ({
+      ...FINDINGS[0]!,
+      id: `f${i}`,
+      title: `Finding ${i}`,
+    }));
+    render(<SeverityFindingsBreakdown counts={countBySeverity(many)} findings={many} />);
+    fireEvent.mouseEnter(screen.getByText("8 CRITICAL").closest("div")!);
+
+    for (const f of many) {
+      expect(screen.getByText(f.title)).toBeInTheDocument();
+    }
+    expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
+
+    // second child of the dialog is the scrollable findings list (first is the header)
+    const list = screen.getByRole("dialog").children[1] as HTMLElement;
+    expect(list.style.overflowY).toBe("auto");
+  });
+
   it("clicking the trigger pins the popover open even after the mouse leaves, and calls onOpenChange", () => {
     const onOpenChange = vi.fn();
     render(<SeverityFindingsBreakdown counts={COUNTS} findings={FINDINGS} onOpenChange={onOpenChange} />);

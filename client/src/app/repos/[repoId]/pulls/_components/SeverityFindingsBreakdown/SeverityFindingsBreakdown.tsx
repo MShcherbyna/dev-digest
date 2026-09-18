@@ -1,17 +1,18 @@
 /* SeverityFindingsBreakdown — a severity counter ("N CRITICAL · N WARNING")
    whose hover OR click opens "N FINDINGS IN THIS RUN": a short, read-only
    preview (severity icon, title, category, file:line, confidence, a short
-   description — no buttons/links). Shared between the PR list's Findings
-   column and the PR detail page's Agent-runs Timeline, which differ only in
-   how they source `counts`/`findings` (server-precomputed + lazy-fetched vs.
-   already-loaded from `usePrReviews`). */
+   description — no buttons/links). The list scrolls internally once it
+   outgrows the popover's max height, so the trigger's position stays put
+   regardless of how many findings there are. Shared between the PR list's
+   Findings column and the PR detail page's Agent-runs Timeline, which differ
+   only in how they source `counts`/`findings` (server-precomputed +
+   lazy-fetched vs. already-loaded from `usePrReviews`). */
 "use client";
 
 import React from "react";
 import { Icon, SeverityBadge, CategoryTag, ConfidenceNum, SEV, type Severity, type Category } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { presentSeverities, lineLabel, truncate } from "./helpers";
-import { POPOVER_MAX_ITEMS } from "./constants";
 import { s } from "./styles";
 
 export function SeverityFindingsBreakdown({
@@ -98,7 +99,7 @@ export function SeverityFindingsBreakdown({
             <div style={s.popoverEmpty}>{findings == null ? "Loading…" : "No findings"}</div>
           ) : (
             <div style={s.popoverList}>
-              {findings.slice(0, POPOVER_MAX_ITEMS).map((f) => (
+              {findings.map((f) => (
                 <div key={f.id} style={s.popoverItem}>
                   <SeverityBadge severity={f.severity as Severity} compact />
                   <div style={s.popoverItemMain}>
@@ -116,9 +117,6 @@ export function SeverityFindingsBreakdown({
                   </div>
                 </div>
               ))}
-              {findings.length > POPOVER_MAX_ITEMS && (
-                <div style={s.popoverMore}>+{findings.length - POPOVER_MAX_ITEMS} more</div>
-              )}
             </div>
           )}
         </div>

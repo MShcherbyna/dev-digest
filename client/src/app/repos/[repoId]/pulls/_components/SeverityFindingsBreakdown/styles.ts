@@ -39,7 +39,13 @@ export const s = {
     marginBottom: 8,
   } satisfies CSSProperties,
   popoverEmpty: { fontSize: 12.5, color: "var(--text-muted)", padding: "4px 2px" } satisfies CSSProperties,
-  popoverList: { display: "flex", flexDirection: "column", gap: 4 } satisfies CSSProperties,
+  popoverList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    maxHeight: 280,
+    overflowY: "auto",
+  } satisfies CSSProperties,
   popoverItem: {
     display: "flex",
     alignItems: "flex-start",
@@ -86,5 +92,4 @@ export const s = {
     overflowWrap: "anywhere",
     wordBreak: "break-word",
   } satisfies CSSProperties,
-  popoverMore: { fontSize: 11.5, color: "var(--text-muted)", padding: "2px 6px" } satisfies CSSProperties,
 } as const;
