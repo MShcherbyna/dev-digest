@@ -56,7 +56,12 @@
       "WebFetch(domain:herbertograca.com)",
       "WebFetch(domain:blog.sentry.io)",
       "WebFetch(domain:fastify.dev)",
-      "Edit(/.claude/skills/onion-architecture/**)"
+      "Edit(/.claude/skills/onion-architecture/**)",
+      "Bash(git add *)",
+      "Bash(bash .claude/skills/pr-self-review/scripts/checks.sh *)",
+      "Bash(python3 .claude/skills/pr-self-review/scripts/finalize.py *)",
+      "Bash(pnpm test)",
+      "Bash(pnpm lint)"
     ]
   },
   "hooks": {

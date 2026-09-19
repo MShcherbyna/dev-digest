@@ -103,7 +103,9 @@ for pkg in server client reviewer-core e2e; do
 done
 
 # --- 7. Missing co-located tests (major) -----------------------------------
+# Only files ADDED by this branch: a modified old file lacking a test is pre-existing debt, not this PR's.
 while IFS= read -r f; do
+  echo "$ADDED" | grep -qx "$f" || continue
   case "$f" in
     server/src/modules/*/service.ts|server/src/modules/*/repository.ts) ;;
     client/src/*/_components/*/*.tsx) ;;

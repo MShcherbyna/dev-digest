@@ -3,7 +3,7 @@
 
 Usage: finalize.py --base <sha> [--det det.json] [--review r1.json ...] [--tests-skipped]
 """
-import argparse, json, os, subprocess, sys
+import argparse, html, json, os, re, subprocess, sys
 from datetime import datetime, timezone
 
 RANK = {"critical": 3, "major": 2, "minor": 1}
@@ -22,8 +22,21 @@ def load(paths):
         except (OSError, ValueError) as e:
             print(f"warning: cannot read {p}: {e}", file=sys.stderr)
             continue
-        out.extend(data if isinstance(data, list) else [])
+        for f in data if isinstance(data, list) else []:
+            # subagent output is sometimes HTML-escaped (`=&gt;`); restore code text
+            out.append({k: html.unescape(v) if isinstance(v, str) else v for k, v in f.items()})
     return out
+
+
+def unrouted_skills():
+    """Skills listed in .claude/skills/README.md that routing.md never mentions."""
+    try:
+        catalog = open(".claude/skills/README.md").read()
+        routing = open(".claude/skills/pr-self-review/routing.md").read()
+    except OSError:
+        return []
+    names = re.findall(r"^\| \[([a-z0-9-]+)\]\(", catalog, re.M)
+    return [n for n in names if n not in routing]
 
 
 def grounded(f):
@@ -117,6 +130,9 @@ def main():
     counts = {s: sum(1 for f in findings if f["severity"] == s and not f["waived"]) for s in RANK}
     counts["waived"] = sum(1 for f in findings if f["waived"])
     counts["dropped"] = dropped
+
+    for name in unrouted_skills():
+        warnings.append(f"skill {name} has no entry in routing.md")
 
     if git("status", "--porcelain")[1].strip():
         warnings.append("working tree is dirty: the report does not cover uncommitted changes")

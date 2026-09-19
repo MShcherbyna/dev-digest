@@ -24,7 +24,7 @@
 | `det/layer-route-repo` | critical | `routes.ts` imports `repository` directly |
 | `det/layer-service-infra` | critical | `service.ts`/`ports.ts`/`domain/` imports `fastify`, `drizzle-orm`, `postgres`, `octokit`, `openai`, `@anthropic-ai/sdk` |
 | `det/client-imports-server` | critical | file under `client/` imports from `server/` |
-| `det/lint`, `det/no-test`, `det/skipped` | major | lint failure, changed source without co-located test, package not installed |
+| `det/lint`, `det/no-test`, `det/skipped` | major | lint failure, **newly added** source file without co-located test (modified old files are not flagged), package not installed |
 | `det/pr-size` | minor | more than ~40 files |
 
 ## 2. Skills that define their own severity (inherit it)

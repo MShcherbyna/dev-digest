@@ -34,6 +34,11 @@ Paths are relative to the repo root. "Test" = `*.test.ts(x)` / `*.it.test.ts`.
   `*/pnpm-lock.yaml`): not reviewed, but `checks.sh` flags hand edits (see `det/do-not-touch` and `det/vendor-drift` in severity.md).
   `pnpm-workspace.yaml` and other non-lock files are not in this list.
 
+## Skills deliberately not routed
+
+`mermaid-diagram` (authoring aid), `engineering-insights` (session bookkeeping), `pr-self-review` (this skill).
+`finalize.py` warns about any catalog skill not mentioned in this file, so list new non-review skills here.
+
 ## New skills
 
 If `.claude/skills/README.md` lists a skill absent from this file, report
