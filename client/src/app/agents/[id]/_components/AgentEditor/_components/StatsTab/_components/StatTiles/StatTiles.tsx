@@ -17,10 +17,13 @@ export type StatTilesProps = Pick<
   "runs_30d" | "runs_trend" | "avg_cost_usd" | "cost_delta_usd" | "avg_duration_ms" | "accept_pct"
 >;
 
-function Tile({ label, children }: { label: string; children: React.ReactNode }) {
+function Tile({ label, aside, children }: { label: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={s.tile}>
-      <div style={s.tileLabel}>{label}</div>
+      <div style={s.tileHead}>
+        <div style={s.tileLabel}>{label}</div>
+        {aside}
+      </div>
       <div style={s.tileValueRow}>{children}</div>
     </div>
   );
@@ -81,11 +84,13 @@ export function StatTiles({
         </span>
       </Tile>
 
-      <Tile label={t("stats.accept")}>
+      <Tile
+        label={t("stats.accept")}
+        aside={accept_pct != null && <CircularScore score={accept_pct} size={RING_SIZE} />}
+      >
         <span className="tnum" style={s.tileValue}>
           {formatPct(accept_pct)}
         </span>
-        {accept_pct != null && <CircularScore score={accept_pct} size={RING_SIZE} />}
       </Tile>
     </div>
   );

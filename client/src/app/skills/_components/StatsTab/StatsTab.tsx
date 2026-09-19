@@ -29,10 +29,13 @@ function Value({ value, unit }: { value: number | null; unit?: string }) {
   );
 }
 
-function Tile({ label, children }: { label: string; children: React.ReactNode }) {
+function Tile({ label, aside, children }: { label: string; aside?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={s.tile}>
-      <div style={s.tileLabel}>{label}</div>
+      <div style={s.tileHead}>
+        <div style={s.tileLabel}>{label}</div>
+        {aside}
+      </div>
       <div style={s.tileValueRow}>{children}</div>
     </div>
   );
@@ -56,9 +59,11 @@ export function StatsTab({ skillId }: { skillId: string }) {
         <Tile label={t("stats.pull")}>
           <Value value={data.pull_pct} unit="%" />
         </Tile>
-        <Tile label={t("stats.accept")}>
+        <Tile
+          label={t("stats.accept")}
+          aside={data.accept_pct != null && <CircularScore score={data.accept_pct} size={36} />}
+        >
           <Value value={data.accept_pct} unit="%" />
-          {data.accept_pct != null && <CircularScore score={data.accept_pct} size={36} />}
         </Tile>
         <Tile label={t("stats.findings")}>
           <Value value={data.findings_30d} />
