@@ -11,7 +11,7 @@ import type {
 } from '@devdigest/shared';
 import { NotFoundError } from '../../platform/errors.js';
 import { AgentsRepository } from './repository.js';
-import { STATS_WINDOW_DAYS } from './constants.js';
+import { DAY_MS, RECENT_RUNS_LIMIT, SEVERITY_WEEKS, STATS_WINDOW_DAYS } from './constants.js';
 import { buildAgentStats, toAgentDto, toAgentVersionDto } from './helpers.js';
 
 /**
@@ -152,11 +152,21 @@ export class AgentsService {
   async stats(workspaceId: string, agentId: string): Promise<AgentUsageStats> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) throw new NotFoundError('Agent not found');
-    const since = new Date(Date.now() - STATS_WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    const runs = await this.repo.recentDoneRuns(workspaceId, agentId, since);
-    const findings = await this.repo.findingsForRuns(runs.map((r) => r.runId));
-    const links = await this.repo.linkedSkills(agentId);
-    return buildAgentStats(runs, findings, links);
+    const now = new Date();
+    const windowMs = STATS_WINDOW_DAYS * DAY_MS;
+    const windowStart = new Date(now.getTime() - windowMs);
+    const prevStart = new Date(now.getTime() - 2 * windowMs);
+    // The weekly severity chart reaches further back than the 30d window.
+    const runsSince = new Date(now.getTime() - Math.max(SEVERITY_WEEKS * 7 * DAY_MS, windowMs));
+    const runs = await this.repo.recentDoneRuns(workspaceId, agentId, runsSince);
+    const [findings, prevAvgCost, latest, links] = await Promise.all([
+      this.repo.findingsForRuns(runs.map((r) => r.runId)),
+      this.repo.avgCostBetween(workspaceId, agentId, prevStart, windowStart),
+      this.repo.latestDoneRuns(workspaceId, agentId, RECENT_RUNS_LIMIT),
+      this.repo.linkedSkills(agentId),
+    ]);
+    const findingCounts = await this.repo.findingCountsByRun(latest.map((r) => r.runId));
+    return buildAgentStats({ now, runs, findings, links, prevAvgCost, latest, findingCounts });
   }
 
   /** Linked skills for an agent as AgentSkillLink[] (ordered). */
