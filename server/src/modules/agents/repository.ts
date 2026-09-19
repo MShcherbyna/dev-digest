@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import type { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
@@ -56,16 +56,36 @@ export interface SkillLinkInput {
   enabled?: boolean;
 }
 
-/** A successful run of an agent with its (nullable) cost, for the Stats tab. */
+/** A successful run of an agent with the trace fragments the Stats tab reads. */
 export interface AgentRunStatRow {
   runId: string;
+  ranAt: Date;
   costUsd: number | null;
+  durationMs: number | null;
+  /** run_traces.trace->'prompt_assembly'->>'skills' (null when no trace / no skills). */
+  skillsText: string | null;
+  /** run_traces.trace->'memory_pulled' (untrusted jsonb; validated in helpers). */
+  memoryPulled: unknown;
 }
 
 /** A finding produced by one of those runs (via reviews.run_id). */
 export interface AgentFindingStatRow {
+  runId: string;
   category: string;
+  severity: string;
   accepted: boolean;
+}
+
+/** One row of the "recent runs" table, PR joined in (null when the PR is gone). */
+export interface AgentRecentRunRow {
+  runId: string;
+  ranAt: Date;
+  prNumber: number | null;
+  repoId: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costUsd: number | null;
+  source: 'local' | 'ci';
 }
 
 export class AgentsRepository {
@@ -283,15 +303,27 @@ export class AgentsRepository {
 
   // ---- usage (stats) ------------------------------------------------------
 
-  /** Successful (`done`) runs of one agent since `since`, workspace-scoped. */
+  /**
+   * Successful (`done`) runs of one agent since `since`, workspace-scoped, with
+   * the trace fragments the Stats tab needs (one LEFT JOIN query — runs
+   * without a trace still count).
+   */
   async recentDoneRuns(
     workspaceId: string,
     agentId: string,
     since: Date,
   ): Promise<AgentRunStatRow[]> {
     return this.db
-      .select({ runId: t.agentRuns.id, costUsd: t.agentRuns.costUsd })
+      .select({
+        runId: t.agentRuns.id,
+        ranAt: t.agentRuns.ranAt,
+        costUsd: t.agentRuns.costUsd,
+        durationMs: t.agentRuns.durationMs,
+        skillsText: sql<string | null>`${t.runTraces.trace}->'prompt_assembly'->>'skills'`,
+        memoryPulled: sql<unknown>`${t.runTraces.trace}->'memory_pulled'`,
+      })
       .from(t.agentRuns)
+      .leftJoin(t.runTraces, eq(t.runTraces.runId, t.agentRuns.id))
       .where(
         and(
           eq(t.agentRuns.workspaceId, workspaceId),
@@ -302,16 +334,85 @@ export class AgentsRepository {
       );
   }
 
+  /** Mean non-null cost of done runs in [from, to), or null when none has a cost. */
+  async avgCostBetween(
+    workspaceId: string,
+    agentId: string,
+    from: Date,
+    to: Date,
+  ): Promise<number | null> {
+    const [row] = await this.db
+      .select({ avg: sql<string | null>`avg(${t.agentRuns.costUsd})` })
+      .from(t.agentRuns)
+      .where(
+        and(
+          eq(t.agentRuns.workspaceId, workspaceId),
+          eq(t.agentRuns.agentId, agentId),
+          eq(t.agentRuns.status, 'done'),
+          gte(t.agentRuns.ranAt, from),
+          lt(t.agentRuns.ranAt, to),
+        ),
+      );
+    return row?.avg == null ? null : Number(row.avg);
+  }
+
   /** Findings (kind='finding') produced by the given runs (via reviews.run_id). */
   async findingsForRuns(runIds: string[]): Promise<AgentFindingStatRow[]> {
     if (runIds.length === 0) return [];
     return this.db
       .select({
+        runId: sql<string>`${t.reviews.runId}`,
         category: t.findings.category,
+        severity: t.findings.severity,
         accepted: sql<boolean>`${t.findings.acceptedAt} is not null`,
       })
       .from(t.findings)
       .innerJoin(t.reviews, eq(t.findings.reviewId, t.reviews.id))
       .where(and(inArray(t.reviews.runId, runIds), eq(t.findings.kind, 'finding')));
+  }
+
+  /** Latest done runs of the agent (newest first) with their PR joined in. */
+  async latestDoneRuns(
+    workspaceId: string,
+    agentId: string,
+    limit: number,
+  ): Promise<AgentRecentRunRow[]> {
+    return this.db
+      .select({
+        runId: t.agentRuns.id,
+        ranAt: t.agentRuns.ranAt,
+        prNumber: t.pullRequests.number,
+        repoId: t.pullRequests.repoId,
+        tokensIn: t.agentRuns.tokensIn,
+        tokensOut: t.agentRuns.tokensOut,
+        costUsd: t.agentRuns.costUsd,
+        source: t.agentRuns.source,
+      })
+      .from(t.agentRuns)
+      .leftJoin(t.pullRequests, eq(t.pullRequests.id, t.agentRuns.prId))
+      .where(
+        and(
+          eq(t.agentRuns.workspaceId, workspaceId),
+          eq(t.agentRuns.agentId, agentId),
+          eq(t.agentRuns.status, 'done'),
+        ),
+      )
+      .orderBy(desc(t.agentRuns.ranAt), desc(t.agentRuns.id))
+      .limit(limit);
+  }
+
+  /** Finding (kind='finding') count per run id, in one grouped query. */
+  async findingCountsByRun(runIds: string[]): Promise<Map<string, number>> {
+    if (runIds.length === 0) return new Map();
+    const rows = await this.db
+      .select({
+        runId: sql<string>`${t.reviews.runId}`,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(t.findings)
+      .innerJoin(t.reviews, eq(t.findings.reviewId, t.reviews.id))
+      .where(and(inArray(t.reviews.runId, runIds), eq(t.findings.kind, 'finding')))
+      .groupBy(t.reviews.runId);
+    return new Map(rows.map((r) => [r.runId, r.n]));
   }
 }
