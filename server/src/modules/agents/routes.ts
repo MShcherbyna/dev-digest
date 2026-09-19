@@ -2,6 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+// `AgentStats` is also exported by contracts/observability, which makes the root
+// barrel's `AgentStats` ambiguous — import the Stats-tab contract from its own file.
+import { AgentStats } from '@devdigest/shared/contracts/knowledge.js';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -26,6 +29,7 @@ const VersionParams = z.object({
  *   GET    /agents/:id/versions/:version → one config snapshot
  *   GET    /agents/:id/skills       → linked skills (ordered)
  *   POST   /agents/:id/skills       → set/reorder linked skills OR link one
+ *   GET    /agents/:id/stats        → last-30d usage (Stats tab)
  *   GET    /agents/:id/models       → dynamic model list for the agent's provider
  *   GET    /providers/:id/models    → dynamic model list for a provider (editor)
  */
@@ -183,6 +187,15 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
             );
       if (!links) throw new NotFoundError('Agent not found');
       return links;
+    },
+  );
+
+  app.get(
+    '/agents/:id/stats',
+    { schema: { params: IdParams, response: { 200: AgentStats } } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      return service.stats(workspaceId, req.params.id);
     },
   );
 

@@ -1,6 +1,13 @@
+import type { AgentStats } from '@devdigest/shared/contracts/knowledge.js';
 import type { Agent, AgentVersion, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
 import { AgentVersionConfig } from '@devdigest/shared';
-import type { AgentRow, AgentVersionRow } from './repository.js';
+import type {
+  AgentFindingStatRow,
+  AgentRow,
+  AgentRunStatRow,
+  AgentVersionRow,
+  LinkedSkillRow,
+} from './repository.js';
 
 /**
  * Pure helpers for the agents module — DB row ⇄ DTO mapping and the
@@ -83,4 +90,48 @@ export function isConfigChange(
     (patch.repoIntel !== undefined && patch.repoIntel !== existing.repoIntel) ||
     patch.outputSchema !== undefined
   );
+}
+
+/** Percentage rounded to one decimal, or null when the denominator is 0. */
+export function pct(part: number, total: number): number | null {
+  if (total === 0) return null;
+  return Math.round((part / total) * 1000) / 10;
+}
+
+/** Mean of the non-null costs, or null when no run has a recorded cost. */
+export function avgCost(runs: Pick<AgentRunStatRow, 'costUsd'>[]): number | null {
+  const costs = runs.map((r) => r.costUsd).filter((c): c is number => c !== null);
+  if (costs.length === 0) return null;
+  return costs.reduce((sum, c) => sum + c, 0) / costs.length;
+}
+
+/** Category counts sorted by count desc (ties by category asc, for stable output). */
+export function countByCategory(
+  findings: Pick<AgentFindingStatRow, 'category'>[],
+): AgentStats['by_category'] {
+  const counts = new Map<string, number>();
+  for (const f of findings) counts.set(f.category, (counts.get(f.category) ?? 0) + 1);
+  return [...counts.entries()]
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count || a.category.localeCompare(b.category));
+}
+
+/** Assemble the Stats-tab DTO from already-loaded runs, findings and skill links. */
+export function buildAgentStats(
+  runs: AgentRunStatRow[],
+  findings: AgentFindingStatRow[],
+  links: LinkedSkillRow[],
+): AgentStats {
+  return {
+    runs_30d: runs.length,
+    accept_pct: pct(findings.filter((f) => f.accepted).length, findings.length),
+    avg_cost_usd: avgCost(runs),
+    findings_30d: findings.length,
+    skills: links.map((l) => ({
+      id: l.skill.id,
+      name: l.skill.name,
+      enabled: l.skill.enabled && l.enabled,
+    })),
+    by_category: countByCategory(findings),
+  };
 }
