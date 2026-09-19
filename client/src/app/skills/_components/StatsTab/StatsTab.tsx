@@ -5,11 +5,10 @@
 import React from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { PieChart, Pie, Cell } from "recharts";
 import { CircularScore, ErrorState, SectionLabel, Skeleton } from "@devdigest/ui";
 import { useSkillStats } from "@/lib/hooks/skills";
 import { formatPct } from "@/lib/skill-format";
-import { categoryColor, DONUT_SIZE, DONUT_STROKE } from "@/lib/chart-colors";
+import { CategoryDonut } from "@/components/category-donut";
 import { s } from "./styles";
 
 function Tile({ label, value, ring }: { label: string; value: string; ring?: number | null }) {
@@ -66,38 +65,7 @@ export function StatsTab({ skillId }: { skillId: string }) {
         {segments.length === 0 ? (
           <div style={s.empty}>{t("stats.noCategories")}</div>
         ) : (
-          <div style={s.donutRow}>
-            <PieChart width={DONUT_SIZE} height={DONUT_SIZE}>
-              <Pie
-                data={segments}
-                dataKey="count"
-                nameKey="category"
-                cx="50%"
-                cy="50%"
-                innerRadius={(DONUT_SIZE - DONUT_STROKE) / 2 - DONUT_STROKE / 2}
-                outerRadius={(DONUT_SIZE - DONUT_STROKE) / 2 + DONUT_STROKE / 2}
-                startAngle={90}
-                endAngle={-270}
-                isAnimationActive={false}
-                stroke="none"
-              >
-                {segments.map((c, i) => (
-                  <Cell key={c.category} fill={categoryColor(i)} />
-                ))}
-              </Pie>
-            </PieChart>
-            <ul style={s.legend}>
-              {segments.map((c, i) => (
-                <li key={c.category} style={s.legendRow}>
-                  <span style={s.swatch(categoryColor(i))} />
-                  <span style={s.legendLabel}>{c.category}</span>
-                  <span className="mono tnum" style={s.legendValue}>
-                    {c.count}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <CategoryDonut categories={segments} />
         )}
       </section>
     </div>

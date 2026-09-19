@@ -1,0 +1,1 @@
+export { SeverityWeeklyChart } from "./SeverityWeeklyChart";
