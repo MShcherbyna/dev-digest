@@ -1,5 +1,4 @@
-import type { AgentStats } from '@devdigest/shared/contracts/knowledge.js';
-import type { Agent, AgentVersion, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+import type { Agent, AgentUsageStats, AgentVersion, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
 import { AgentVersionConfig } from '@devdigest/shared';
 import type {
   AgentFindingStatRow,
@@ -108,7 +107,7 @@ export function avgCost(runs: Pick<AgentRunStatRow, 'costUsd'>[]): number | null
 /** Category counts sorted by count desc (ties by category asc, for stable output). */
 export function countByCategory(
   findings: Pick<AgentFindingStatRow, 'category'>[],
-): AgentStats['by_category'] {
+): AgentUsageStats['by_category'] {
   const counts = new Map<string, number>();
   for (const f of findings) counts.set(f.category, (counts.get(f.category) ?? 0) + 1);
   return [...counts.entries()]
@@ -121,7 +120,7 @@ export function buildAgentStats(
   runs: AgentRunStatRow[],
   findings: AgentFindingStatRow[],
   links: LinkedSkillRow[],
-): AgentStats {
+): AgentUsageStats {
   return {
     runs_30d: runs.length,
     accept_pct: pct(findings.filter((f) => f.accepted).length, findings.length),

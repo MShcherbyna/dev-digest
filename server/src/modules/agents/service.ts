@@ -2,13 +2,13 @@ import type { Container } from '../../platform/container.js';
 import type {
   Agent,
   AgentSkillLink,
+  AgentUsageStats,
   AgentVersion,
   CiFailOn,
   ModelInfo,
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
-import type { AgentStats } from '@devdigest/shared/contracts/knowledge.js';
 import { NotFoundError } from '../../platform/errors.js';
 import { AgentsRepository } from './repository.js';
 import { STATS_WINDOW_DAYS } from './constants.js';
@@ -149,7 +149,7 @@ export class AgentsService {
    * Last-30-day usage for the Stats tab. Throws NotFoundError when the agent
    * isn't in this workspace (so stats can't be read across tenants).
    */
-  async stats(workspaceId: string, agentId: string): Promise<AgentStats> {
+  async stats(workspaceId: string, agentId: string): Promise<AgentUsageStats> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) throw new NotFoundError('Agent not found');
     const since = new Date(Date.now() - STATS_WINDOW_DAYS * 24 * 60 * 60 * 1000);

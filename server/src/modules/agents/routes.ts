@@ -1,10 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
-// `AgentStats` is also exported by contracts/observability, which makes the root
-// barrel's `AgentStats` ambiguous — import the Stats-tab contract from its own file.
-import { AgentStats } from '@devdigest/shared/contracts/knowledge.js';
+import { AgentUsageStats, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -192,7 +189,7 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
 
   app.get(
     '/agents/:id/stats',
-    { schema: { params: IdParams, response: { 200: AgentStats } } },
+    { schema: { params: IdParams, response: { 200: AgentUsageStats } } },
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
       return service.stats(workspaceId, req.params.id);
