@@ -8,6 +8,7 @@ import type {
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
+import { NotFoundError } from '../../platform/errors.js';
 import { AgentsRepository } from './repository.js';
 import { toAgentDto, toAgentVersionDto } from './helpers.js';
 
@@ -45,6 +46,13 @@ export interface UpdateAgentInput {
   strategy?: ReviewStrategy;
   ci_fail_on?: CiFailOn;
   repo_intel?: boolean;
+  enabled?: boolean;
+}
+
+/** One requested agent→skill link (from `links` / `skill_ids` request forms). */
+export interface SkillLinkRequest {
+  skill_id: string;
+  order?: number;
   enabled?: boolean;
 }
 
@@ -142,17 +150,26 @@ export class AgentsService {
   }
 
   /**
-   * Set / reorder the agent's linked skills. If `skillIds` is provided, replaces
-   * the whole set in that order. Returns the resulting ordered links.
+   * Set / reorder the agent's linked skills, replacing the whole set in the
+   * given order. Every skill id must belong to the caller's workspace.
+   * Returns the resulting ordered links.
    */
   async setSkills(
     workspaceId: string,
     agentId: string,
-    skillIds: string[],
+    links: SkillLinkRequest[],
   ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
-    await this.repo.setSkills(agentId, skillIds);
+    await this.assertSkillsInWorkspace(workspaceId, links.map((l) => l.skill_id));
+    await this.repo.setSkills(
+      agentId,
+      links.map((l) => ({
+        skillId: l.skill_id,
+        ...(l.order !== undefined ? { order: l.order } : {}),
+        ...(l.enabled !== undefined ? { enabled: l.enabled } : {}),
+      })),
+    );
     return this.skillLinks(agentId);
   }
 
@@ -162,13 +179,23 @@ export class AgentsService {
     agentId: string,
     skillId: string,
     order?: number,
+    enabled?: boolean,
   ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
+    await this.assertSkillsInWorkspace(workspaceId, [skillId]);
     const existing = await this.repo.linkedSkills(agentId);
     const resolvedOrder = order ?? existing.length;
-    await this.repo.linkSkill(agentId, skillId, resolvedOrder);
+    await this.repo.linkSkill(agentId, skillId, resolvedOrder, enabled);
     return this.skillLinks(agentId);
+  }
+
+  /** Tenancy guard: a skill id from another workspace looks like a missing one. */
+  private async assertSkillsInWorkspace(workspaceId: string, skillIds: string[]): Promise<void> {
+    const unique = [...new Set(skillIds)];
+    const found = await this.repo.existingSkillIds(workspaceId, unique);
+    const missing = unique.filter((id) => !found.has(id));
+    if (missing.length > 0) throw new NotFoundError('Skill not found', { skill_ids: missing });
   }
 
   /**

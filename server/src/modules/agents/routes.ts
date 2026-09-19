@@ -56,16 +56,30 @@ const UpdateAgentBody = z.object({
   enabled: z.boolean().optional(),
 });
 
-/** Either set the whole ordered set (`skill_ids`) or link one (`skill_id`). */
+/**
+ * Three forms: `links` (ordered, per-skill `enabled`), `skill_ids` (ordered ids,
+ * all enabled) or `skill_id` (link one). `links` wins over `skill_ids`.
+ */
 const SetSkillsBody = z
   .object({
+    links: z
+      .array(
+        z.object({
+          skill_id: z.string().uuid(),
+          order: z.number().int().optional(),
+          enabled: z.boolean().optional(),
+        }),
+      )
+      .optional(),
     skill_ids: z.array(z.string().uuid()).optional(),
     skill_id: z.string().uuid().optional(),
     order: z.number().int().optional(),
+    enabled: z.boolean().optional(),
   })
-  .refine((b) => b.skill_ids !== undefined || b.skill_id !== undefined, {
-    message: 'Provide skill_ids (set/reorder) or skill_id (link one)',
-  });
+  .refine(
+    (b) => b.links !== undefined || b.skill_ids !== undefined || b.skill_id !== undefined,
+    { message: 'Provide links, skill_ids (set/reorder) or skill_id (link one)' },
+  );
 
 export default async function agentsRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
@@ -155,10 +169,18 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
       const body = req.body;
+      const requested =
+        body.links ?? body.skill_ids?.map((skill_id) => ({ skill_id }));
       const links =
-        body.skill_ids !== undefined
-          ? await service.setSkills(workspaceId, req.params.id, body.skill_ids)
-          : await service.linkSkill(workspaceId, req.params.id, body.skill_id!, body.order);
+        requested !== undefined
+          ? await service.setSkills(workspaceId, req.params.id, requested)
+          : await service.linkSkill(
+              workspaceId,
+              req.params.id,
+              body.skill_id!,
+              body.order,
+              body.enabled,
+            );
       if (!links) throw new NotFoundError('Agent not found');
       return links;
     },
