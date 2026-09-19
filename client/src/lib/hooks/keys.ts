@@ -18,6 +18,12 @@ export const queryKeys = {
   agents: () => ["agents"] as const,
   agent: (id: string | null | undefined) => ["agent", id] as const,
 
+  skills: () => ["skills"] as const,
+  skill: (id: string | null | undefined) => ["skill", id] as const,
+  skillVersions: (id: string | null | undefined) => ["skill-versions", id] as const,
+  skillStats: (id: string | null | undefined) => ["skill-stats", id] as const,
+  agentSkills: (agentId: string | null | undefined) => ["agent-skills", agentId] as const,
+
   reviews: (prId: string | null | undefined) => ["reviews", prId] as const,
   prRuns: (prId: string | null | undefined) => ["pr-runs", prId] as const,
   prActiveRuns: (prId: string | null | undefined) => ["pr-active-runs", prId] as const,

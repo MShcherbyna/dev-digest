@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
+import userEvent from "@/test/user";
 import { NextIntlClientProvider } from "next-intl";
 import type { Agent } from "@devdigest/shared";
 import messages from "../../../../../../messages/en/agents.json";
@@ -44,5 +45,12 @@ describe("A2 Agent Editor (smoke)", () => {
     expect(screen.getByText("Config")).toBeInTheDocument();
     expect(screen.getByText("Configuration")).toBeInTheDocument();
     expect(screen.getByText("Save agent")).toBeInTheDocument();
+  });
+
+  it("offers a Skills tab and reports tab changes", async () => {
+    const onTab = vi.fn();
+    renderWithIntl(<AgentEditor agent={AGENT} tab="config" onTab={onTab} />);
+    await userEvent.click(screen.getByRole("button", { name: "Skills" }));
+    expect(onTab).toHaveBeenCalledWith("skills");
   });
 });
