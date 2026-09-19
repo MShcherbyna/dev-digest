@@ -8,7 +8,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Toggle, Chip, EmptyState, SEV } from "@devdigest/ui";
 import type { FindingRecord } from "@devdigest/shared";
 import { FindingCard } from "../FindingCard";
-import { useFindingAction } from "../../../../../../../lib/hooks/reviews";
+import { useFindingAction } from "@/lib/hooks/reviews";
 import { KEY_TO_ACTION, FILTERABLE_SEVERITIES } from "./constants";
 import { visibleFindings, severityCounts } from "./helpers";
 import { s } from "./styles";

@@ -39,6 +39,14 @@ read by the `engineering-insights` skill.
 
 ## Tool & Library Notes
 
+- **2026-09-19** — ESLint (flat config, `eslint.config.mjs`, `pnpm lint`) was
+  added; before that `client/` had none, yet the code carried
+  `eslint-disable react-hooks/exhaustive-deps` comments. `pnpm add` of
+  `eslint-config-next` exits non-zero with `ERR_PNPM_IGNORED_BUILDS`
+  (`unrs-resolver`) but the install itself succeeded and lint works — don't
+  chase it. Never run `next build` in `client/` while `pnpm dev` is up (both
+  use `.next`); build a `rsync`ed copy with `node_modules` symlinked instead.
+
 ## Recurring Errors & Fixes
 
 - **2026-09-18** — Loading a `/repos/:repoId/pulls...` URL directly (full
@@ -48,6 +56,13 @@ read by the `engineering-insights` skill.
   sidebar) first and let the app's own client-side redirect restore
   selection, then navigate — relevant whenever browser-testing this app by
   deep-linking rather than clicking through.
+  **Note 2026-09-19 (not reproduced as a persistent bug):** `repo-context.tsx`
+  takes `repoId` from the URL path, and `useRepoNotFound` stays `false` until
+  `/repos` has loaded. The text "No repo selected" also appears as the
+  *placeholder* in the vendored `ui/shell/RepoSwitcher.tsx` whenever `active`
+  is null — i.e. in the SSR HTML and until the repos query resolves — and the
+  `RepoNotFound` empty state uses the same title. Likely that transient
+  placeholder, not lost selection. Not confirmed in a real browser.
 
 ## Session Notes
 

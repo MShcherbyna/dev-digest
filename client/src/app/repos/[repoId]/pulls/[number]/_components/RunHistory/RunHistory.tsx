@@ -5,8 +5,8 @@ import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
 import type { RunSummary, PrCommit, ReviewRecord } from "@devdigest/shared";
 import { formatCost } from "@/lib/format";
-import { SeverityFindingsBreakdown } from "../../../_components/SeverityFindingsBreakdown";
-import { countBySeverity } from "../../../_components/SeverityFindingsBreakdown/helpers";
+import { SeverityFindingsBreakdown } from "@/app/repos/[repoId]/pulls/_components/SeverityFindingsBreakdown";
+import { countBySeverity } from "@/app/repos/[repoId]/pulls/_components/SeverityFindingsBreakdown/helpers";
 
 /**
  * PR timeline — every agent run interleaved with the PR's commits, newest-first

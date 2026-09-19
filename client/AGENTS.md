@@ -38,4 +38,4 @@ repo-wide picture first.
 
 ## Commands
 
-`pnpm dev` · `pnpm build` · `pnpm start` · `pnpm test` · `pnpm typecheck`
+`pnpm dev` · `pnpm build` · `pnpm start` · `pnpm test` · `pnpm typecheck` · `pnpm lint`
