@@ -113,8 +113,10 @@ while IFS= read -r f; do
   esac
   case "$f" in *.test.*) continue ;; esac
   base="${f%.*}"
-  ls "$base".test.* "$base".it.test.* >/dev/null 2>&1 && continue
-  ls "$(dirname "$f")"/*.test.* "$(dirname "$f")"/*.it.test.* >/dev/null 2>&1 && continue
+  # compgen -G: `ls a* b*` exits non-zero when EITHER glob is empty, so it never matched.
+  compgen -G "$base.test.*" >/dev/null && continue
+  compgen -G "$base.it.test.*" >/dev/null && continue
+  compgen -G "$(dirname "$f")/*.test.*" >/dev/null && continue
   add major det/no-test "$f" 1 "Changed source file has no co-located test."
 done <<< "$CHANGED"
 
