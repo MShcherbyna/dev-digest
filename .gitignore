@@ -23,3 +23,7 @@ test-results/
 
 # emdash worktree config (local)
 .emdash.json
+
+# pr-self-review runtime output (waivers.json is committed)
+.claude/pr-self-review/last-report.json
+.claude/pr-self-review/skips.log
