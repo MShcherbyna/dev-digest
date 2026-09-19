@@ -91,7 +91,18 @@
     "title": "Skills",
     "enabledCount": "{linked} of {total} enabled",
     "filterPlaceholder": "Filter skills…",
-    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Toggle to attach."
+    "orderHint": "Order matters — earlier skills appear earlier in the assembled prompt. Toggle to attach.",
+    "loadError": "Could not load skills.",
+    "empty": "No skills yet. Create one in the Skills Lab.",
+    "noMatch": "No skills match your filter.",
+    "dragHandle": "Drag to reorder {name}",
+    "enableFor": "Enable {name} for this agent",
+    "globallyOff": "off globally",
+    "save": "Save skills",
+    "saving": "Saving…",
+    "savedToast": "Agent skills saved",
+    "unsaved": "unsaved changes",
+    "reset": "Reset"
   },
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."

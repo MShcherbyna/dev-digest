@@ -47,6 +47,16 @@ read by the `engineering-insights` skill.
   chase it. Never run `next build` in `client/` while `pnpm dev` is up (both
   use `.next`); build a `rsync`ed copy with `node_modules` symlinked instead.
 
+- **2026-09-20** — `@testing-library/user-event` is NOT a client dependency
+  (only `@testing-library/react` + `jest-dom`), and lockfiles are do-not-touch,
+  so component tests use the `fireEvent`-based shim `src/test/user.ts`
+  (`click`/`type`/`clear`/`upload`; `type` appends in one change event) and
+  `src/test/render-intl.tsx` (`skills` + `agents` messages + ToastProvider).
+  In a fresh git worktree there is no `node_modules`: symlink the main
+  checkout's, run `npx tsc --noEmit` / `npx vitest run` / `npx eslint src`
+  directly (`pnpm <script>` re-runs install and fails on ignored builds, and
+  drops a stray `pnpm-workspace.yaml` you must not commit).
+
 ## Recurring Errors & Fixes
 
 - **2026-09-18** — Loading a `/repos/:repoId/pulls...` URL directly (full
