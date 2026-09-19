@@ -38,6 +38,14 @@ read by the `engineering-insights` skill.
   decoupled from the score/latest-review query. `server/src/modules/pulls/
   routes.ts:133-150`.
 
+- **2026-09-20** — `assemblePrompt` unit tests for the reviewer-core prompt
+  live in `server/test/prompt-*.test.ts` as well as `reviewer-core/test/`, and
+  the server one imports the engine source through the path alias. Changing a
+  `PromptParts` slot's type (e.g. `skills: string[]` → `{name, body,
+  trusted}[]`) passes reviewer-core's own suite but breaks the server ones at
+  runtime (`wrapUntrusted` got `undefined`). Grep before changing a slot:
+  `grep -rn "assemblePrompt\|skills:" server/test reviewer-core/test`.
+
 ## Tool & Library Notes
 
 ## Recurring Errors & Fixes

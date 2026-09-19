@@ -63,6 +63,12 @@ buttons") still failing, which was the more consequential gap of the two.
   identically, and nothing catches it if you forget one. Diff both copies
   before trusting either: `diff server/src/vendor/shared/contracts/
   trace.ts client/src/vendor/shared/contracts/trace.ts`.
+  **Refined 2026-09-20:** the copies had ALREADY drifted before the Skills
+  work — the client `contracts/knowledge.ts` lacks `AgentVersionConfig`/
+  `AgentVersion` and has older comments, and `adapters.ts`, `eval-ci.ts`,
+  `productionize.ts`, `trace.ts` differ too. Don't overwrite one copy with the
+  other; splice only the block you own into both (`diff -rq server/src/vendor/
+  shared client/src/vendor/shared` lists every diverged file).
 
 ## Tool & Library Notes
 
