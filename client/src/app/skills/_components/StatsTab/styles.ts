@@ -16,10 +16,4 @@ export const s = {
   empty: { fontSize: 13, color: "var(--text-muted)" } satisfies CSSProperties,
   agentList: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 } satisfies CSSProperties,
   agentLink: { color: "var(--accent-text)", fontSize: 14, textDecoration: "none" } satisfies CSSProperties,
-  donutRow: { display: "flex", alignItems: "center", gap: 24 } satisfies CSSProperties,
-  legend: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 } satisfies CSSProperties,
-  legendRow: { display: "flex", alignItems: "center", gap: 10, fontSize: 13 } satisfies CSSProperties,
-  legendLabel: { color: "var(--text-secondary)", minWidth: 90 } satisfies CSSProperties,
-  legendValue: { fontWeight: 600 } satisfies CSSProperties,
-  swatch: (color: string): CSSProperties => ({ width: 9, height: 9, borderRadius: 2, background: color }),
 } as const;

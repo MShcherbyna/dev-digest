@@ -107,15 +107,41 @@
   },
   "stats": {
     "loadError": "Could not load stats.",
-    "runs": "Runs (30d)",
+    "runs": "Total runs (30d)",
+    "avgCost": "Avg cost / run",
+    "avgDuration": "Avg duration",
     "accept": "Accept rate",
-    "avgCost": "Avg cost",
-    "findings": "Findings (30d)",
-    "skillsTitle": "Skills used by this agent",
-    "noSkills": "No skills attached to this agent.",
+    "costUp": "Average cost rose by {amount} vs the previous 30 days",
+    "costDown": "Average cost fell by {amount} vs the previous 30 days",
+    "skillsTitle": "Most-used skills",
+    "noSkills": "No skills linked yet",
     "skillDisabled": "disabled",
+    "memoryTitle": "Most-pulled memory",
+    "noMemory": "No memory pulled yet",
+    "severityTitle": "Findings by severity",
+    "severity": {
+      "CRITICAL": "Critical",
+      "WARNING": "Warning",
+      "SUGGESTION": "Suggestion"
+    },
     "categoriesTitle": "Findings by category",
-    "noCategories": "No findings yet."
+    "noCategories": "No findings yet.",
+    "historyTitle": "Run history",
+    "noRuns": "No runs yet",
+    "columns": {
+      "timestamp": "Timestamp",
+      "pr": "PR",
+      "tokens": "Tokens",
+      "cost": "Cost",
+      "findings": "Findings",
+      "source": "Source",
+      "actions": "Actions"
+    },
+    "source": {
+      "local": "local",
+      "ci": "CI"
+    },
+    "viewTrace": "View trace"
   },
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."

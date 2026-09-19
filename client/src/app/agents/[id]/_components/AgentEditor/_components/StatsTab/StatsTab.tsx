@@ -1,31 +1,19 @@
-/* StatsTab — 30-day usage tiles, skills used by the agent, findings-by-category
-   donut. Nulls render as "—"; nothing is fabricated when there is no data. */
+/* StatsTab — 30-day agent usage: headline tiles, most-used skills / pulled
+   memory, severity + category findings, and run history. Nulls render as "—";
+   nothing is fabricated when there is no data. */
 "use client";
 
 import React from "react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { PieChart, Pie, Cell } from "recharts";
-import { Badge, CircularScore, ErrorState, SectionLabel, Skeleton } from "@devdigest/ui";
+import { Card, ErrorState, SectionLabel, Skeleton } from "@devdigest/ui";
 import { useAgentStats } from "@/lib/hooks/agents";
-import { categoryColor, DONUT_SIZE, DONUT_STROKE } from "@/lib/chart-colors";
-import { formatPct } from "@/lib/skill-format";
-import { formatCost } from "./helpers";
+import { CategoryDonut } from "@/components/category-donut";
+import { MEMORY_BAR_COLOR, SKILL_BAR_COLOR } from "@/lib/chart-colors";
+import { StatTiles } from "./_components/StatTiles";
+import { UsageBars } from "./_components/UsageBars";
+import { SeverityWeeklyChart } from "./_components/SeverityWeeklyChart";
+import { RunHistoryTable } from "./_components/RunHistoryTable";
 import { s } from "./styles";
-
-function Tile({ label, value, ring }: { label: string; value: string; ring?: number | null }) {
-  return (
-    <div style={s.tile}>
-      <div style={s.tileLabel}>{label}</div>
-      <div style={s.tileValueRow}>
-        <span className="tnum" style={s.tileValue}>
-          {value}
-        </span>
-        {ring != null && <CircularScore score={ring} size={36} />}
-      </div>
-    </div>
-  );
-}
 
 export function StatsTab({ agentId }: { agentId: string }) {
   const t = useTranslations("agents");
@@ -34,74 +22,57 @@ export function StatsTab({ agentId }: { agentId: string }) {
   if (isLoading) return <Skeleton height={160} />;
   if (isError || !data) return <ErrorState body={t("stats.loadError")} onRetry={() => refetch()} />;
 
-  const segments = data.by_category.filter((c) => c.count > 0);
+  const skillRows = data.skill_usage.map((sk) => ({
+    key: sk.id,
+    label: sk.name,
+    pct: sk.pct,
+    dim: !sk.enabled,
+    hint: sk.enabled ? sk.name : `${sk.name} (${t("stats.skillDisabled")})`,
+  }));
+  const memoryRows = data.memory_usage.map((m) => ({ key: m.label, label: m.label, pct: m.pct }));
+  const categories = data.by_category.filter((c) => c.count > 0);
 
   return (
     <div style={s.wrap}>
-      <div style={s.tiles}>
-        <Tile label={t("stats.runs")} value={String(data.runs_30d)} />
-        <Tile label={t("stats.accept")} value={formatPct(data.accept_pct)} ring={data.accept_pct} />
-        <Tile label={t("stats.avgCost")} value={formatCost(data.avg_cost_usd)} />
-        <Tile label={t("stats.findings")} value={String(data.findings_30d)} />
+      <StatTiles
+        runs_30d={data.runs_30d}
+        runs_trend={data.runs_trend}
+        avg_cost_usd={data.avg_cost_usd}
+        cost_delta_usd={data.cost_delta_usd}
+        avg_duration_ms={data.avg_duration_ms}
+        accept_pct={data.accept_pct}
+      />
+
+      <div style={s.pair}>
+        <Card>
+          <SectionLabel icon="Sparkles">{t("stats.skillsTitle")}</SectionLabel>
+          <UsageBars rows={skillRows} color={SKILL_BAR_COLOR} mono emptyLabel={t("stats.noSkills")} />
+        </Card>
+        <Card>
+          <SectionLabel icon="Database">{t("stats.memoryTitle")}</SectionLabel>
+          <UsageBars rows={memoryRows} color={MEMORY_BAR_COLOR} emptyLabel={t("stats.noMemory")} />
+        </Card>
       </div>
 
-      <section>
-        <SectionLabel>{t("stats.skillsTitle")}</SectionLabel>
-        {data.skills.length === 0 ? (
-          <div style={s.empty}>{t("stats.noSkills")}</div>
-        ) : (
-          <ul style={s.skillList}>
-            {data.skills.map((sk) => (
-              <li key={sk.id} style={s.skillRow}>
-                <Link href={`/skills/${sk.id}`} className="mono" style={s.skillLink}>
-                  {sk.name}
-                </Link>
-                {!sk.enabled && <Badge color="var(--text-muted)">{t("stats.skillDisabled")}</Badge>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div style={s.pair}>
+        <Card>
+          <SectionLabel icon="AlertTriangle">{t("stats.severityTitle")}</SectionLabel>
+          <SeverityWeeklyChart weeks={data.severity_weekly} />
+        </Card>
+        <Card>
+          <SectionLabel icon="Layers">{t("stats.categoriesTitle")}</SectionLabel>
+          {categories.length === 0 ? (
+            <div style={s.empty}>{t("stats.noCategories")}</div>
+          ) : (
+            <CategoryDonut categories={categories} />
+          )}
+        </Card>
+      </div>
 
-      <section>
-        <SectionLabel>{t("stats.categoriesTitle")}</SectionLabel>
-        {segments.length === 0 ? (
-          <div style={s.empty}>{t("stats.noCategories")}</div>
-        ) : (
-          <div style={s.donutRow}>
-            <PieChart width={DONUT_SIZE} height={DONUT_SIZE}>
-              <Pie
-                data={segments}
-                dataKey="count"
-                nameKey="category"
-                cx="50%"
-                cy="50%"
-                innerRadius={(DONUT_SIZE - DONUT_STROKE) / 2 - DONUT_STROKE / 2}
-                outerRadius={(DONUT_SIZE - DONUT_STROKE) / 2 + DONUT_STROKE / 2}
-                startAngle={90}
-                endAngle={-270}
-                isAnimationActive={false}
-                stroke="none"
-              >
-                {segments.map((c, i) => (
-                  <Cell key={c.category} fill={categoryColor(i)} />
-                ))}
-              </Pie>
-            </PieChart>
-            <ul style={s.legend}>
-              {segments.map((c, i) => (
-                <li key={c.category} style={s.legendRow}>
-                  <span style={s.swatch(categoryColor(i))} />
-                  <span style={s.legendLabel}>{c.category}</span>
-                  <span className="mono tnum" style={s.legendValue}>
-                    {c.count}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </section>
+      <Card>
+        <SectionLabel icon="History">{t("stats.historyTitle")}</SectionLabel>
+        <RunHistoryTable runs={data.recent_runs} />
+      </Card>
     </div>
   );
 }
