@@ -8,9 +8,11 @@ import type {
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
+import type { AgentStats } from '@devdigest/shared/contracts/knowledge.js';
 import { NotFoundError } from '../../platform/errors.js';
 import { AgentsRepository } from './repository.js';
-import { toAgentDto, toAgentVersionDto } from './helpers.js';
+import { STATS_WINDOW_DAYS } from './constants.js';
+import { buildAgentStats, toAgentDto, toAgentVersionDto } from './helpers.js';
 
 /**
  * A2 — agents service. Business logic for the Agents tab + Agent Editor.
@@ -141,6 +143,20 @@ export class AgentsService {
     if (!agent) return undefined;
     const row = await this.repo.getVersion(agentId, version);
     return row ? toAgentVersionDto(row) : undefined;
+  }
+
+  /**
+   * Last-30-day usage for the Stats tab. Throws NotFoundError when the agent
+   * isn't in this workspace (so stats can't be read across tenants).
+   */
+  async stats(workspaceId: string, agentId: string): Promise<AgentStats> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) throw new NotFoundError('Agent not found');
+    const since = new Date(Date.now() - STATS_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const runs = await this.repo.recentDoneRuns(workspaceId, agentId, since);
+    const findings = await this.repo.findingsForRuns(runs.map((r) => r.runId));
+    const links = await this.repo.linkedSkills(agentId);
+    return buildAgentStats(runs, findings, links);
   }
 
   /** Linked skills for an agent as AgentSkillLink[] (ordered). */

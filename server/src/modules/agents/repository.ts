@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import type { CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
@@ -54,6 +54,18 @@ export interface SkillLinkInput {
   skillId: string;
   order?: number;
   enabled?: boolean;
+}
+
+/** A successful run of an agent with its (nullable) cost, for the Stats tab. */
+export interface AgentRunStatRow {
+  runId: string;
+  costUsd: number | null;
+}
+
+/** A finding produced by one of those runs (via reviews.run_id). */
+export interface AgentFindingStatRow {
+  category: string;
+  accepted: boolean;
 }
 
 export class AgentsRepository {
@@ -267,5 +279,39 @@ export class AgentsRepository {
         })),
       );
     });
+  }
+
+  // ---- usage (stats) ------------------------------------------------------
+
+  /** Successful (`done`) runs of one agent since `since`, workspace-scoped. */
+  async recentDoneRuns(
+    workspaceId: string,
+    agentId: string,
+    since: Date,
+  ): Promise<AgentRunStatRow[]> {
+    return this.db
+      .select({ runId: t.agentRuns.id, costUsd: t.agentRuns.costUsd })
+      .from(t.agentRuns)
+      .where(
+        and(
+          eq(t.agentRuns.workspaceId, workspaceId),
+          eq(t.agentRuns.agentId, agentId),
+          eq(t.agentRuns.status, 'done'),
+          gte(t.agentRuns.ranAt, since),
+        ),
+      );
+  }
+
+  /** Findings (kind='finding') produced by the given runs (via reviews.run_id). */
+  async findingsForRuns(runIds: string[]): Promise<AgentFindingStatRow[]> {
+    if (runIds.length === 0) return [];
+    return this.db
+      .select({
+        category: t.findings.category,
+        accepted: sql<boolean>`${t.findings.acceptedAt} is not null`,
+      })
+      .from(t.findings)
+      .innerJoin(t.reviews, eq(t.findings.reviewId, t.reviews.id))
+      .where(and(inArray(t.reviews.runId, runIds), eq(t.findings.kind, 'finding')));
   }
 }
