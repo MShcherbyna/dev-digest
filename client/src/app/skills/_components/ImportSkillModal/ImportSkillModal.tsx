@@ -77,75 +77,77 @@ export function ImportSkillModal({ onClose, onImported }: { onClose: () => void;
       subtitle={t("import.subtitle")}
       onClose={onClose}
       footer={
-        <>
+        <div style={s.footer}>
           <Button kind="ghost" onClick={onClose} disabled={create.isPending}>
             {t("import.cancel")}
           </Button>
           <Button kind="primary" icon="Check" onClick={confirm} disabled={!canConfirm}>
             {create.isPending ? t("import.saving") : t("import.confirm")}
           </Button>
-        </>
+        </div>
       }
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept={ACCEPT_ATTR}
-        data-testid="skill-file-input"
-        style={s.hiddenInput}
-        onChange={(e) => {
-          void onFile(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
-      <Button
-        kind="secondary"
-        icon="Upload"
-        loading={reading}
-        onClick={() => inputRef.current?.click()}
-      >
-        {reading ? t("import.reading") : form ? t("import.pickAnother") : t("import.pick")}
-      </Button>
-      {readError && (
-        <div role="alert" style={s.error}>
-          {readError}
-        </div>
-      )}
-
-      {form && (
-        <div style={s.preview}>
-          <div role="note" style={s.trust}>
-            {t("import.trustWarning")}
+      <div style={s.body}>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={ACCEPT_ATTR}
+          data-testid="skill-file-input"
+          style={s.hiddenInput}
+          onChange={(e) => {
+            void onFile(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <Button
+          kind="secondary"
+          icon="Upload"
+          loading={reading}
+          onClick={() => inputRef.current?.click()}
+        >
+          {reading ? t("import.reading") : form ? t("import.pickAnother") : t("import.pick")}
+        </Button>
+        {readError && (
+          <div role="alert" style={s.error}>
+            {readError}
           </div>
-          {warnings.length > 0 && (
-            <div style={s.warnings}>
-              <strong>{t("import.warningsTitle")}</strong>
-              <ul style={s.warningList}>
-                {warnings.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
+        )}
+
+        {form && (
+          <div style={s.preview}>
+            <div role="note" style={s.trust}>
+              {t("import.trustWarning")}
             </div>
-          )}
-          <FormField label={t("import.name")} required>
-            <TextInput value={form.name} onChange={(v) => patch({ name: v })} />
-          </FormField>
-          <FormField label={t("import.description")}>
-            <TextInput value={form.description} onChange={(v) => patch({ description: v })} />
-          </FormField>
-          <FormField label={t("import.type")}>
-            <SelectInput value={form.type} onChange={(v) => patch({ type: v as SkillType })} options={typeOptions} />
-          </FormField>
-          <FormField label={t("import.body")} required>
-            <SkillBodyEditor
-              value={form.body}
-              savedValue={form.body}
-              name={form.name}
-              onChange={(v) => patch({ body: v, tokens: estimateTokens(v) })}
-            />
-          </FormField>
-        </div>
-      )}
+            {warnings.length > 0 && (
+              <div style={s.warnings}>
+                <strong>{t("import.warningsTitle")}</strong>
+                <ul style={s.warningList}>
+                  {warnings.map((w) => (
+                    <li key={w}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <FormField label={t("import.name")} required>
+              <TextInput value={form.name} onChange={(v) => patch({ name: v })} />
+            </FormField>
+            <FormField label={t("import.description")}>
+              <TextInput value={form.description} onChange={(v) => patch({ description: v })} />
+            </FormField>
+            <FormField label={t("import.type")}>
+              <SelectInput value={form.type} onChange={(v) => patch({ type: v as SkillType })} options={typeOptions} />
+            </FormField>
+            <FormField label={t("import.body")} required>
+              <SkillBodyEditor
+                value={form.body}
+                savedValue={form.body}
+                name={form.name}
+                onChange={(v) => patch({ body: v, tokens: estimateTokens(v) })}
+              />
+            </FormField>
+          </div>
+        )}
+      </div>
     </Modal>
   );
 }

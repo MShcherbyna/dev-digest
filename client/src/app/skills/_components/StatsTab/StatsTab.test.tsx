@@ -27,10 +27,13 @@ describe("StatsTab", () => {
       isError: false,
     });
     renderWithIntl(<StatsTab skillId="sk1" />);
-    expect(screen.getByText("80%")).toBeInTheDocument();
-    expect(screen.getAllByText("55%").length).toBeGreaterThan(0);
+    expect(screen.getByText("80")).toBeInTheDocument();
+    expect(screen.getAllByText("55").length).toBeGreaterThan(0);
     expect(screen.getByText("12")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Security Reviewer" })).toHaveAttribute("href", "/agents/ag1");
+    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("agents")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Security Reviewer/ })).toHaveAttribute("href", "/agents/ag1");
+    expect(screen.getByText("Open")).toBeInTheDocument();
     expect(screen.getByText("bug")).toBeInTheDocument();
   });
 

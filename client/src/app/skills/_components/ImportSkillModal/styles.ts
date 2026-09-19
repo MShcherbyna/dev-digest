@@ -2,6 +2,8 @@ import type { CSSProperties } from "react";
 
 /** Co-located styles for ImportSkillModal. */
 export const s = {
+  body: { padding: 24 } satisfies CSSProperties,
+  footer: { display: "flex", gap: 10, justifyContent: "flex-end" } satisfies CSSProperties,
   hiddenInput: { display: "none" } satisfies CSSProperties,
   error: { marginTop: 12, fontSize: 13, color: "var(--crit)" } satisfies CSSProperties,
   preview: { marginTop: 20 } satisfies CSSProperties,

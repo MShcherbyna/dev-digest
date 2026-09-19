@@ -114,7 +114,9 @@
     "agentsTitle": "Agents using this skill",
     "noAgents": "No agent uses this skill yet.",
     "categoriesTitle": "Findings by category",
-    "noCategories": "No findings yet."
+    "noCategories": "No findings yet.",
+    "agentsUnit": "{count, plural, one {agent} other {agents}}",
+    "open": "Open"
   },
   "versions": {
     "loadError": "Could not load versions.",
