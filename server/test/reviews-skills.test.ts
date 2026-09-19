@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { selectPromptSkills } from '../src/modules/reviews/helpers.js';
+import { selectPromptSkills, skillsLogLine } from '../src/modules/reviews/helpers.js';
 import type { LinkedSkillRow } from '../src/modules/agents/repository.js';
 
 function link(
@@ -47,5 +47,17 @@ describe('selectPromptSkills', () => {
 
   it('returns [] when nothing applies', () => {
     expect(selectPromptSkills([])).toEqual([]);
+  });
+});
+
+describe('skillsLogLine', () => {
+  it('reports the count of attached skills', () => {
+    expect(skillsLogLine([{ name: 'a' }, { name: 'b' }, { name: 'c' }])).toBe(
+      'skills: 3 enabled skill(s) attached',
+    );
+  });
+
+  it('logs nothing when no skill applies', () => {
+    expect(skillsLogLine([])).toBeUndefined();
   });
 });

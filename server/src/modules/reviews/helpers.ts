@@ -105,3 +105,8 @@ export function selectPromptSkills(
     .sort((a, b) => a.order - b.order)
     .map((l) => ({ name: l.skill.name, body: l.skill.body, trusted: l.skill.source === 'manual' }));
 }
+
+/** Live-log line for the skills attached to a run; undefined when none apply. */
+export function skillsLogLine(skills: { name: string }[]): string | undefined {
+  return skills.length > 0 ? `skills: ${skills.length} enabled skill(s) attached` : undefined;
+}

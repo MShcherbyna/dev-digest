@@ -6,7 +6,7 @@ import * as schema from '../../db/schema.js';
 import type { AgentRow } from '../../db/rows.js';
 import type { ReviewRepository, FindingRow, PullRow, ReviewRow } from './repository.js';
 import { REVIEW_STRATEGY } from './constants.js';
-import { taskLine, selectPromptSkills } from './helpers.js';
+import { taskLine, selectPromptSkills, skillsLogLine } from './helpers.js';
 import { loadDiff } from './diff-loader.js';
 
 /** Thrown by a run when the user cancels it mid-flight (between map files). */
@@ -187,7 +187,8 @@ export class ReviewRunExecutor {
       // Linked skills: globally enabled AND enabled on this agent's link, in
       // link order. Omitted entirely (no section) when none apply.
       const skills = selectPromptSkills(await this.agents.linkedSkills(agent.id));
-      if (skills.length > 0) runLog.info(`Including ${skills.length} skill(s): ${skills.map((s) => s.name).join(', ')}`);
+      const skillsLine = skillsLogLine(skills);
+      if (skillsLine) runLog.info(skillsLine, { skills: skills.map((s) => s.name) });
 
       // ---- Engine: assemble → single-pass → grounding -----------------------
       // The pure review pipeline lives in @devdigest/reviewer-core (shared with
