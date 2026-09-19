@@ -58,7 +58,7 @@ If something non-obvious did happen, rank candidates — highest signal first:
    default was wrong; this is the strongest signal there is.
 2. **An approach that was tried and abandoned**, and why.
 3. **Friction hit more than once** — the same error or workaround twice.
-4. **A convention only visible by reading code** — not in `CLAUDE.md` or
+4. **A convention only visible by reading code** — not in `AGENTS.md` or
    `README.md`.
 5. **A dependency or toolchain quirk.**
 
