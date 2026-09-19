@@ -255,13 +255,44 @@ export const AgentSkillLink = z.object({
 export type AgentSkillLink = z.infer<typeof AgentSkillLink>;
 
 // Agent usage over the last 30 days (Stats tab). Nulls mean "no data" — never
-// fabricated. `skills` are the agent's linked skills (enabled = link AND global).
+// fabricated. `skill_usage.enabled` = link AND global switch; `pct` = share of the
+// window's done runs that included the skill / pulled the memory item.
 export const AgentUsageStats = z.object({
   runs_30d: z.number().int(),
+  // Runs per day over the window, oldest → newest (sparkline).
+  runs_trend: z.array(z.number().int()),
   accept_pct: z.number().nullable(),
   avg_cost_usd: z.number().nullable(),
+  // avg cost minus the previous window's avg cost; null if either has no cost data.
+  cost_delta_usd: z.number().nullable(),
+  avg_duration_ms: z.number().nullable(),
   findings_30d: z.number().int(),
-  skills: z.array(z.object({ id: z.string(), name: z.string(), enabled: z.boolean() })),
+  skill_usage: z.array(
+    z.object({ id: z.string(), name: z.string(), enabled: z.boolean(), pct: z.number() }),
+  ),
+  memory_usage: z.array(z.object({ label: z.string(), pct: z.number() })),
+  // Last 6 weeks, w1 (oldest) … w6 (current).
+  severity_weekly: z.array(
+    z.object({
+      week: z.string(),
+      CRITICAL: z.number().int(),
+      WARNING: z.number().int(),
+      SUGGESTION: z.number().int(),
+    }),
+  ),
   by_category: z.array(z.object({ category: z.string(), count: z.number().int() })),
+  // Newest first, at most 20.
+  recent_runs: z.array(
+    z.object({
+      run_id: z.string(),
+      ran_at: z.string(),
+      pr_number: z.number().int().nullable(),
+      repo_id: z.string().nullable(),
+      tokens: z.number().int().nullable(),
+      cost_usd: z.number().nullable(),
+      findings: z.number().int(),
+      source: z.enum(['local', 'ci']),
+    }),
+  ),
 });
 export type AgentUsageStats = z.infer<typeof AgentUsageStats>;
