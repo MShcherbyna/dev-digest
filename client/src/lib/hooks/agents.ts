@@ -4,7 +4,7 @@
 import { queryKeys } from "./keys";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
-import type { Agent, ModelInfo, Provider, ReviewStrategy } from "@devdigest/shared";
+import type { Agent, AgentUsageStats, ModelInfo, Provider, ReviewStrategy } from "@devdigest/shared";
 
 export function useAgents() {
   return useQuery({
@@ -17,6 +17,15 @@ export function useAgent(id: string | null | undefined) {
   return useQuery({
     queryKey: queryKeys.agent(id),
     queryFn: () => api.get<Agent>(`/agents/${id}`),
+    enabled: !!id,
+  });
+}
+
+/** Last-30-days usage for the agent editor's Stats tab. */
+export function useAgentStats(id: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.agentStats(id),
+    queryFn: () => api.get<AgentUsageStats>(`/agents/${id}/stats`),
     enabled: !!id,
   });
 }

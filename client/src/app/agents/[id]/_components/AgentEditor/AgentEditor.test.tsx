@@ -52,5 +52,14 @@ describe("A2 Agent Editor (smoke)", () => {
     renderWithIntl(<AgentEditor agent={AGENT} tab="config" onTab={onTab} />);
     await userEvent.click(screen.getByRole("button", { name: "Skills" }));
     expect(onTab).toHaveBeenCalledWith("skills");
+    await userEvent.click(screen.getByRole("button", { name: "Evals" }));
+    expect(onTab).toHaveBeenCalledWith("evals");
+    await userEvent.click(screen.getByRole("button", { name: "Stats" }));
+    expect(onTab).toHaveBeenCalledWith("stats");
+  });
+
+  it("renders the Evals placeholder", () => {
+    renderWithIntl(<AgentEditor agent={AGENT} tab="evals" onTab={() => {}} />);
+    expect(screen.getByText("Evals are coming soon")).toBeInTheDocument();
   });
 });

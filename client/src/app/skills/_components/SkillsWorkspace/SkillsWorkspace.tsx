@@ -1,11 +1,10 @@
-/* SkillsWorkspace — master-detail shell shared by /skills and /skills/[id]:
-   list column + (detail | "select a skill" prompt) + the import modal. */
+/* SkillsWorkspace — master-detail shell for /skills/[id] and /skills/new:
+   list column + skill detail + the import modal. (Bare /skills is SkillsListView.) */
 "use client";
 
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { EmptyState } from "@devdigest/ui";
 import { AppShell } from "@/components/app-shell";
 import { useSkills, useUpdateSkill } from "@/lib/hooks/skills";
 import { ImportSkillModal } from "../ImportSkillModal";
@@ -13,14 +12,14 @@ import { SkillDetail } from "../SkillDetail";
 import { SkillsList } from "../SkillsList";
 import { s } from "./styles";
 
-export function SkillsWorkspace({ id }: { id?: string }) {
+export function SkillsWorkspace({ id }: { id: string }) {
   const t = useTranslations("skills");
   const router = useRouter();
   const { data: skills, isLoading, isError, refetch } = useSkills();
   const update = useUpdateSkill();
   const [importing, setImporting] = React.useState(false);
 
-  const crumb = [{ label: t("page.crumbLab") }, { label: t("page.crumbSkills"), href: id ? "/skills" : undefined }];
+  const crumb = [{ label: t("page.crumbLab") }, { label: t("page.crumbSkills"), href: "/skills" }];
 
   return (
     <AppShell crumb={crumb}>
@@ -45,13 +44,7 @@ export function SkillsWorkspace({ id }: { id?: string }) {
           onCreate={() => router.push("/skills/new")}
           onImport={() => setImporting(true)}
         />
-        {id ? (
-          <SkillDetail key={id} id={id} />
-        ) : (
-          <div style={s.prompt}>
-            <EmptyState icon="Sparkles" title={t("page.selectPrompt.title")} body={t("page.selectPrompt.body")} />
-          </div>
-        )}
+        <SkillDetail key={id} id={id} />
       </div>
     </AppShell>
   );

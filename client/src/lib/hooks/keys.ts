@@ -17,6 +17,7 @@ export const queryKeys = {
 
   agents: () => ["agents"] as const,
   agent: (id: string | null | undefined) => ["agent", id] as const,
+  agentStats: (id: string | null | undefined) => ["agent-stats", id] as const,
 
   skills: () => ["skills"] as const,
   skill: (id: string | null | undefined) => ["skill", id] as const,
