@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "rule": "frontend/data-access-in-page",
+    "file": "client/src/app/repos/[repoId]/pulls/[number]/page.tsx",
+    "reason": "Pattern pre-dates the diff: the page already called qc.invalidateQueries with string keys; commit 3fe05aa only swapped the literals for the queryKeys factory. Reviewer also mis-cited checklist item 7 (no fetch or server-state copy here). Follow-up: move invalidation into a hook in lib/hooks/reviews.ts.",
+    "author": "Maksym Shcherbyna",
+    "expires": "2026-12-31"
+  }
+]
