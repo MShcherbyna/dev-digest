@@ -131,6 +131,66 @@ export const Skill = z.object({
 });
 export type Skill = z.infer<typeof Skill>;
 
+// List row: a skill plus its size and usage summary (Skills list footer).
+// pull_pct / accept_pct are null until the skill has been part of a run.
+export const SkillSummary = Skill.extend({
+  tokens: z.number().int(),
+  agents_count: z.number().int(),
+  pull_pct: z.number().nullable(),
+  accept_pct: z.number().nullable(),
+});
+export type SkillSummary = z.infer<typeof SkillSummary>;
+
+export const SkillCreate = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(1000).default(''),
+  type: SkillType,
+  body: z.string().min(1).max(100_000),
+  // 'imported_url' = came through the .md import preview flow.
+  source: z.enum(['manual', 'imported_url']).default('manual'),
+  enabled: z.boolean().default(true),
+});
+export type SkillCreate = z.infer<typeof SkillCreate>;
+
+export const SkillUpdate = SkillCreate.omit({ source: true }).partial();
+export type SkillUpdate = z.infer<typeof SkillUpdate>;
+
+export const SkillVersion = z.object({
+  skill_id: z.string(),
+  version: z.number().int(),
+  body: z.string(),
+  created_at: z.string(),
+});
+export type SkillVersion = z.infer<typeof SkillVersion>;
+
+export const SkillStats = z.object({
+  used_by: z.number().int(),
+  pull_pct: z.number().nullable(),
+  accept_pct: z.number().nullable(),
+  findings_30d: z.number().int(),
+  agents: z.array(z.object({ id: z.string(), name: z.string() })),
+  by_category: z.array(z.object({ category: z.string(), count: z.number().int() })),
+});
+export type SkillStats = z.infer<typeof SkillStats>;
+
+// Import is text-only: the client reads a .md file and sends its content; the
+// server parses front-matter and returns a preview. Nothing is persisted here.
+export const SkillImportPreviewBody = z.object({
+  filename: z.string().max(255),
+  content: z.string().min(1).max(100_000),
+});
+export type SkillImportPreviewBody = z.infer<typeof SkillImportPreviewBody>;
+
+export const SkillImportPreview = z.object({
+  name: z.string(),
+  description: z.string(),
+  type: SkillType,
+  body: z.string(),
+  tokens: z.number().int(),
+  warnings: z.array(z.string()),
+});
+export type SkillImportPreview = z.infer<typeof SkillImportPreview>;
+
 export const CommunitySkill = z.object({
   name: z.string(),
   repo: z.string(),
@@ -195,6 +255,8 @@ export const AgentSkillLink = z.object({
   agent_id: z.string(),
   skill_id: z.string(),
   order: z.number().int(),
+  // Per-agent switch; the skill's own `enabled` is the global master switch.
+  enabled: z.boolean().default(true),
 });
 export type AgentSkillLink = z.infer<typeof AgentSkillLink>;
 

@@ -12,6 +12,8 @@ repo-wide picture first.
 - Feature/requirement specs before building a module: read [specs/](specs/).
   - Run Cost Badge (persist + surface per-run `cost_usd`): read
     [specs/run-cost-badge.md](specs/run-cost-badge.md).
+  - Skills (reusable text-only prompt blocks bound to agents): read
+    [specs/skills.md](specs/skills.md).
 - Past gotchas and decisions from earlier sessions: read [INSIGHTS.md](INSIGHTS.md).
 
 ## Non-default conventions

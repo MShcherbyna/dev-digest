@@ -10,6 +10,8 @@ repo-wide picture first.
 - Feature/requirement specs before building a screen: read [specs/](specs/).
   - Run Cost Badge (PR list / timeline / trace sidebar cost display): read
     [specs/run-cost-badge.md](specs/run-cost-badge.md).
+  - Skills (reusable text-only prompt blocks bound to agents): read
+    [specs/skills.md](specs/skills.md).
 - Past gotchas and decisions from earlier sessions: read [INSIGHTS.md](INSIGHTS.md).
 - Vendored UI primitives: read [src/vendor/ui/README.md](src/vendor/ui/README.md).
 
