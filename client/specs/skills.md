@@ -3,7 +3,9 @@
 Server contract: [../../server/specs/skills.md](../../server/specs/skills.md).
 
 ## Routes
-`/skills` and `/skills/[id]` — master-detail in `AppShell` (crumb
+`/skills` — card grid like `/agents` (`SkillsListView` + `SkillCard`: search,
+`Add Skill ▾`, toggle, delete, click → `/skills/:id?tab=config`).
+`/skills/[id]` and `/skills/new` — master-detail in `AppShell` (crumb
 `Skills Lab › Skills`), same layout as `/agents/[id]`. `?tab=` holds the tab.
 Sidebar: `Skills` item (`g s`).
 
@@ -35,8 +37,10 @@ before confirm; only text is read.
 
 ## Agent editor → Skills tab
 `N of M enabled`, filter, rows = drag handle + checkbox + name + type badge;
-order = prompt order; native HTML5 drag-and-drop (no new dependency). Saves via
-`POST /agents/:id/skills`.
+order = prompt order; native HTML5 drag-and-drop (no new dependency). No Save
+button: every checkbox toggle and drop persists at once via
+`POST /agents/:id/skills` (optimistic, rolled back on error). The agent editor
+also has Evals (placeholder) and Stats (`GET /agents/:id/stats`) tabs.
 
 ## Structure & tests
 Hooks in `lib/hooks/skills.ts` (+ `keys.ts`); pages thin; components one per

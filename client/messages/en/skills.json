@@ -15,11 +15,21 @@
       "body": "A skill is a reusable block of instructions your agents can share. Create one or import a .md file.",
       "cta": "Create new"
     },
-    "noMatch": "No skills match your search.",
-    "selectPrompt": {
-      "title": "Select a skill",
-      "body": "Pick a skill on the left to view or edit it."
-    }
+    "noMatch": "No skills match your search."
+  },
+  "list": {
+    "title": "Skills",
+    "subtitle": "Reusable instruction blocks your agents share. Each skill is text added to an agent's prompt.",
+    "searchPlaceholder": "Search skills…",
+    "loadError": "Could not load skills.",
+    "emptyTitle": "No skills yet",
+    "emptyBody": "A skill is a reusable block of instructions your agents can share. Create one or import a .md file.",
+    "emptyCta": "Create your first skill",
+    "noMatch": "No skills match your search."
+  },
+  "card": {
+    "delete": "Delete skill",
+    "deleteConfirm": "Delete skill \"{name}\"? It will be unlinked from every agent. This cannot be undone."
   },
   "listItem": {
     "noDescription": "No description",

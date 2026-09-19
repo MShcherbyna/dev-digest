@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from "vitest";
-import { screen, cleanup, fireEvent, within } from "@testing-library/react";
+import { screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@/test/user";
 import type { Agent } from "@devdigest/shared";
 import { renderWithIntl } from "@/test/render-intl";
@@ -18,7 +18,7 @@ vi.mock("@/lib/hooks/skills", () => ({
     isError: false,
     refetch: vi.fn(),
   }),
-  useSetAgentSkills: () => ({ mutate: saveMutate, isPending: false }),
+  useSetAgentSkills: () => ({ mutateAsync: saveMutate, isPending: false }),
 }));
 
 import { SkillsTab } from "./SkillsTab";
@@ -26,21 +26,23 @@ import { buildRows, moveRow, toLinks } from "./helpers";
 
 const AGENT = { id: "ag1", name: "Security Reviewer" } as Agent;
 
-beforeEach(() => saveMutate.mockReset());
+beforeEach(() => saveMutate.mockReset().mockResolvedValue([]));
 afterEach(cleanup);
 
 const names = () => screen.getAllByRole("listitem").map((li) => li.textContent ?? "");
 
 describe("agent SkillsTab", () => {
-  it("shows N of M enabled, rows in link order then unlinked, and type badges", () => {
+  it("shows N of M enabled, rows in link order then unlinked, type badges and a global-off tooltip", () => {
     renderWithIntl(<SkillsTab agent={AGENT} />);
     expect(screen.getByText("1 of 3 enabled")).toBeInTheDocument();
+    expect(screen.getByText("Order matters", { exact: false })).toHaveTextContent("Drag to reorder.");
     const rows = names();
     expect(rows[0]).toContain("flaky-test-detector");
     expect(rows[1]).toContain("uncovered-branches");
     expect(rows[2]).toContain("edge-case-checklist");
     expect(screen.getByText("convention")).toBeInTheDocument();
-    expect(screen.getByText("off globally")).toBeInTheDocument(); // sk2 is globally disabled
+    expect(screen.getAllByRole("listitem")[0]).toHaveAttribute("title", expect.stringMatching(/disabled globally/i)); // sk2
+    expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
   });
 
   it("filters rows by name", async () => {
@@ -49,34 +51,37 @@ describe("agent SkillsTab", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
   });
 
-  it("checkbox toggles the per-agent enabled flag and Save posts links in order", async () => {
+  it("a checkbox toggle persists immediately, in order, and updates the count optimistically", async () => {
     renderWithIntl(<SkillsTab agent={AGENT} />);
-    expect(screen.getByRole("button", { name: "Save skills" })).toBeDisabled();
     await userEvent.click(screen.getByRole("checkbox", { name: "Enable edge-case-checklist for this agent" }));
+    expect(saveMutate).toHaveBeenCalledWith([
+      { skill_id: "sk2", order: 0, enabled: true },
+      { skill_id: "sk1", order: 1, enabled: false },
+      { skill_id: "sk3", order: 2, enabled: true },
+    ]);
     expect(screen.getByText("2 of 3 enabled")).toBeInTheDocument();
-    expect(screen.getByText("unsaved changes")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Save skills" }));
-    expect(saveMutate).toHaveBeenCalledWith(
-      [
-        { skill_id: "sk2", order: 0, enabled: true },
-        { skill_id: "sk1", order: 1, enabled: false },
-        { skill_id: "sk3", order: 2, enabled: true },
-      ],
-      expect.anything(),
-    );
   });
 
-  it("drag and drop reorders rows", () => {
+  it("rolls back the optimistic change when the save fails", async () => {
+    saveMutate.mockRejectedValueOnce(new Error("boom"));
+    renderWithIntl(<SkillsTab agent={AGENT} />);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Enable edge-case-checklist for this agent" }));
+    await waitFor(() => expect(screen.getByText("1 of 3 enabled")).toBeInTheDocument());
+  });
+
+  it("dropping a row reorders it and persists the new order", async () => {
     renderWithIntl(<SkillsTab agent={AGENT} />);
     const items = screen.getAllByRole("listitem");
     const dataTransfer = { setData: vi.fn(), effectAllowed: "" };
     fireEvent.dragStart(items[2]!, { dataTransfer });
     fireEvent.dragOver(items[0]!, { dataTransfer });
     fireEvent.drop(items[0]!, { dataTransfer });
-    const rows = names();
-    expect(rows[0]).toContain("edge-case-checklist");
-    expect(within(screen.getAllByRole("listitem")[0]!).getByRole("checkbox")).not.toBeChecked();
-    expect(screen.getByText("unsaved changes")).toBeInTheDocument();
+    expect(names()[0]).toContain("edge-case-checklist");
+    expect(saveMutate).toHaveBeenCalledWith([
+      // sk3 is unlinked + unchecked, so it stays out of the payload
+      { skill_id: "sk2", order: 0, enabled: true },
+      { skill_id: "sk1", order: 1, enabled: false },
+    ]);
   });
 });
 

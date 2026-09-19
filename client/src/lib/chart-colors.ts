@@ -1,3 +1,6 @@
+/* chart-colors.ts — donut geometry + category palette shared by the skill and
+   agent Stats tabs. */
+
 /** Donut geometry. */
 export const DONUT_SIZE = 140;
 export const DONUT_STROKE = 24;
