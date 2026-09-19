@@ -253,3 +253,15 @@ export const AgentSkillLink = z.object({
   enabled: z.boolean().default(true),
 });
 export type AgentSkillLink = z.infer<typeof AgentSkillLink>;
+
+// Agent usage over the last 30 days (Stats tab). Nulls mean "no data" — never
+// fabricated. `skills` are the agent's linked skills (enabled = link AND global).
+export const AgentStats = z.object({
+  runs_30d: z.number().int(),
+  accept_pct: z.number().nullable(),
+  avg_cost_usd: z.number().nullable(),
+  findings_30d: z.number().int(),
+  skills: z.array(z.object({ id: z.string(), name: z.string(), enabled: z.boolean() })),
+  by_category: z.array(z.object({ category: z.string(), count: z.number().int() })),
+});
+export type AgentStats = z.infer<typeof AgentStats>;
