@@ -64,7 +64,7 @@ export function AgentCard({
           {ag.model}
         </span>
         {!!skillCount && (
-          <Badge color="var(--text-secondary)" icon="Sparkles">
+          <Badge color="var(--text-secondary)" icon="Sparkles" style={s.skillsBadge}>
             {t("card.skillCount", { count: skillCount })}
           </Badge>
         )}
