@@ -4,7 +4,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Badge, Toggle } from "@devdigest/ui";
+import { Badge, Icon, Toggle } from "@devdigest/ui";
 import type { SkillSummary } from "@devdigest/shared";
 import { SKILL_TYPE_COLOR, formatPct } from "@/lib/skill-format";
 import { s } from "./styles";
@@ -14,11 +14,15 @@ export function SkillListItem({
   active,
   onClick,
   onToggle,
+  onDelete,
+  deleting,
 }: {
   skill: SkillSummary;
   active?: boolean;
   onClick?: () => void;
   onToggle?: (enabled: boolean) => void;
+  onDelete?: () => void;
+  deleting?: boolean;
 }) {
   const t = useTranslations("skills");
   return (
@@ -41,6 +45,20 @@ export function SkillListItem({
           <div onClick={(e) => e.stopPropagation()} aria-label={skill.name}>
             <Toggle on={skill.enabled} onChange={onToggle} size={14} />
           </div>
+        )}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            disabled={deleting}
+            title={t("card.delete")}
+            aria-label={t("card.delete")}
+            style={s.deleteBtn(!!deleting)}
+          >
+            <Icon.Trash size={14} style={deleting ? s.spin : undefined} />
+          </button>
         )}
       </div>
       <div style={s.description}>{skill.description || t("listItem.noDescription")}</div>

@@ -10,7 +10,7 @@ import type {
   SkillUpdate,
   SkillVersion,
 } from '@devdigest/shared';
-import { MAX_IMPORT_BYTES, STATS_WINDOW_DAYS } from './constants.js';
+import { INITIAL_SKILL_VERSION, MAX_IMPORT_BYTES, STATS_WINDOW_DAYS } from './constants.js';
 import {
   estimateTokens,
   includesSkillBlock,
@@ -85,6 +85,23 @@ export class SkillsService {
   async listVersions(workspaceId: string, id: string): Promise<SkillVersion[]> {
     await this.require(workspaceId, id);
     return (await this.repo.listVersions(id)).map(toSkillVersionDto);
+  }
+
+  /**
+   * Restore = roll forward: copy the chosen version's body into a NEW version
+   * (history is never rewritten). v1 and the current version can't be restored.
+   */
+  async restoreVersion(workspaceId: string, id: string, version: number): Promise<Skill> {
+    const skill = await this.require(workspaceId, id);
+    if (version === INITIAL_SKILL_VERSION) {
+      throw new ValidationError('The first version cannot be restored');
+    }
+    if (version === skill.version) {
+      throw new ValidationError('This is already the current version');
+    }
+    const target = await this.repo.getVersion(id, version);
+    if (!target) throw new NotFoundError('Skill version not found');
+    return this.update(workspaceId, id, { body: target.body });
   }
 
   async stats(workspaceId: string, id: string): Promise<SkillStats> {

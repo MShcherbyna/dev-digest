@@ -8,9 +8,17 @@ export const SKILL_TYPES: readonly SkillType[] = ["rubric", "convention", "secur
 /** Badge colour per skill type (CSS tokens only). */
 export const SKILL_TYPE_COLOR: Record<SkillType, string> = {
   rubric: "var(--accent)",
-  convention: "var(--info)",
+  convention: "var(--ok)",
   security: "var(--crit)",
   custom: "var(--text-secondary)",
+};
+
+/** Tinted badge background per skill type. */
+export const SKILL_TYPE_BG: Record<SkillType, string> = {
+  rubric: "var(--accent-bg)",
+  convention: "var(--ok-bg)",
+  security: "var(--crit-bg)",
+  custom: "var(--bg-hover)",
 };
 
 /** Rough token estimate: ceil(chars / 4) — same rule as the server. */

@@ -68,6 +68,21 @@ export function useDeleteSkill() {
       qc.invalidateQueries({ queryKey: queryKeys.skills() });
       qc.removeQueries({ queryKey: queryKeys.skill(id) });
       qc.invalidateQueries({ queryKey: ["agent-skills"] });
+      qc.invalidateQueries({ queryKey: queryKeys.agentSkillCounts() });
+    },
+  });
+}
+
+/** Restore = roll forward: creates a NEW version copying `version`'s body. */
+export function useRestoreSkillVersion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, version }: { id: string; version: number }) =>
+      api.post<Skill>(`/skills/${id}/versions/${version}/restore`, {}),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: queryKeys.skills() });
+      qc.invalidateQueries({ queryKey: queryKeys.skillVersions(data.id) });
+      qc.setQueryData(queryKeys.skill(data.id), data);
     },
   });
 }
@@ -118,6 +133,7 @@ export function useSetAgentSkills(agentId: string) {
       api.post<AgentSkillLink[]>(`/agents/${agentId}/skills`, { links }),
     onSuccess: (data) => {
       qc.setQueryData(queryKeys.agentSkills(agentId), data);
+      qc.invalidateQueries({ queryKey: queryKeys.agentSkillCounts() });
       qc.invalidateQueries({ queryKey: queryKeys.skills() });
       qc.invalidateQueries({ queryKey: queryKeys.agent(agentId) });
     },

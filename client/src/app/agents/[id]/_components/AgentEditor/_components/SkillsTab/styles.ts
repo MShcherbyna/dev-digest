@@ -37,16 +37,25 @@ export const s = {
   } satisfies CSSProperties,
   empty: { fontSize: 13, color: "var(--text-muted)", padding: "8px 0" } satisfies CSSProperties,
   list: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 } satisfies CSSProperties,
+  // Selected rows read brighter (primary name, elevated surface); unselected
+  // ones recede (muted name, flatter surface). No accent border/fill.
   row: (dragging: boolean, checked: boolean, globallyEnabled: boolean): CSSProperties => ({
     display: "flex",
     alignItems: "center",
     gap: 12,
-    padding: "10px 12px",
+    padding: "12px 14px",
     borderRadius: 8,
-    border: "1px solid " + (checked ? "var(--accent)" : "var(--border)"),
-    background: checked ? "var(--accent-bg)" : "var(--bg-elevated)",
-    opacity: dragging ? 0.4 : !globallyEnabled ? 0.45 : checked ? 1 : 0.7,
+    border: "1px solid var(--border)",
+    background: checked ? "var(--bg-elevated)" : "var(--bg-surface)",
+    opacity: dragging ? 0.4 : globallyEnabled ? 1 : 0.45,
   }),
   handle: { cursor: "grab", color: "var(--text-muted)", display: "inline-flex" } satisfies CSSProperties,
-  name: { flex: 1, fontSize: 14, fontWeight: 600 } satisfies CSSProperties,
+  checkbox: { width: 16, height: 16, margin: 0, accentColor: "var(--accent)", cursor: "pointer" } satisfies CSSProperties,
+  name: (checked: boolean): CSSProperties => ({
+    flex: 1,
+    fontSize: 14,
+    fontWeight: checked ? 600 : 500,
+    color: checked ? "var(--text-primary)" : "var(--text-muted)",
+  }),
+  badge: (checked: boolean): CSSProperties => ({ opacity: checked ? 1 : 0.7 }),
 } as const;

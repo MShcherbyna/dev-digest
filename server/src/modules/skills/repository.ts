@@ -130,6 +130,14 @@ export class SkillsRepository {
       .orderBy(desc(t.skillVersions.version));
   }
 
+  async getVersion(skillId: string, version: number): Promise<SkillVersionRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(t.skillVersions)
+      .where(and(eq(t.skillVersions.skillId, skillId), eq(t.skillVersions.version, version)));
+    return row;
+  }
+
   // ---- usage (stats) ------------------------------------------------------
 
   /** Agent bindings for the given skills, workspace-scoped. */

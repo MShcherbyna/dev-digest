@@ -121,8 +121,12 @@
   "versions": {
     "loadError": "Could not load versions.",
     "empty": "No versions yet.",
-    "current": "current",
-    "tokens": "~{count} tokens"
+    "current": "Current",
+    "tokens": "~{count} tokens",
+    "diff": "Diff",
+    "hide": "Hide",
+    "restore": "Restore",
+    "restoreConfirm": "Restore v{version}? This creates a new version with the same text."
   },
   "import": {
     "title": "Import a skill",

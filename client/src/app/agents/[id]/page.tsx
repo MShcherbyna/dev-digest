@@ -10,7 +10,7 @@ import { Button, Dropdown, ErrorState, Skeleton, Icon, Badge } from "@devdigest/
 import { AppShell } from "@/components/app-shell";
 import { AgentCard } from "../_components/AgentCard";
 import { AgentEditor } from "./_components/AgentEditor";
-import { useAgents, useAgent, useUpdateAgent } from "@/lib/hooks/agents";
+import { useAgents, useAgent, useAgentSkillCounts, useUpdateAgent } from "@/lib/hooks/agents";
 import { ApiError } from "@/lib/api";
 
 const VALID_TABS = ["config", "skills", "evals", "stats"];
@@ -23,6 +23,7 @@ export default function AgentEditorPage() {
   const { id } = params;
 
   const { data: agents } = useAgents();
+  const { data: skillCounts } = useAgentSkillCounts();
   const { data: agent, isLoading, isError, error, refetch } = useAgent(id);
   const update = useUpdateAgent();
 
@@ -86,6 +87,7 @@ export default function AgentEditorPage() {
               <AgentCard
                 key={a.id}
                 ag={a}
+                skillCount={skillCounts?.[a.id]}
                 active={a.id === id}
                 onClick={() => router.push(`/agents/${a.id}?tab=${tab}`)}
                 onToggle={(enabled) => update.mutate({ id: a.id, patch: { enabled } })}

@@ -10,7 +10,7 @@ import { useTranslations } from "next-intl";
 import { Badge, ErrorState, Icon, Skeleton } from "@devdigest/ui";
 import type { Agent } from "@devdigest/shared";
 import { useAgentSkills, useSetAgentSkills, useSkills } from "@/lib/hooks/skills";
-import { SKILL_TYPE_COLOR } from "@/lib/skill-format";
+import { SKILL_TYPE_BG, SKILL_TYPE_COLOR } from "@/lib/skill-format";
 import { buildRows, countEnabled, matchesFilter, moveRow, setChecked, toLinks, type SkillRow } from "./helpers";
 import { s } from "./styles";
 
@@ -118,12 +118,13 @@ export function SkillsTab({ agent }: { agent: Agent }) {
                 type="checkbox"
                 checked={r.checked}
                 aria-label={t("skills.enableFor", { name: sk.name })}
+                style={s.checkbox}
                 onChange={(e) => void persist(setChecked(rows, r.id, e.target.checked))}
               />
-              <span className="mono" style={s.name}>
+              <span className="mono" style={s.name(r.checked)}>
                 {sk.name}
               </span>
-              <Badge color={SKILL_TYPE_COLOR[sk.type]}>{ts(`listItem.type.${sk.type}`)}</Badge>
+              <Badge color={SKILL_TYPE_COLOR[sk.type]} bg={SKILL_TYPE_BG[sk.type]} style={s.badge(r.checked)}>{ts(`listItem.type.${sk.type}`)}</Badge>
             </li>
           );
         })}

@@ -1,9 +1,16 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
 import { SkillCreate, SkillImportPreviewBody, SkillUpdate } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { SkillsService } from './service.js';
+
+/** `/skills/:id/versions/:version/...` — id is a uuid, version a positive integer. */
+const VersionParams = z.object({
+  id: z.string().uuid(),
+  version: z.coerce.number().int().positive(),
+});
 
 /**
  * Skills module (text-only prompt blocks bound to agents).
@@ -13,6 +20,7 @@ import { SkillsService } from './service.js';
  *   PUT    /skills/:id             → partial update, bumps version
  *   DELETE /skills/:id             → delete (cascades agent links)
  *   GET    /skills/:id/versions    → body history, newest first
+ *   POST   /skills/:id/versions/:version/restore → new version copying that body
  *   GET    /skills/:id/stats       → usage stats (last 30d)
  *   POST   /skills/import/preview  → parse an uploaded .md; persists nothing
  */
@@ -61,6 +69,15 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
     const { workspaceId } = await getContext(app.container, req);
     return service.listVersions(workspaceId, req.params.id);
   });
+
+  app.post(
+    '/skills/:id/versions/:version/restore',
+    { schema: { params: VersionParams } },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      return service.restoreVersion(workspaceId, req.params.id, req.params.version);
+    },
+  );
 
   app.get('/skills/:id/stats', { schema: { params: IdParams } }, async (req) => {
     const { workspaceId } = await getContext(app.container, req);

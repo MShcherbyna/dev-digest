@@ -70,6 +70,12 @@ export class AgentsService {
     return rows.map(toAgentDto);
   }
 
+  /** `{ [agentId]: enabled skill count }` for the agents list badge. */
+  async skillCounts(workspaceId: string): Promise<Record<string, number>> {
+    const rows = await this.repo.skillCounts(workspaceId);
+    return Object.fromEntries(rows.map((r) => [r.agentId, r.count]));
+  }
+
   async get(workspaceId: string, id: string): Promise<Agent | undefined> {
     const row = await this.repo.getById(workspaceId, id);
     return row ? toAgentDto(row) : undefined;
