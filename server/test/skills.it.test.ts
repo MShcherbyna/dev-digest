@@ -80,7 +80,7 @@ d('skills module', () => {
     await app.close();
   });
 
-  it('restore vN creates a NEW version with v(N-1)'s body; v1 is refused', async () => {
+  it('restore vN creates a NEW version with the previous body; v1 is refused', async () => {
     const app = await makeApp();
     const skill = (await app.inject({ method: 'POST', url: '/skills', payload: skillBody })).json();
     await app.inject({ method: 'PUT', url: `/skills/${skill.id}`, payload: { body: 'second' } });
