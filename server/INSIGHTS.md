@@ -54,6 +54,22 @@ read by the `engineering-insights` skill.
   `Agent`, because `vendor/shared` contracts are do-not-touch; register it
   before `/agents/:id`.
 
+- Conventions extractor (`src/modules/conventions/`): the model's evidence is
+  never trusted. `verifyEvidence` in `helpers.ts` re-reads the real file, drops
+  a candidate when the file/line/quoted code can't be confirmed, and the card
+  snippet comes from the file, not the model. Evidence paths are also checked
+  with `isSafeRelativePath` (model output is untrusted, path traversal).
+- `SkillCreate.source` (vendored) doesn't allow `'extracted'`, so conventions
+  create skills through `SkillsRepository.insert` (which now takes optional
+  `evidenceFiles`) instead of `SkillsService.create`.
+- Re-scan wipes ALL of the repo's conventions (accepted included) and stores the
+  fresh ones — deliberate product decision. `MockGitClient.readFile` returns
+  `''` for unknown paths (real adapter throws), so sampling skips empty files.
+- `'conventions'` feature model defaults to `openai gpt-5.4`; the extractor
+  overrides that with `openrouter deepseek/deepseek-v4-flash` unless the
+  workspace picked a model (`getFeatureModelOverride`). Real run on this repo:
+  ~50s, 28 verified candidates.
+
 ## Tool & Library Notes
 
 ## Recurring Errors & Fixes
