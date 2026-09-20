@@ -109,6 +109,16 @@ d('GET /agents/:id/versions', () => {
     await app.close();
   });
 
+  it('GET /agents/:id/versions/:version is gone (410)', async () => {
+    const app = await makeApp();
+    const agentId = (
+      await app.inject({ method: 'POST', url: '/agents', payload: createBody })
+    ).json().id as string;
+    const res = await app.inject({ method: 'GET', url: `/agents/${agentId}/versions/1` });
+    expect(res.statusCode).toBe(410);
+    await app.close();
+  });
+
   it('404s for an unknown agent', async () => {
     const app = await makeApp();
     const ghost = '00000000-0000-0000-0000-000000000000';

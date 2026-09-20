@@ -10,6 +10,12 @@ import { AgentsService } from './service.js';
 /** `/providers/:id` addresses a provider by name, not a uuid. */
 const ProviderParams = z.object({ id: Provider });
 
+/** `/agents/:id/versions/:version` — id is a uuid, version a positive integer. */
+const VersionParams = z.object({
+  id: z.string().uuid(),
+  version: z.coerce.number().int().positive(),
+});
+
 /**
  * A2 — agents module (owner A2).
  *   GET    /agents                  → list (workspace-scoped)
@@ -18,6 +24,7 @@ const ProviderParams = z.object({ id: Provider });
  *   POST   /agents                  → create
  *   PUT    /agents/:id              → update / toggle enabled (versions config)
  *   GET    /agents/:id/versions     → config history (newest first)
+ *   GET    /agents/:id/versions/:version → one config snapshot
  *   GET    /agents/:id/skills       → linked skills (ordered)
  *   POST   /agents/:id/skills       → set/reorder linked skills OR link one
  *   GET    /agents/:id/stats        → last-30d usage (Stats tab)
@@ -144,6 +151,15 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
     if (!versions) throw new NotFoundError('Agent not found');
     return versions;
   });
+
+  app.get(
+    '/agents/:id/versions/:version',
+    { schema: { params: VersionParams } },
+    async (_req, reply) => {
+      reply.status(410);
+      return { error: 'Gone', message: 'Use GET /agents/:id/versions instead.' };
+    },
+  );
 
   app.get('/agents/:id/skills', { schema: { params: IdParams } }, async (req) => {
     const { workspaceId } = await getContext(app.container, req);
