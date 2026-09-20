@@ -1,5 +1,5 @@
 /* SkillCard — one card of the /skills grid: icon, mono name, global enabled
-   toggle, delete, 2-line description and a type / source / agents-count row. */
+   toggle, delete, 2-line description and a type / source / version / agents-count row. */
 "use client";
 
 import React from "react";
@@ -8,12 +8,14 @@ import { Badge, Icon, Toggle } from "@devdigest/ui";
 import type { SkillSummary } from "@devdigest/shared";
 import { useDeleteSkill, useUpdateSkill } from "@/lib/hooks/skills";
 import { SKILL_TYPE_COLOR } from "@/lib/skill-format";
+import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { s } from "./styles";
 
 export function SkillCard({ skill, onClick }: { skill: SkillSummary; onClick?: () => void }) {
   const t = useTranslations("skills");
   const update = useUpdateSkill();
   const del = useDeleteSkill();
+  const [confirming, setConfirming] = React.useState(false);
 
   return (
     <div
@@ -46,7 +48,7 @@ export function SkillCard({ skill, onClick }: { skill: SkillSummary; onClick?: (
         <button
           onClick={(e) => {
             e.stopPropagation();
-            if (window.confirm(t("card.deleteConfirm", { name: skill.name }))) del.mutate(skill.id);
+            setConfirming(true);
           }}
           disabled={del.isPending}
           title={t("card.delete")}
@@ -60,8 +62,20 @@ export function SkillCard({ skill, onClick }: { skill: SkillSummary; onClick?: (
       <div style={s.metaRow}>
         <Badge color={SKILL_TYPE_COLOR[skill.type]}>{t(`listItem.type.${skill.type}`)}</Badge>
         <Badge>{t(`listItem.source.${skill.source}`)}</Badge>
+        <Badge mono>{t("detail.version", { version: skill.version })}</Badge>
         <span style={s.agents}>{t("listItem.agents", { count: skill.agents_count })}</span>
       </div>
+      {confirming && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ConfirmDeleteModal
+            title={t("card.delete")}
+            message={t("card.deleteConfirm", { name: skill.name })}
+            pending={del.isPending}
+            onConfirm={() => del.mutate(skill.id, { onSuccess: () => setConfirming(false) })}
+            onClose={() => setConfirming(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

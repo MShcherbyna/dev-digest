@@ -10,6 +10,7 @@ import { Badge, Button, EmptyState, ErrorState, Skeleton, Tabs } from "@devdiges
 import { useDeleteSkill, useSkill } from "@/lib/hooks/skills";
 import { ApiError } from "@/lib/api";
 import { SKILL_TYPE_COLOR } from "@/lib/skill-format";
+import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { ConfigTab } from "../ConfigTab";
 import { EvalsTab } from "../EvalsTab";
 import { PreviewTab } from "../PreviewTab";
@@ -26,6 +27,7 @@ export function SkillDetail({ id }: { id: string }) {
   const isNew = id === NEW_SKILL_ID;
   const { data: skill, isLoading, isError, error, refetch } = useSkill(isNew ? null : id);
   const del = useDeleteSkill();
+  const [confirming, setConfirming] = React.useState(false);
 
   const tab = isNew ? "config" : resolveTab(search.get("tab"));
   const setTab = (next: string) => {
@@ -58,13 +60,20 @@ export function SkillDetail({ id }: { id: string }) {
   }));
 
   const remove = () => {
-    if (skill && window.confirm(t("detail.deleteConfirm", { name: skill.name }))) {
-      del.mutate(skill.id, { onSuccess: () => router.push("/skills") });
-    }
+    if (skill) del.mutate(skill.id, { onSuccess: () => router.push("/skills") });
   };
 
   return (
     <div style={s.wrap}>
+      {confirming && skill && (
+        <ConfirmDeleteModal
+          title={t("detail.delete")}
+          message={t("detail.deleteConfirm", { name: skill.name })}
+          pending={del.isPending}
+          onConfirm={remove}
+          onClose={() => setConfirming(false)}
+        />
+      )}
       <div style={s.header}>
         <h2 style={s.title}>{skill ? skill.name : t("detail.newTitle")}</h2>
         {skill && <Badge color={SKILL_TYPE_COLOR[skill.type]}>{t(`listItem.type.${skill.type}`)}</Badge>}
@@ -73,7 +82,7 @@ export function SkillDetail({ id }: { id: string }) {
         )}
         <div style={s.headerActions}>
           {skill && (
-            <Button kind="ghost" size="sm" icon="Trash" onClick={remove} disabled={del.isPending}>
+            <Button kind="ghost" size="sm" icon="Trash" onClick={() => setConfirming(true)} disabled={del.isPending}>
               {t("detail.delete")}
             </Button>
           )}

@@ -1,6 +1,8 @@
 {
   "card": {
     "noDescription": "No description",
+    "delete": "Delete agent",
+    "deleteConfirm": "Delete agent \"{name}\"? This cannot be undone.",
     "skillCount": "{count} skills"
   },
   "list": {

@@ -110,3 +110,10 @@ Always use the branch name as a commit prefix, unless it is `main`.
 ## Documentation Policy
 
 Before answering any question about Claude Code, always verify the answer against the current official Claude Code documentation: https://code.claude.com/docs/.
+
+
+## Design policy
+
+Always follow the design shown in the provided screenshots.
+Treat screenshots as the single source of truth for visual implementation.
+Do not redesign, simplify, or add visual elements unless explicitly requested.
