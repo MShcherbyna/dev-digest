@@ -122,6 +122,17 @@ d('GET /agents/:id/versions', () => {
     await app.close();
   });
 
+  it('rejects an agent name shorter than 3 characters (422)', async () => {
+    const app = await makeApp();
+    const res = await app.inject({
+      method: 'POST',
+      url: '/agents',
+      payload: { ...createBody, name: 'ab' },
+    });
+    expect(res.statusCode).toBe(422);
+    await app.close();
+  });
+
   it('404s for an unknown agent and an unknown version', async () => {
     const app = await makeApp();
     const agentId = (

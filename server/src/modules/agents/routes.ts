@@ -33,7 +33,7 @@ const VersionParams = z.object({
  */
 
 const CreateAgentBody = z.object({
-  name: z.string().min(1),
+  name: z.string().min(3),
   description: z.string().optional(),
   provider: Provider,
   model: z.string().min(1),
