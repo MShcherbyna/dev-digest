@@ -165,7 +165,8 @@ d('skills module', () => {
 
     // Snapshot on the next config change lists only enabled skills, in order.
     await app.inject({ method: 'PUT', url: `/agents/${agent.id}`, payload: { model: 'gpt-4o' } });
-    const v = (await app.inject({ method: 'GET', url: `/agents/${agent.id}/versions/2` })).json();
+    const history = (await app.inject({ method: 'GET', url: `/agents/${agent.id}/versions` })).json();
+    const v = history.find((h: { version: number }) => h.version === 2);
     expect(v.config.skills).toEqual([b.id]);
 
     const stats = (await app.inject({ method: 'GET', url: `/skills/${a.id}/stats` })).json();

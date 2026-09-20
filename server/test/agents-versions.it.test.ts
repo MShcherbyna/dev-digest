@@ -109,45 +109,13 @@ d('GET /agents/:id/versions', () => {
     await app.close();
   });
 
-  it('GET /agents/:id/versions/:version returns one snapshot', async () => {
+  it('404s for an unknown agent', async () => {
     const app = await makeApp();
-    const agentId = (
-      await app.inject({ method: 'POST', url: '/agents', payload: createBody })
-    ).json().id as string;
-    await app.inject({ method: 'PUT', url: `/agents/${agentId}`, payload: { model: 'gpt-4o' } });
-
-    const v1 = await app.inject({ method: 'GET', url: `/agents/${agentId}/versions/1` });
-    expect(v1.statusCode).toBe(200);
-    expect(v1.json()).toMatchObject({ version: 1, config: { model: 'gpt-4o-mini' } });
-    await app.close();
-  });
-
-  it('404s for an unknown agent and an unknown version', async () => {
-    const app = await makeApp();
-    const agentId = (
-      await app.inject({ method: 'POST', url: '/agents', payload: createBody })
-    ).json().id as string;
     const ghost = '00000000-0000-0000-0000-000000000000';
 
     expect(
       (await app.inject({ method: 'GET', url: `/agents/${ghost}/versions` })).statusCode,
     ).toBe(404);
-    expect(
-      (await app.inject({ method: 'GET', url: `/agents/${ghost}/versions/1` })).statusCode,
-    ).toBe(404);
-    expect(
-      (await app.inject({ method: 'GET', url: `/agents/${agentId}/versions/99` })).statusCode,
-    ).toBe(404);
-    await app.close();
-  });
-
-  it('a non-numeric :version is rejected at the edge (422, not 404)', async () => {
-    const app = await makeApp();
-    const agentId = (
-      await app.inject({ method: 'POST', url: '/agents', payload: createBody })
-    ).json().id as string;
-    const res = await app.inject({ method: 'GET', url: `/agents/${agentId}/versions/abc` });
-    expect(res.statusCode).toBe(422);
     await app.close();
   });
 
