@@ -1,5 +1,9 @@
 import type { CSSProperties } from "react";
 
+/** White tick drawn as the checked checkbox background. */
+const CHECK_ICON =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E\")";
+
 /** Co-located styles for the agent SkillsTab. */
 export const s = {
   wrap: { maxWidth: 720 } satisfies CSSProperties,
@@ -50,12 +54,29 @@ export const s = {
     opacity: dragging ? 0.4 : globallyEnabled ? 1 : 0.45,
   }),
   handle: { cursor: "grab", color: "var(--text-muted)", display: "inline-flex" } satisfies CSSProperties,
-  checkbox: { width: 16, height: 16, margin: 0, accentColor: "var(--accent)", cursor: "pointer" } satisfies CSSProperties,
+  // Native input, restyled: dark empty box when off (never the browser's white
+  // default), accent box with a white tick when on.
+  checkbox: (checked: boolean): CSSProperties => ({
+    appearance: "none",
+    WebkitAppearance: "none",
+    width: 16,
+    height: 16,
+    margin: 0,
+    flexShrink: 0,
+    borderRadius: 4,
+    cursor: "pointer",
+    border: "1.5px solid " + (checked ? "var(--accent)" : "var(--border-strong)"),
+    backgroundColor: checked ? "var(--accent)" : "var(--bg-surface)",
+    backgroundImage: checked ? CHECK_ICON : "none",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "11px 11px",
+  }),
   name: (checked: boolean): CSSProperties => ({
     flex: 1,
     fontSize: 14,
     fontWeight: checked ? 600 : 500,
     color: checked ? "var(--text-primary)" : "var(--text-muted)",
   }),
-  badge: (checked: boolean): CSSProperties => ({ opacity: checked ? 1 : 0.7 }),
+  badge: (checked: boolean): CSSProperties => ({ opacity: checked ? 1 : 0.6 }),
 } as const;

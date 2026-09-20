@@ -118,7 +118,7 @@ export function SkillsTab({ agent }: { agent: Agent }) {
                 type="checkbox"
                 checked={r.checked}
                 aria-label={t("skills.enableFor", { name: sk.name })}
-                style={s.checkbox}
+                style={s.checkbox(r.checked)}
                 onChange={(e) => void persist(setChecked(rows, r.id, e.target.checked))}
               />
               <span className="mono" style={s.name(r.checked)}>
