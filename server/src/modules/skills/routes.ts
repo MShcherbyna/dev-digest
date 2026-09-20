@@ -13,7 +13,7 @@ import { SkillsService } from './service.js';
  *   PUT    /skills/:id             → partial update, bumps version
  *   DELETE /skills/:id             → delete (cascades agent links)
  *   GET    /skills/:id/versions    → body history, newest first
- *   GET    /skills/:id/stats       → usage stats (last 30d)
+ *   GET    /skills/:id/usage       → usage stats (last 30d)
  *   POST   /skills/import/preview  → parse an uploaded .md; persists nothing
  */
 export default async function skillsRoutes(appBase: FastifyInstance) {
@@ -62,8 +62,16 @@ export default async function skillsRoutes(appBase: FastifyInstance) {
     return service.listVersions(workspaceId, req.params.id);
   });
 
-  app.get('/skills/:id/stats', { schema: { params: IdParams } }, async (req) => {
+  app.get('/skills/:id/usage', { schema: { params: IdParams } }, async (req) => {
     const { workspaceId } = await getContext(app.container, req);
-    return service.stats(workspaceId, req.params.id);
+    const stats = await service.stats(workspaceId, req.params.id);
+    return {
+      used_by: stats.used_by,
+      pull_pct: stats.pull_pct,
+      accept_pct: stats.accept_pct === null ? null : `${stats.accept_pct}%`,
+      findings_last_30_days: stats.findings_30d,
+      agents: stats.agents.length > 0 ? stats.agents : null,
+      by_category: stats.by_category,
+    };
   });
 }

@@ -76,7 +76,7 @@ d('skills module', () => {
     expect((await app.inject({ method: 'DELETE', url: `/skills/${skill.id}` })).statusCode).toBe(200);
     expect((await app.inject({ method: 'GET', url: `/skills/${skill.id}` })).statusCode).toBe(404);
     expect((await app.inject({ method: 'PUT', url: `/skills/${ghost}`, payload: { name: 'x' } })).statusCode).toBe(404);
-    expect((await app.inject({ method: 'GET', url: `/skills/${ghost}/stats` })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'GET', url: `/skills/${ghost}/usage` })).statusCode).toBe(404);
     await app.close();
   });
 
@@ -125,8 +125,8 @@ d('skills module', () => {
     const v = (await app.inject({ method: 'GET', url: `/agents/${agent.id}/versions/2` })).json();
     expect(v.config.skills).toEqual([b.id]);
 
-    const stats = (await app.inject({ method: 'GET', url: `/skills/${a.id}/stats` })).json();
-    expect(stats).toMatchObject({ used_by: 1, pull_pct: null, accept_pct: null, findings_30d: 0, by_category: [] });
+    const stats = (await app.inject({ method: 'GET', url: `/skills/${a.id}/usage` })).json();
+    expect(stats).toMatchObject({ used_by: 1, pull_pct: null, accept_pct: null, findings_last_30_days: 0, by_category: [] });
     expect(stats.agents).toEqual([{ id: agent.id, name: 'Skill Host' }]);
     await app.close();
   });
@@ -202,8 +202,8 @@ d('skills module', () => {
     });
     await db.insert(t.findings).values([f('tests', true), f('tests', false), f('style', false), f('style', false)]);
 
-    const stats = (await app.inject({ method: 'GET', url: `/skills/${skill.id}/stats` })).json();
-    expect(stats).toMatchObject({ used_by: 1, pull_pct: 50, accept_pct: 25, findings_30d: 4 });
+    const stats = (await app.inject({ method: 'GET', url: `/skills/${skill.id}/usage` })).json();
+    expect(stats).toMatchObject({ used_by: 1, pull_pct: 50, accept_pct: '25%', findings_last_30_days: 4 });
     expect(stats.by_category).toEqual([
       { category: 'style', count: 2 },
       { category: 'tests', count: 2 },
