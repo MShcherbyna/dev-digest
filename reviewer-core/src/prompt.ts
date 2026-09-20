@@ -36,11 +36,37 @@ export function wrapUntrusted(label: string, content: string): string {
 /** Cap the PR description so a huge author body can't blow the token budget. */
 const MAX_PR_DESCRIPTION_CHARS = 4000;
 
+export interface PromptSkill {
+  name: string;
+  body: string;
+  trusted: boolean;
+}
+
+/** Rough token estimate used across the studio: ceil(chars / 4). */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+/** Per-skill `{name, tokens}` for the run trace (tokens counted on the body). */
+export function skillTokenEstimates(skills: PromptSkill[]): { name: string; tokens: number }[] {
+  return skills.map((s) => ({ name: s.name, tokens: estimateTokens(s.body) }));
+}
+
+export function renderSkillsBlock(skills: PromptSkill[]): string {
+  return skills
+    .map((s) => `### ${s.name}\n${s.trusted ? s.body : wrapUntrusted(`skill-${s.name}`, s.body)}`)
+    .join('\n\n');
+}
+
 export interface PromptParts {
   /** Agent's system prompt (trusted). */
   system: string;
-  /** Linked skill bodies (trusted-ish; community skills should be sanitized upstream). */
-  skills?: string[];
+  /**
+   * Enabled skills in render order. `trusted` skills (manually authored) are
+   * inserted verbatim; untrusted ones (imported / community / extracted) are
+   * delimiter-wrapped so the injection guard treats them as data.
+   */
+  skills?: PromptSkill[];
   /** Relevant memory items (trusted, curated). */
   memory?: string[];
   /** Project-context spec chunks (untrusted content). */
@@ -86,7 +112,7 @@ export function assemblePrompt(parts: PromptParts): AssembledPrompt {
   const system = `${parts.system}\n\n${INJECTION_GUARD}`;
 
   const skillsBlock =
-    parts.skills && parts.skills.length > 0 ? parts.skills.join('\n\n') : undefined;
+    parts.skills && parts.skills.length > 0 ? renderSkillsBlock(parts.skills) : undefined;
   const memoryBlock =
     parts.memory && parts.memory.length > 0
       ? parts.memory.map((m) => `- ${m}`).join('\n')

@@ -1,0 +1,30 @@
+[
+  {
+    "rule": "frontend/data-access-in-page",
+    "file": "client/src/app/repos/[repoId]/pulls/[number]/page.tsx",
+    "reason": "Pattern pre-dates the diff: the page already called qc.invalidateQueries with string keys; commit 3fe05aa only swapped the literals for the queryKeys factory. Reviewer also mis-cited checklist item 7 (no fetch or server-state copy here). Follow-up: move invalidation into a hook in lib/hooks/reviews.ts.",
+    "author": "Maksym Shcherbyna",
+    "expires": "2026-12-31"
+  },
+  {
+    "rule": "det/do-not-touch",
+    "file": "client/src/vendor/ui/nav.ts",
+    "reason": "Skills sidebar item + `g s` shortcut added by hand in the vendored nav.ts: the user explicitly chose manual edits on 2026-09-20 because the sync source is not documented or in this repo. Follow-up: port the same two entries to the sync source.",
+    "author": "Claude Code (session 2026-09-20; user approved hand-editing vendored files) — needs owner confirmation",
+    "expires": "2026-10-31"
+  },
+  {
+    "rule": "det/do-not-touch",
+    "file": "server/src/db/migrations/meta/_journal.json",
+    "reason": "False positive: the journal only gained the entry for 0011_wet_kylun, appended by `pnpm db:generate` (agent_skills.enabled). No existing migration or snapshot was hand-edited or removed.",
+    "author": "Claude Code (session 2026-09-20; user approved hand-editing vendored files) — needs owner confirmation",
+    "expires": "2026-10-31"
+  },
+  {
+    "rule": "det/vendor-drift",
+    "file": "server/src/vendor/shared",
+    "reason": "Pre-existing drift: the client copy already lacked AgentVersionConfig/AgentVersion and differed in adapters.ts, eval-ci.ts, productionize.ts, trace.ts and comments before this work. All skills contracts (Skill*, AgentSkillLink.enabled, AgentUsageStats) were added identically to both knowledge.ts copies. Follow-up: resync both copies from the source.",
+    "author": "Claude Code (session 2026-09-20; user approved hand-editing vendored files) — needs owner confirmation",
+    "expires": "2026-10-31"
+  }
+]

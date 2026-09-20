@@ -5,16 +5,18 @@
 
 import React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Button, Dropdown, ErrorState, Skeleton, Icon, Badge } from "@devdigest/ui";
-import { AppShell } from "../../../components/app-shell";
+import { AppShell } from "@/components/app-shell";
 import { AgentCard } from "../_components/AgentCard";
 import { AgentEditor } from "./_components/AgentEditor";
-import { useAgents, useAgent, useUpdateAgent } from "../../../lib/hooks/agents";
-import { ApiError } from "../../../lib/api";
+import { useAgents, useAgent, useUpdateAgent } from "@/lib/hooks/agents";
+import { ApiError } from "@/lib/api";
 
-const VALID_TABS = ["config"];
+const VALID_TABS = ["config", "skills", "evals", "stats"];
 
 export default function AgentEditorPage() {
+  const t = useTranslations("agents");
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
   const router = useRouter();
@@ -107,7 +109,10 @@ export default function AgentEditorPage() {
                 {agent.provider}/{agent.model}
               </Badge>
               {!agent.enabled && <Badge color="var(--text-muted)">disabled</Badge>}
-              <div style={{ marginLeft: "auto" }}>
+              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                <Button kind="secondary" size="sm" icon="Play" disabled title={t("editor.comingSoon")}>
+                  {t("editor.runOnEvals")}
+                </Button>
                 <Button kind="secondary" size="sm" icon="GitPullRequest" onClick={() => router.push("/")}>
                   Run on a PR…
                 </Button>

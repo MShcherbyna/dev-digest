@@ -6,7 +6,9 @@ import {
   GENERAL_REVIEWER_PROMPT,
   SECURITY_REVIEWER_PROMPT,
   PERFORMANCE_REVIEWER_PROMPT,
+  TEST_QUALITY_REVIEWER_PROMPT,
 } from './seed-prompts.js';
+import { TEST_QUALITY_SKILLS } from './seed-skills.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
@@ -211,13 +213,59 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       version: 1,
       createdBy: userId,
     },
+    {
+      workspaceId,
+      name: 'Test Quality Reviewer',
+      description:
+        'Finds uncovered branches, missed corner cases, over-mocking and flaky tests in a PR.',
+      provider: DEFAULT_PROVIDER,
+      model: DEFAULT_MODEL,
+      systemPrompt: TEST_QUALITY_REVIEWER_PROMPT,
+      enabled: true,
+      version: 1,
+      createdBy: userId,
+    },
   ];
+  const agentIds = new Map<string, string>();
   for (const a of seedAgents) {
-    const [existing] = await db
+    let [existing] = await db
       .select()
       .from(t.agents)
       .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.name, a.name)));
-    if (!existing) await db.insert(t.agents).values(a);
+    if (!existing) [existing] = await db.insert(t.agents).values(a).returning();
+    agentIds.set(a.name, existing!.id);
+  }
+
+  // ---- Test Quality Reviewer skills (manual, trusted) -------------------------
+  // `flaky-test-detector` is deliberately not seeded: it is imported via the UI
+  // from server/fixtures/skills/flaky-test-detector.md.
+  const tqAgentId = agentIds.get('Test Quality Reviewer')!;
+  for (const [order, s] of TEST_QUALITY_SKILLS.entries()) {
+    let [skill] = await db
+      .select()
+      .from(t.skills)
+      .where(and(eq(t.skills.workspaceId, workspaceId), eq(t.skills.name, s.name)));
+    if (!skill) {
+      [skill] = await db
+        .insert(t.skills)
+        .values({
+          workspaceId,
+          name: s.name,
+          description: s.description,
+          type: s.type,
+          source: 'manual',
+          body: s.body,
+        })
+        .returning();
+      await db
+        .insert(t.skillVersions)
+        .values({ skillId: skill!.id, version: 1, body: s.body })
+        .onConflictDoNothing();
+    }
+    await db
+      .insert(t.agentSkills)
+      .values({ agentId: tqAgentId, skillId: skill!.id, order })
+      .onConflictDoNothing();
   }
 
   return { workspaceId, userId };

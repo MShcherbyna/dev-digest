@@ -1,0 +1,80 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git checkout *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(npx --yes pnpm typecheck)",
+      "Bash(pnpm typecheck *)",
+      "Bash(npx --yes pnpm@latest typecheck)",
+      "Bash(npx --yes pnpm@latest test -- SeverityFindingsBreakdown)",
+      "Bash(git commit *)",
+      "Bash(npx --yes pnpm@latest test -- SeverityFindingsBreakdown RunHistory PRRow)",
+      "Bash(npx --yes pnpm@latest test)",
+      "Bash(./scripts/dev.sh)",
+      "Bash(./scripts/dev.sh*)",
+      "Bash(python3 -m json.tool *)",
+      "Bash(curl -s -o /dev/null localhost:3000)",
+      "Bash(curl -s -o /dev/null localhost:3001/health)",
+      "Bash(break)",
+      "Bash(curl -s -w \"\\\\napi %{http_code}\\\\n\" localhost:3001/health)",
+      "Bash(curl -s -o /dev/null -w \"web %{http_code}\\\\n\" localhost:3000)",
+      "Bash(lsof -iTCP:3001 -sTCP:LISTEN -P)",
+      "Read(//Users/mtakumi/.nvm/**)",
+      "Bash(curl -s -o /dev/null -w \"api %{http_code}\\\\n\" localhost:3001/health)",
+      "Bash(ls -la .claude; echo ---; cat .claude/settings.json; echo ---; cat .claude/settings.local.json 2>/dev/null; echo ---; cat ~/.claude/settings.json 2>/dev/null | head -50)",
+      "Read(//Users/mtakumi/.claude/**)",
+      "Bash(python3 -m json.tool .claude/settings.local.json)",
+      "Bash(timeout 90 claude -p \"say ok\" --debug hooks --debug-file /private/tmp/claude-501/hookdebug.log)",
+      "Bash(timeout 90 claude -p \"say ok\" --debug --debug-file /private/tmp/claude-501/hookdebug.log)",
+      "Bash(claude -p \"say ok\" --debug --debug-file /private/tmp/claude-501/hookdebug.log)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(git check-ignore *)",
+      "Bash(chmod +x /Users/mtakumi/Projects/dev-digest/.claude/hooks/duration-hook.sh)",
+      "Bash(python3 -m json.tool .claude/settings.json)",
+      "WebFetch(domain:www.infocar.com.ua)",
+      "Bash(curl -sL --max-time 20 http://www.infocar.com.ua/humor/)",
+      "Bash(iconv -f cp1251 -t utf-8)",
+      "Bash(grep -v '^\\\\s*$')",
+      "Bash(python3 -c ' *)",
+      "Bash(lsof -iTCP -sTCP:LISTEN -nP)",
+      "Bash(xargs -0 sed -i '' 's/CLAUDE\\\\.md/AGENTS.md/g')",
+      "Bash(echo \"stale-refs-exit=$?\")",
+      "Bash(echo \"remaining-grep-exit=$?\")",
+      "Bash(claude --version)",
+      "WebFetch(domain:kentcdodds.com)",
+      "WebFetch(domain:tkdodo.eu)",
+      "Bash(cd /Users/mtakumi/Projects/dev-digest/client/src/app/repos/\\\\[repoId\\\\]/pulls/_components && ls PRRow SeverityFindingsBreakdown; sed -n 1,30p PRRow/index.ts; head -15 PRRow/constants.ts 2>/dev/null; cat ../../../../../../lib/hooks/index.ts | head -20)",
+      "Read(//lib/hooks/**)",
+      "Edit(/.claude/skills/react-frontend-architecture/**)",
+      "WebSearch",
+      "Bash(cd /Users/mtakumi/Projects/dev-digest/server && cat src/platform/container.ts | head -80; ls src/adapters src/platform; head -50 src/modules/repos/service.ts; head -40 src/modules/repos/routes.ts; head -30 src/modules/repos/repository.ts; cat ../.claude/skills/README.md | head -40; head -20 ../.claude/skills/zod/SKILL.md)",
+      "Read(//Users/mtakumi/Projects/.claude/skills/**)",
+      "Read(//Users/mtakumi/Projects/.claude/skills/zod/**)",
+      "WebFetch(domain:jeffreypalermo.com)",
+      "WebFetch(domain:herbertograca.com)",
+      "WebFetch(domain:blog.sentry.io)",
+      "WebFetch(domain:fastify.dev)",
+      "Edit(/.claude/skills/onion-architecture/**)",
+      "Bash(git add *)",
+      "Bash(bash .claude/skills/pr-self-review/scripts/checks.sh *)",
+      "Bash(python3 .claude/skills/pr-self-review/scripts/finalize.py *)",
+      "Bash(pnpm test)",
+      "Bash(pnpm lint)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pr-self-review-gate.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

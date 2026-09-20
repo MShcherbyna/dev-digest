@@ -1,21 +1,31 @@
 /* hooks/agents.ts — React Query hooks for the A2 Agents tab + Agent Editor. */
 "use client";
 
+import { queryKeys } from "./keys";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
-import type { Agent, ModelInfo, Provider, ReviewStrategy } from "@devdigest/shared";
+import type { Agent, AgentUsageStats, ModelInfo, Provider, ReviewStrategy } from "@devdigest/shared";
 
 export function useAgents() {
   return useQuery({
-    queryKey: ["agents"],
+    queryKey: queryKeys.agents(),
     queryFn: () => api.get<Agent[]>("/agents"),
   });
 }
 
 export function useAgent(id: string | null | undefined) {
   return useQuery({
-    queryKey: ["agent", id],
+    queryKey: queryKeys.agent(id),
     queryFn: () => api.get<Agent>(`/agents/${id}`),
+    enabled: !!id,
+  });
+}
+
+/** Last-30-days usage for the agent editor's Stats tab. */
+export function useAgentStats(id: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.agentStats(id),
+    queryFn: () => api.get<AgentUsageStats>(`/agents/${id}/stats`),
     enabled: !!id,
   });
 }
@@ -35,7 +45,7 @@ export function useCreateAgent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateAgentInput) => api.post<Agent>("/agents", input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["agents"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.agents() }),
   });
 }
 
@@ -63,8 +73,8 @@ export function useUpdateAgent() {
   return useMutation({
     mutationFn: ({ id, patch }: UpdateAgentInput) => api.put<Agent>(`/agents/${id}`, patch),
     onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ["agents"] });
-      qc.setQueryData(["agent", data.id], data);
+      qc.invalidateQueries({ queryKey: queryKeys.agents() });
+      qc.setQueryData(queryKeys.agent(data.id), data);
     },
   });
 }
@@ -74,8 +84,8 @@ export function useDeleteAgent() {
   return useMutation({
     mutationFn: (id: string) => api.del<{ ok: boolean }>(`/agents/${id}`),
     onSuccess: (_d, id) => {
-      qc.invalidateQueries({ queryKey: ["agents"] });
-      qc.removeQueries({ queryKey: ["agent", id] });
+      qc.invalidateQueries({ queryKey: queryKeys.agents() });
+      qc.removeQueries({ queryKey: queryKeys.agent(id) });
     },
   });
 }
@@ -83,7 +93,7 @@ export function useDeleteAgent() {
 /** Dynamic model list for a provider (editor model picker). */
 export function useProviderModels(provider: Provider | null | undefined) {
   return useQuery({
-    queryKey: ["provider-models", provider],
+    queryKey: queryKeys.providerModelsFor(provider),
     queryFn: () => api.get<ModelInfo[]>(`/providers/${provider}/models`),
     enabled: !!provider,
     staleTime: 5 * 60_000,

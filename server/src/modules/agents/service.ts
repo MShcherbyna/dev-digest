@@ -2,14 +2,17 @@ import type { Container } from '../../platform/container.js';
 import type {
   Agent,
   AgentSkillLink,
+  AgentUsageStats,
   AgentVersion,
   CiFailOn,
   ModelInfo,
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
+import { NotFoundError } from '../../platform/errors.js';
 import { AgentsRepository } from './repository.js';
-import { toAgentDto, toAgentVersionDto } from './helpers.js';
+import { DAY_MS, RECENT_RUNS_LIMIT, SEVERITY_WEEKS, STATS_WINDOW_DAYS } from './constants.js';
+import { buildAgentStats, toAgentDto, toAgentVersionDto } from './helpers.js';
 
 /**
  * A2 — agents service. Business logic for the Agents tab + Agent Editor.
@@ -45,6 +48,13 @@ export interface UpdateAgentInput {
   strategy?: ReviewStrategy;
   ci_fail_on?: CiFailOn;
   repo_intel?: boolean;
+  enabled?: boolean;
+}
+
+/** One requested agent→skill link (from `links` / `skill_ids` request forms). */
+export interface SkillLinkRequest {
+  skill_id: string;
+  order?: number;
   enabled?: boolean;
 }
 
@@ -135,24 +145,57 @@ export class AgentsService {
     return row ? toAgentVersionDto(row) : undefined;
   }
 
+  /**
+   * Last-30-day usage for the Stats tab. Throws NotFoundError when the agent
+   * isn't in this workspace (so stats can't be read across tenants).
+   */
+  async stats(workspaceId: string, agentId: string): Promise<AgentUsageStats> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) throw new NotFoundError('Agent not found');
+    const now = new Date();
+    const windowMs = STATS_WINDOW_DAYS * DAY_MS;
+    const windowStart = new Date(now.getTime() - windowMs);
+    const prevStart = new Date(now.getTime() - 2 * windowMs);
+    // The weekly severity chart reaches further back than the 30d window.
+    const runsSince = new Date(now.getTime() - Math.max(SEVERITY_WEEKS * 7 * DAY_MS, windowMs));
+    const runs = await this.repo.recentDoneRuns(workspaceId, agentId, runsSince);
+    const [findings, prevAvgCost, latest, links] = await Promise.all([
+      this.repo.findingsForRuns(runs.map((r) => r.runId)),
+      this.repo.avgCostBetween(workspaceId, agentId, prevStart, windowStart),
+      this.repo.latestDoneRuns(workspaceId, agentId, RECENT_RUNS_LIMIT),
+      this.repo.linkedSkills(agentId),
+    ]);
+    const findingCounts = await this.repo.findingCountsByRun(latest.map((r) => r.runId));
+    return buildAgentStats({ now, runs, findings, links, prevAvgCost, latest, findingCounts });
+  }
+
   /** Linked skills for an agent as AgentSkillLink[] (ordered). */
   async skillLinks(agentId: string): Promise<AgentSkillLink[]> {
     const links = await this.repo.linkedSkills(agentId);
-    return links.map((l) => ({ agent_id: agentId, skill_id: l.skill.id, order: l.order }));
+    return links.map((l) => ({ agent_id: agentId, skill_id: l.skill.id, order: l.order, enabled: l.enabled }));
   }
 
   /**
-   * Set / reorder the agent's linked skills. If `skillIds` is provided, replaces
-   * the whole set in that order. Returns the resulting ordered links.
+   * Set / reorder the agent's linked skills, replacing the whole set in the
+   * given order. Every skill id must belong to the caller's workspace.
+   * Returns the resulting ordered links.
    */
   async setSkills(
     workspaceId: string,
     agentId: string,
-    skillIds: string[],
+    links: SkillLinkRequest[],
   ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
-    await this.repo.setSkills(agentId, skillIds);
+    await this.assertSkillsInWorkspace(workspaceId, links.map((l) => l.skill_id));
+    await this.repo.setSkills(
+      agentId,
+      links.map((l) => ({
+        skillId: l.skill_id,
+        ...(l.order !== undefined ? { order: l.order } : {}),
+        ...(l.enabled !== undefined ? { enabled: l.enabled } : {}),
+      })),
+    );
     return this.skillLinks(agentId);
   }
 
@@ -162,13 +205,23 @@ export class AgentsService {
     agentId: string,
     skillId: string,
     order?: number,
+    enabled?: boolean,
   ): Promise<AgentSkillLink[] | undefined> {
     const agent = await this.repo.getById(workspaceId, agentId);
     if (!agent) return undefined;
+    await this.assertSkillsInWorkspace(workspaceId, [skillId]);
     const existing = await this.repo.linkedSkills(agentId);
     const resolvedOrder = order ?? existing.length;
-    await this.repo.linkSkill(agentId, skillId, resolvedOrder);
+    await this.repo.linkSkill(agentId, skillId, resolvedOrder, enabled);
     return this.skillLinks(agentId);
+  }
+
+  /** Tenancy guard: a skill id from another workspace looks like a missing one. */
+  private async assertSkillsInWorkspace(workspaceId: string, skillIds: string[]): Promise<void> {
+    const unique = [...new Set(skillIds)];
+    const found = await this.repo.existingSkillIds(workspaceId, unique);
+    const missing = unique.filter((id) => !found.has(id));
+    if (missing.length > 0) throw new NotFoundError('Skill not found', { skill_ids: missing });
   }
 
   /**

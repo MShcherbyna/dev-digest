@@ -1,0 +1,58 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for StatsTab. */
+export const s = {
+  wrap: { display: "flex", flexDirection: "column", gap: 16, maxWidth: 980 } satisfies CSSProperties,
+  tiles: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 } satisfies CSSProperties,
+  tile: {
+    padding: 16,
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "var(--bg-elevated)",
+  } satisfies CSSProperties,
+  tileHead: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    minHeight: 36,
+    marginBottom: 10,
+  } satisfies CSSProperties,
+  tileLabel: {
+    fontSize: 11,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  tileValueRow: { display: "flex", alignItems: "center", gap: 10, minHeight: 40 } satisfies CSSProperties,
+  valueWrap: { display: "inline-flex", alignItems: "baseline", gap: 4 } satisfies CSSProperties,
+  tileValue: { fontSize: 26, fontWeight: 700 } satisfies CSSProperties,
+  tileUnit: { fontSize: 14, color: "var(--text-muted)" } satisfies CSSProperties,
+  pair: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16 } satisfies CSSProperties,
+  empty: { fontSize: 13, color: "var(--text-muted)" } satisfies CSSProperties,
+  agentList: { listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 } satisfies CSSProperties,
+  agentRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "var(--bg-surface)",
+    textDecoration: "none",
+    color: "var(--text-primary)",
+  } satisfies CSSProperties,
+  agentIcon: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    background: "var(--accent-bg)",
+    color: "var(--accent-text)",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  agentName: { flex: 1, fontSize: 14, fontWeight: 600 } satisfies CSSProperties,
+  agentOpen: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
+} as const;
