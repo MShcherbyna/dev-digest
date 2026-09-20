@@ -88,18 +88,17 @@ export class SkillsService {
   }
 
   /**
-   * Restore = roll forward: copy the chosen version's body into a NEW version
-   * (history is never rewritten). v1 and the current version can't be restored.
+   * Roll back `version` = roll forward with the PREVIOUS body: v(N) restored
+   * creates a NEW latest version whose body is v(N-1)'s (history is never
+   * rewritten). v1 has nothing before it, so it can't be restored.
    */
   async restoreVersion(workspaceId: string, id: string, version: number): Promise<Skill> {
     const skill = await this.require(workspaceId, id);
     if (version === INITIAL_SKILL_VERSION) {
       throw new ValidationError('The first version cannot be restored');
     }
-    if (version === skill.version) {
-      throw new ValidationError('This is already the current version');
-    }
-    const target = await this.repo.getVersion(id, version);
+    if (version > skill.version) throw new NotFoundError('Skill version not found');
+    const target = await this.repo.getVersion(id, version - 1);
     if (!target) throw new NotFoundError('Skill version not found');
     return this.update(workspaceId, id, { body: target.body });
   }

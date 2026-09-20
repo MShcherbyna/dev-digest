@@ -80,7 +80,7 @@ d('skills module', () => {
     await app.close();
   });
 
-  it('restore copies a past body into a NEW version; v1 and current are refused', async () => {
+  it('restore vN creates a NEW version with v(N-1)'s body; v1 is refused', async () => {
     const app = await makeApp();
     const skill = (await app.inject({ method: 'POST', url: '/skills', payload: skillBody })).json();
     await app.inject({ method: 'PUT', url: `/skills/${skill.id}`, payload: { body: 'second' } });
@@ -88,16 +88,17 @@ d('skills module', () => {
     const restore = (v: number) =>
       app.inject({ method: 'POST', url: `/skills/${skill.id}/versions/${v}/restore` });
 
+    const r3 = await restore(3);
+    expect(r3.statusCode).toBe(200);
+    expect(r3.json()).toMatchObject({ version: 4, body: 'second' });
     const r2 = await restore(2);
-    expect(r2.statusCode).toBe(200);
-    expect(r2.json()).toMatchObject({ version: 4, body: 'second' });
+    expect(r2.json()).toMatchObject({ version: 5, body: 'Check the edges.' });
 
     const versions = (await app.inject({ method: 'GET', url: `/skills/${skill.id}/versions` })).json();
-    expect(versions.map((v: { version: number }) => v.version)).toEqual([4, 3, 2, 1]);
-    expect(versions[1].body).toBe('third');
+    expect(versions.map((v: { version: number }) => v.version)).toEqual([5, 4, 3, 2, 1]);
+    expect(versions[2].body).toBe('third');
 
     expect((await restore(1)).statusCode).toBe(422);
-    expect((await restore(4)).statusCode).toBe(422);
     expect((await restore(9)).statusCode).toBe(404);
     expect(
       (await app.inject({ method: 'POST', url: `/skills/${ghost}/versions/2/restore` })).statusCode,

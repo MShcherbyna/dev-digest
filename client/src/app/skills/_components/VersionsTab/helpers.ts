@@ -4,7 +4,7 @@ export function formatVersionDate(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
 
-/** The first version and the current one can't be restored (nothing to roll forward to). */
-export function canRestore(version: number, currentVersion: number): boolean {
-  return version !== 1 && version !== currentVersion;
+/** Restore copies the previous version's text, so v1 (nothing before it) can't be restored. */
+export function canRestore(version: number): boolean {
+  return version > 1;
 }

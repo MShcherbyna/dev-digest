@@ -48,8 +48,8 @@ read by the `engineering-insights` skill.
 
 - **2026-09-20** — Skill "Restore" is roll-forward, not rollback:
   `POST /skills/:id/versions/:version/restore` calls the normal `update({body})`
-  so it appends vN+1 with the old body (history is never rewritten). v1 and the
-  current version are refused (422). Per-agent skill counts are a separate
+  so it appends a new latest version. Restoring vN copies the body of v(N-1)
+  (v3 → v4 = v2's text; v2 → v4 = v1's text); v1 is refused (422). Per-agent skill counts are a separate
   `GET /agents/skill-counts` (`{agentId: enabled count}`) rather than a field on
   `Agent`, because `vendor/shared` contracts are do-not-touch; register it
   before `/agents/:id`.

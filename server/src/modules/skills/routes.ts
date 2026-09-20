@@ -20,7 +20,7 @@ const VersionParams = z.object({
  *   PUT    /skills/:id             → partial update, bumps version
  *   DELETE /skills/:id             → delete (cascades agent links)
  *   GET    /skills/:id/versions    → body history, newest first
- *   POST   /skills/:id/versions/:version/restore → new version copying that body
+ *   POST   /skills/:id/versions/:version/restore → new version with the previous version's body
  *   GET    /skills/:id/stats       → usage stats (last 30d)
  *   POST   /skills/import/preview  → parse an uploaded .md; persists nothing
  */

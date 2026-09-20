@@ -57,22 +57,22 @@ describe("VersionsTab", () => {
     expect(screen.queryByText("third body")).not.toBeInTheDocument();
   });
 
-  it("Restore is offered only on non-current, non-first versions and confirms first", async () => {
+  it("Restore is offered on every version except v1 and confirms first", async () => {
     useSkillVersions.mockReturnValue({ data: THREE, isLoading: false, isError: false });
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     renderWithIntl(<VersionsTab skillId="sk1" currentVersion={3} />);
     const buttons = screen.getAllByRole("button", { name: "Restore" });
-    expect(buttons).toHaveLength(1);
+    expect(buttons).toHaveLength(2);
     await userEvent.click(buttons[0]!);
     expect(confirm).toHaveBeenCalledTimes(1);
-    expect(restoreMutate).toHaveBeenCalledWith({ id: "sk1", version: 2 });
+    expect(restoreMutate).toHaveBeenCalledWith({ id: "sk1", version: 3 });
   });
 
   it("does not restore when the confirmation is declined", async () => {
     useSkillVersions.mockReturnValue({ data: THREE, isLoading: false, isError: false });
     vi.spyOn(window, "confirm").mockReturnValue(false);
     renderWithIntl(<VersionsTab skillId="sk1" currentVersion={3} />);
-    await userEvent.click(screen.getByRole("button", { name: "Restore" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Restore" })[0]!);
     expect(restoreMutate).not.toHaveBeenCalled();
   });
 

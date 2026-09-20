@@ -126,7 +126,7 @@
     "diff": "Diff",
     "hide": "Hide",
     "restore": "Restore",
-    "restoreConfirm": "Restore v{version}? This creates a new version with the same text."
+    "restoreConfirm": "Roll back v{version}? This creates a new version with the text of v{previous}."
   },
   "import": {
     "title": "Import a skill",

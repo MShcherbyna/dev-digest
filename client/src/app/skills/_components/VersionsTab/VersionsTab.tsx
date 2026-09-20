@@ -1,7 +1,7 @@
 /* VersionsTab — body history from /skills/:id/versions (newest first).
    The current version starts expanded; the others expand via Diff. Restore
-   rolls forward: it creates a NEW version with that version's text (v1 and the
-   current version have no Restore). */
+   rolls back by creating a NEW version with the PREVIOUS version's text
+   (v1 has no Restore). */
 "use client";
 
 import React from "react";
@@ -54,13 +54,13 @@ export function VersionsTab({ skillId, currentVersion }: { skillId: string; curr
                 <Button kind="secondary" size="sm" aria-expanded={open} onClick={() => flip(v.version)}>
                   {open ? t("versions.hide") : t("versions.diff")}
                 </Button>
-                {canRestore(v.version, currentVersion) && (
+                {canRestore(v.version) && (
                   <Button
                     kind="secondary"
                     size="sm"
                     disabled={restore.isPending}
                     onClick={() => {
-                      if (window.confirm(t("versions.restoreConfirm", { version: v.version }))) {
+                      if (window.confirm(t("versions.restoreConfirm", { version: v.version, previous: v.version - 1 }))) {
                         restore.mutate({ id: skillId, version: v.version });
                       }
                     }}
