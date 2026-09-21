@@ -103,7 +103,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
       config: { rateLimit: false },
       schema: { response: { 200: z.object({ status: z.enum(['ok', 'degraded']) }) } },
     },
-    async () => ({ status: 'ok' as const }),
+    async () => ({ status: 'ok' as const , name: 'test'}),
   );
 
   // Readiness check — verifies the DB is reachable with a cheap `SELECT 1`.
