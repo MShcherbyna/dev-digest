@@ -10,6 +10,7 @@ import { Badge, Button, EmptyState, ErrorState, Skeleton, Tabs } from "@devdiges
 import { useDeleteSkill, useSkill } from "@/lib/hooks/skills";
 import { ApiError } from "@/lib/api";
 import { SKILL_TYPE_COLOR } from "@/lib/skill-format";
+import { SKILLS_SELECT_ROUTE } from "../SkillsWorkspace/constants";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { ConfigTab } from "../ConfigTab";
 import { EvalsTab } from "../EvalsTab";
@@ -60,7 +61,7 @@ export function SkillDetail({ id }: { id: string }) {
   }));
 
   const remove = () => {
-    if (skill) del.mutate(skill.id, { onSuccess: () => router.push("/skills") });
+    if (skill) del.mutate(skill.id, { onSuccess: () => router.push(SKILLS_SELECT_ROUTE) });
   };
 
   return (

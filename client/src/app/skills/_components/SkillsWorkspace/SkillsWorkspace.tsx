@@ -1,10 +1,11 @@
-/* SkillsWorkspace — master-detail shell for /skills/[id] and /skills/new:
-   list column + skill detail + the import modal. (Bare /skills is SkillsListView.) */
+/* SkillsWorkspace — master-detail shell for /skills/[id], /skills/new and /skills/select:
+   list column + (skill detail | "select a skill" prompt) + the import modal. (Bare /skills is SkillsListView.) */
 "use client";
 
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { EmptyState } from "@devdigest/ui";
 import { AppShell } from "@/components/app-shell";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import type { SkillSummary } from "@devdigest/shared";
@@ -12,9 +13,10 @@ import { useDeleteSkill, useSkills, useUpdateSkill } from "@/lib/hooks/skills";
 import { ImportSkillModal } from "../ImportSkillModal";
 import { SkillDetail } from "../SkillDetail";
 import { SkillsList } from "../SkillsList";
+import { SKILLS_SELECT_ROUTE } from "./constants";
 import { s } from "./styles";
 
-export function SkillsWorkspace({ id }: { id: string }) {
+export function SkillsWorkspace({ id }: { id?: string }) {
   const t = useTranslations("skills");
   const router = useRouter();
   const { data: skills, isLoading, isError, refetch } = useSkills();
@@ -45,7 +47,7 @@ export function SkillsWorkspace({ id }: { id: string }) {
             del.mutate(deleting.id, {
               onSuccess: () => {
                 setDeleting(null);
-                if (deleting.id === id) router.push("/skills");
+                if (deleting.id === id) router.push(SKILLS_SELECT_ROUTE);
               },
             })
           }
@@ -66,7 +68,13 @@ export function SkillsWorkspace({ id }: { id: string }) {
           onCreate={() => router.push("/skills/new")}
           onImport={() => setImporting(true)}
         />
-        <SkillDetail key={id} id={id} />
+        {id ? (
+          <SkillDetail key={id} id={id} />
+        ) : (
+          <div style={s.prompt}>
+            <EmptyState icon="Sparkles" title={t("page.selectPrompt.title")} body={t("page.selectPrompt.body")} />
+          </div>
+        )}
       </div>
     </AppShell>
   );

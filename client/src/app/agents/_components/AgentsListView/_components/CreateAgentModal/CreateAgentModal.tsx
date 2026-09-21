@@ -3,9 +3,10 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, Modal, FormField, TextInput, SelectInput, Textarea } from "@devdigest/ui";
+import { Button, Modal, FormField, TextInput, SelectInput, SearchableSelect, Textarea } from "@devdigest/ui";
 import type { Provider } from "@devdigest/shared";
-import { useCreateAgent } from "@/lib/hooks/agents";
+import { useCreateAgent, useProviderModels } from "@/lib/hooks/agents";
+import { toModelOptions } from "@/lib/model-label";
 import { DEFAULT_MODEL, DEFAULT_PROVIDER, MODAL_WIDTH, PROVIDER_OPTIONS } from "./constants";
 import { s } from "./styles";
 
@@ -19,6 +20,19 @@ export function CreateAgentModal({ onClose }: { onClose: () => void }) {
   const [provider, setProvider] = React.useState<Provider>(DEFAULT_PROVIDER);
   const [model, setModel] = React.useState(DEFAULT_MODEL);
   const [systemPrompt, setSystemPrompt] = React.useState(t("create.defaultSystemPrompt"));
+
+  const { data: models } = useProviderModels(provider);
+  const modelOptions = toModelOptions(models);
+  const hasModel = modelOptions.some((o) => (typeof o === "string" ? o : o.value) === model);
+  if (model && !hasModel) modelOptions.unshift(model);
+  const noModels = models !== undefined && models.length === 0;
+
+  // After switching provider, the previous provider's model is invalid — fall
+  // back to the first model the new provider exposes once its list loads.
+  React.useEffect(() => {
+    const first = models?.[0];
+    if (first && !models.some((m) => m.id === model)) setModel(first.id);
+  }, [models]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = async () => {
     const agent = await create.mutateAsync({
@@ -67,8 +81,16 @@ export function CreateAgentModal({ onClose }: { onClose: () => void }) {
             options={[...PROVIDER_OPTIONS]}
           />
         </FormField>
-        <FormField label={t("create.fields.model")}>
-          <TextInput value={model} onChange={setModel} mono />
+        <FormField
+          label={t("create.fields.model")}
+          hint={noModels ? t("create.fields.modelEmptyHint", { provider }) : t("create.fields.modelHint")}
+        >
+          <SearchableSelect
+            value={model}
+            onChange={setModel}
+            options={modelOptions}
+            placeholder={t("create.fields.modelSearch")}
+          />
         </FormField>
         <FormField label={t("create.fields.systemPrompt")}>
           <Textarea value={systemPrompt} onChange={setSystemPrompt} rows={6} mono />

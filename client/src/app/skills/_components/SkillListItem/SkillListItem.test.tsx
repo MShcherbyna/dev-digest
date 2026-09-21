@@ -13,16 +13,16 @@ describe("SkillListItem", () => {
     expect(screen.getByText("uncovered-branches")).toBeInTheDocument();
     expect(screen.getByText("Flag new branches no test exercises")).toBeInTheDocument();
     expect(screen.getByText("rubric")).toBeInTheDocument();
-    expect(screen.getByText("Manual")).toBeInTheDocument();
+    expect(screen.getByText("Manual · v3")).toBeInTheDocument();
     expect(screen.getByText("2 agents")).toBeInTheDocument();
-    expect(screen.getByText("80% pull")).toBeInTheDocument();
+    expect(screen.getByText("80% pull freq")).toBeInTheDocument();
     expect(screen.getByText("55% accept")).toBeInTheDocument();
   });
 
   it("renders an em dash when pull/accept are null and labels imported skills", () => {
     renderWithIntl(<SkillListItem skill={SUMMARY_2} />);
-    expect(screen.getByText("Imported")).toBeInTheDocument();
-    expect(screen.getByText("— pull")).toBeInTheDocument();
+    expect(screen.getByText(/^Imported · v/)).toBeInTheDocument();
+    expect(screen.getByText("— pull freq")).toBeInTheDocument();
     expect(screen.getByText("— accept")).toBeInTheDocument();
     expect(screen.getByText("0 agents")).toBeInTheDocument();
   });
