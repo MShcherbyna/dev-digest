@@ -15,7 +15,7 @@ describe('routes (no DB)', () => {
     const app = await buildApp({ config });
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({ status: 'ok' });
+    expect(res.json()).toEqual({ state: 'ok' });
     await app.close();
   });
 
