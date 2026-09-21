@@ -17,12 +17,14 @@ export function AgentCard({
   skillCount,
   onClick,
   onToggle,
+  onDeleted,
 }: {
   ag: Agent;
   active?: boolean;
   skillCount?: number;
   onClick?: () => void;
   onToggle?: (enabled: boolean) => void;
+  onDeleted?: () => void;
 }) {
   const t = useTranslations("agents");
   const del = useDeleteAgent();
@@ -77,7 +79,14 @@ export function AgentCard({
             title={t("card.delete")}
             message={t("card.deleteConfirm", { name: ag.name })}
             pending={del.isPending}
-            onConfirm={() => del.mutate(ag.id, { onSuccess: () => setConfirming(false) })}
+            onConfirm={() =>
+              del.mutate(ag.id, {
+                onSuccess: () => {
+                  setConfirming(false);
+                  onDeleted?.();
+                },
+              })
+            }
             onClose={() => setConfirming(false)}
           />
         </div>

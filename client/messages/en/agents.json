@@ -1,4 +1,10 @@
 {
+  "page": {
+    "selectPrompt": {
+      "title": "Select an agent",
+      "body": "Pick an agent on the left to edit it."
+    }
+  },
   "card": {
     "noDescription": "No description",
     "delete": "Delete agent",
