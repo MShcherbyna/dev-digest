@@ -80,6 +80,49 @@ d('skills module', () => {
     await app.close();
   });
 
+  it('restore vN creates a NEW version with the previous body; v1 is refused', async () => {
+    const app = await makeApp();
+    const skill = (await app.inject({ method: 'POST', url: '/skills', payload: skillBody })).json();
+    await app.inject({ method: 'PUT', url: `/skills/${skill.id}`, payload: { body: 'second' } });
+    await app.inject({ method: 'PUT', url: `/skills/${skill.id}`, payload: { body: 'third' } });
+    const restore = (v: number) =>
+      app.inject({ method: 'POST', url: `/skills/${skill.id}/versions/${v}/restore` });
+
+    const r3 = await restore(3);
+    expect(r3.statusCode).toBe(200);
+    expect(r3.json()).toMatchObject({ version: 4, body: 'second' });
+    const r2 = await restore(2);
+    expect(r2.json()).toMatchObject({ version: 5, body: 'Check the edges.' });
+
+    const versions = (await app.inject({ method: 'GET', url: `/skills/${skill.id}/versions` })).json();
+    expect(versions.map((v: { version: number }) => v.version)).toEqual([5, 4, 3, 2, 1]);
+    expect(versions[2].body).toBe('third');
+
+    expect((await restore(1)).statusCode).toBe(422);
+    expect((await restore(9)).statusCode).toBe(404);
+    expect(
+      (await app.inject({ method: 'POST', url: `/skills/${ghost}/versions/2/restore` })).statusCode,
+    ).toBe(404);
+    await app.close();
+  });
+
+  it('GET /agents/skill-counts counts only enabled links', async () => {
+    const app = await makeApp();
+    const a = (await app.inject({ method: 'POST', url: '/skills', payload: { ...skillBody, name: 'C1' } })).json();
+    const b = (await app.inject({ method: 'POST', url: '/skills', payload: { ...skillBody, name: 'C2' } })).json();
+    const agent = (await app.inject({ method: 'POST', url: '/agents', payload: agentBody })).json();
+    const bare = (await app.inject({ method: 'POST', url: '/agents', payload: agentBody })).json();
+    await app.inject({
+      method: 'POST',
+      url: `/agents/${agent.id}/skills`,
+      payload: { links: [{ skill_id: a.id }, { skill_id: b.id, enabled: false }] },
+    });
+    const counts = (await app.inject({ method: 'GET', url: '/agents/skill-counts' })).json();
+    expect(counts[agent.id]).toBe(1);
+    expect(counts[bare.id]).toBeUndefined();
+    await app.close();
+  });
+
   it('rejects invalid bodies at the edge (422)', async () => {
     const app = await makeApp();
     const res = await app.inject({ method: 'POST', url: '/skills', payload: { ...skillBody, type: 'nope' } });

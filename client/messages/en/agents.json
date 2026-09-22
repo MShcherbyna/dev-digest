@@ -1,6 +1,14 @@
 {
+  "page": {
+    "selectPrompt": {
+      "title": "Select an agent",
+      "body": "Pick an agent on the left to edit it."
+    }
+  },
   "card": {
     "noDescription": "No description",
+    "delete": "Delete agent",
+    "deleteConfirm": "Delete agent \"{name}\"? This cannot be undone.",
     "skillCount": "{count} skills"
   },
   "list": {
@@ -31,6 +39,9 @@
       "descriptionPlaceholder": "What this agent reviews",
       "provider": "Provider",
       "model": "Model",
+      "modelHint": "Models are loaded dynamically from the provider's /models.",
+      "modelEmptyHint": "No models loaded — set the {provider} API key in Settings → API Keys.",
+      "modelSearch": "Search models…",
       "systemPrompt": "System prompt"
     }
   },

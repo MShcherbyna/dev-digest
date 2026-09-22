@@ -21,6 +21,7 @@ export interface InsertSkill {
   source: SkillSource;
   body: string;
   enabled: boolean;
+  evidenceFiles?: string[];
 }
 
 export interface UpdateSkill {
@@ -128,6 +129,14 @@ export class SkillsRepository {
       .from(t.skillVersions)
       .where(eq(t.skillVersions.skillId, skillId))
       .orderBy(desc(t.skillVersions.version));
+  }
+
+  async getVersion(skillId: string, version: number): Promise<SkillVersionRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(t.skillVersions)
+      .where(and(eq(t.skillVersions.skillId, skillId), eq(t.skillVersions.version, version)));
+    return row;
   }
 
   // ---- usage (stats) ------------------------------------------------------

@@ -46,4 +46,9 @@ describe("AgentCard (smoke)", () => {
     renderWithIntl(<AgentCard ag={{ ...AGENT, description: "" }} />);
     expect(screen.getByText("No description")).toBeInTheDocument();
   });
+
+  it("hides the skills badge when the agent has none", () => {
+    renderWithIntl(<AgentCard ag={AGENT} skillCount={0} />);
+    expect(screen.queryByText(/skills/)).not.toBeInTheDocument();
+  });
 });

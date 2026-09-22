@@ -1,0 +1,80 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for ConventionCard. */
+export const s = {
+  card: (accepted: boolean) =>
+    ({
+      display: "grid",
+      gridTemplateColumns: "1fr auto",
+      gap: 16,
+      padding: "14px 16px",
+      borderRadius: 10,
+      background: "var(--bg-surface)",
+      border: `1px solid ${accepted ? "var(--border)" : "var(--border-strong)"}`,
+    }) satisfies CSSProperties,
+  main: { minWidth: 0 } satisfies CSSProperties,
+  rule: {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: 0,
+    background: "transparent",
+    border: "none",
+    cursor: "text",
+    fontSize: 14,
+    fontWeight: 600,
+    fontStyle: "italic",
+    color: "var(--text-primary)",
+  } satisfies CSSProperties,
+  editRow: { display: "flex", gap: 8, marginTop: 8 } satisfies CSSProperties,
+  evidence: {
+    marginTop: 10,
+    padding: "10px 12px",
+    borderRadius: 7,
+    background: "var(--bg-elevated)",
+    border: "1px solid var(--border)",
+  } satisfies CSSProperties,
+  evidenceHead: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+    fontSize: 12,
+  } satisfies CSSProperties,
+  path: { color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis" } satisfies CSSProperties,
+  link: { color: "var(--accent)", textDecoration: "none", whiteSpace: "nowrap" } satisfies CSSProperties,
+  code: (accepted: boolean) =>
+    ({
+      margin: 0,
+      fontSize: 12.5,
+      lineHeight: 1.5,
+      whiteSpace: "pre-wrap",
+      wordBreak: "break-word",
+      color: accepted ? "var(--text-secondary)" : "var(--text-primary)",
+    }) satisfies CSSProperties,
+  confidence: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 10,
+    fontSize: 12,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  actions: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 8,
+    minWidth: 100,
+  } satisfies CSSProperties,
+  acceptedLabel: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "7px 13px",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "var(--text-primary)",
+  } satisfies CSSProperties,
+} as const;

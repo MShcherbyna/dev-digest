@@ -21,6 +21,14 @@ export function useAgent(id: string | null | undefined) {
   });
 }
 
+/** `{ [agentId]: enabled skill count }` for the agent cards' "N skills" badge. */
+export function useAgentSkillCounts() {
+  return useQuery({
+    queryKey: queryKeys.agentSkillCounts(),
+    queryFn: () => api.get<Record<string, number>>("/agents/skill-counts"),
+  });
+}
+
 /** Last-30-days usage for the agent editor's Stats tab. */
 export function useAgentStats(id: string | null | undefined) {
   return useQuery({

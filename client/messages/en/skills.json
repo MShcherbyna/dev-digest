@@ -1,6 +1,10 @@
 {
   "page": {
     "crumbLab": "Skills Lab",
+    "selectPrompt": {
+      "title": "Select a skill",
+      "body": "Pick a skill on the left to preview its body."
+    },
     "crumbSkills": "Skills",
     "heading": "Skills",
     "addSkill": "Add Skill",
@@ -8,7 +12,7 @@
     "loadError": "Could not load skills.",
     "menu": {
       "create": "Create new",
-      "import": "Import .md"
+      "import": "Import .md / .zip"
     },
     "empty": {
       "title": "No skills yet",
@@ -34,7 +38,7 @@
   "listItem": {
     "noDescription": "No description",
     "agents": "{count, plural, one {# agent} other {# agents}}",
-    "pull": "{pct} pull",
+    "pull": "{pct} pull freq",
     "accept": "{pct} accept",
     "type": {
       "rubric": "rubric",
@@ -43,6 +47,7 @@
       "custom": "custom"
     },
     "source": {
+      "label": "{source} · v{version}",
       "manual": "Manual",
       "extracted": "Extracted",
       "community": "Community",
@@ -121,13 +126,17 @@
   "versions": {
     "loadError": "Could not load versions.",
     "empty": "No versions yet.",
-    "current": "current",
-    "tokens": "~{count} tokens"
+    "current": "Current",
+    "tokens": "~{count} tokens",
+    "diff": "Diff",
+    "hide": "Hide",
+    "restore": "Restore",
+    "restoreConfirm": "Roll back v{version}? This creates a new version with the text of v{previous}."
   },
   "import": {
     "title": "Import a skill",
-    "subtitle": "Only the text of a .md file is read. Nothing is executed or fetched, and nothing is saved until you confirm.",
-    "pick": "Choose .md file",
+    "subtitle": "Pick a .md file or a .zip archive. Only the skill's text is read. Nothing is executed or fetched, and nothing is saved until you confirm.",
+    "pick": "Choose .md or .zip",
     "pickAnother": "Choose a different file",
     "reading": "Reading…",
     "previewFailed": "Could not read that file.",
@@ -140,6 +149,12 @@
     "confirm": "Confirm & save",
     "saving": "Saving…",
     "cancel": "Cancel",
-    "savedToast": "Skill imported"
+    "savedToast": "Skill imported",
+    "archiveTooLarge": "That archive is too large (max 2 MB).",
+    "archive": {
+      "invalid": "Could not read that archive.",
+      "noSkill": "No SKILL.md (or single .md file) found in the archive.",
+      "tooLarge": "The skill file inside the archive is too large (max 100 KB)."
+    }
   }
 }

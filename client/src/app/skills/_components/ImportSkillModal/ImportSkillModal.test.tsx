@@ -12,6 +12,7 @@ vi.mock("@/lib/hooks/skills", () => ({
 
 import { ImportSkillModal } from "./ImportSkillModal";
 import { isMarkdownFile } from "./helpers";
+import { zipSync, strToU8 } from "fflate";
 
 const PREVIEW = {
   name: "flaky-test-detector",
@@ -63,6 +64,50 @@ describe("ImportSkillModal", () => {
       expect.anything(),
     );
     expect(onImported).toHaveBeenCalledWith("sk9");
+  });
+
+  it("accepts a .zip, sends the SKILL.md text to preview and shows it", async () => {
+    previewAsync.mockResolvedValue(PREVIEW);
+    renderWithIntl(<ImportSkillModal onClose={() => {}} onImported={() => {}} />);
+    const bytes = zipSync({ "pkg/SKILL.md": strToU8("# Flaky\nAvoid sleeps.") });
+    const file = new File([bytes], "skill.zip", { type: "application/zip" });
+    Object.defineProperty(file, "arrayBuffer", {
+      value: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    });
+    await userEvent.upload(screen.getByTestId("skill-file-input"), file);
+
+    await waitFor(() => expect(screen.getByDisplayValue("flaky-test-detector")).toBeInTheDocument());
+    expect(previewAsync).toHaveBeenCalledWith({ filename: "SKILL.md", content: "# Flaky\nAvoid sleeps." });
+  });
+
+  it("shows an inline error for an archive without a skill", async () => {
+    renderWithIntl(<ImportSkillModal onClose={() => {}} onImported={() => {}} />);
+    const bytes = zipSync({ "a.txt": strToU8("x") });
+    const file = new File([bytes], "bad.zip", { type: "application/zip" });
+    Object.defineProperty(file, "arrayBuffer", {
+      value: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    });
+    await userEvent.upload(screen.getByTestId("skill-file-input"), file);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/No SKILL\.md/);
+    expect(previewAsync).not.toHaveBeenCalled();
+  });
+
+  it("drops the previous preview when the next file fails", async () => {
+    previewAsync.mockResolvedValue(PREVIEW);
+    renderWithIntl(<ImportSkillModal onClose={() => {}} onImported={() => {}} />);
+    await userEvent.upload(screen.getByTestId("skill-file-input"), mdFile());
+    await waitFor(() => expect(screen.getByDisplayValue("flaky-test-detector")).toBeInTheDocument());
+
+    const bytes = zipSync({ "a.txt": strToU8("x") });
+    const bad = new File([bytes], "bad.zip", { type: "application/zip" });
+    Object.defineProperty(bad, "arrayBuffer", {
+      value: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+    });
+    await userEvent.upload(screen.getByTestId("skill-file-input"), bad);
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("flaky-test-detector")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm & save" })).toBeDisabled();
   });
 
   it("lets the user edit the preview before saving", async () => {

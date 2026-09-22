@@ -37,6 +37,12 @@ read by the `engineering-insights` skill.
   differ in how they source that data — one lazy-fetches via `usePrReviews`
   on open, the other already has it from a `reviews: ReviewRecord[]` prop).
 
+- `client/src/vendor/ui/nav.ts` was edited locally (not at the sync source) to
+  add the SKILLS LAB group (Agents, Skills, Conventions) — port it to the sync
+  source or the next re-vendor will revert it.
+- Conventions confidence bar turns amber below `CONFIDENCE_WARN_BELOW` (0.85,
+  `ConventionCard/constants.ts`): the design shows 90% neutral and 80% amber.
+
 ## Tool & Library Notes
 
 - **2026-09-19** — ESLint (flat config, `eslint.config.mjs`, `pnpm lint`) was

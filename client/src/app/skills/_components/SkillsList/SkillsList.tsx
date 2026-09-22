@@ -19,6 +19,8 @@ export function SkillsList({
   activeId,
   onSelect,
   onToggle,
+  onDelete,
+  deletingId,
   onCreate,
   onImport,
 }: {
@@ -29,6 +31,8 @@ export function SkillsList({
   activeId?: string | null;
   onSelect: (id: string) => void;
   onToggle: (id: string, enabled: boolean) => void;
+  onDelete?: (skill: SkillSummary) => void;
+  deletingId?: string | null;
   onCreate: () => void;
   onImport: () => void;
 }) {
@@ -82,6 +86,8 @@ export function SkillsList({
             active={sk.id === activeId}
             onClick={() => onSelect(sk.id)}
             onToggle={(enabled) => onToggle(sk.id, enabled)}
+            onDelete={onDelete ? () => onDelete(sk) : undefined}
+            deleting={deletingId === sk.id}
           />
         ))}
       </div>

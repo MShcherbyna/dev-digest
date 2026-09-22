@@ -1,4 +1,4 @@
-/* ImportSkillModal — pick a .md, read its TEXT in the browser, ask the server
+/* ImportSkillModal — pick a .md or a .zip (SKILL.md is extracted in the browser), read its TEXT, ask the server
    for an editable preview, then Confirm & save (source: imported_url).
    Nothing is persisted before confirm; the file is never uploaded or executed. */
 "use client";
@@ -11,8 +11,8 @@ import { useCreateSkill, useImportSkillPreview } from "@/lib/hooks/skills";
 import { useToast } from "@/lib/toast";
 import { SKILL_TYPES, estimateTokens } from "@/lib/skill-format";
 import { SkillBodyEditor } from "../SkillBodyEditor";
-import { ACCEPT_ATTR, MODAL_WIDTH } from "./constants";
-import { isMarkdownFile } from "./helpers";
+import { ACCEPT_ATTR, MAX_ARCHIVE_BYTES, MODAL_WIDTH } from "./constants";
+import { ArchiveError, extractSkillFromZip, isMarkdownFile, isZipFile } from "./helpers";
 import { s } from "./styles";
 
 export function ImportSkillModal({ onClose, onImported }: { onClose: () => void; onImported: (id: string) => void }) {
@@ -30,19 +30,32 @@ export function ImportSkillModal({ onClose, onImported }: { onClose: () => void;
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     setReadError(null);
-    if (!isMarkdownFile(file.name)) {
+    setForm(null);
+    setWarnings([]);
+    const zip = isZipFile(file.name);
+    if (!zip && !isMarkdownFile(file.name)) {
       setReadError(t("import.previewFailed"));
+      return;
+    }
+    if (zip && file.size > MAX_ARCHIVE_BYTES) {
+      setReadError(t("import.archiveTooLarge"));
       return;
     }
     setReading(true);
     try {
-      const content = await file.text();
-      const result = await preview.mutateAsync({ filename: file.name, content });
+      const source = zip
+        ? extractSkillFromZip(new Uint8Array(await file.arrayBuffer()))
+        : { filename: file.name, content: await file.text() };
+      const result = await preview.mutateAsync(source);
       setForm(result);
       setWarnings(result.warnings);
-    } catch {
-      // Server failures already raise the global error toast; this covers the inline note.
-      setReadError(t("import.previewFailed"));
+    } catch (e) {
+      if (e instanceof ArchiveError) {
+        setReadError(t(`import.archive.${e.code}`));
+      } else {
+        // Server failures already raise the global error toast; this covers the inline note.
+        setReadError(t("import.previewFailed"));
+      }
     } finally {
       setReading(false);
     }

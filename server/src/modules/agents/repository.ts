@@ -95,6 +95,19 @@ export class AgentsRepository {
     return this.db.select().from(t.agents).where(eq(t.agents.workspaceId, workspaceId));
   }
 
+  /** Enabled skill links per agent (agents with none are absent), workspace-scoped. */
+  async skillCounts(workspaceId: string): Promise<Array<{ agentId: string; count: number }>> {
+    return this.db
+      .select({
+        agentId: t.agentSkills.agentId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(t.agentSkills)
+      .innerJoin(t.agents, eq(t.agentSkills.agentId, t.agents.id))
+      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agentSkills.enabled, true)))
+      .groupBy(t.agentSkills.agentId);
+  }
+
   async listEnabled(workspaceId: string): Promise<AgentRow[]> {
     return this.db
       .select()

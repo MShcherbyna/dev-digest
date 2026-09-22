@@ -10,7 +10,7 @@ Server contract: [../../server/specs/skills.md](../../server/specs/skills.md).
 Sidebar: `Skills` item (`g s`).
 
 ## Left column — list
-Title, `+ Add Skill ▾` (Create new · Import .md), search box. Each item:
+Title, `+ Add Skill ▾` (Create new · Import .md / .zip), search box. Each item:
 name, enabled `Toggle` (global), 1-line description, type badge, source badge
 (Manual / Extracted / Community / Imported), footer `N agents · X% pull · Y%
 accept` (`—` when null). Disabled items dimmed. Active item highlighted.
@@ -30,7 +30,7 @@ Tabs:
 - **Versions** — list from `/skills/:id/versions`.
 
 ## Import modal
-Pick `.md` → `POST /skills/import/preview` → editable preview + trust warning
+Pick `.md` or `.zip` (the browser inflates only `SKILL.md`, else the single `.md`, via `fflate`; archive ≤ 2 MB, entry ≤ 100 KB) → `POST /skills/import/preview` → editable preview + trust warning
 ("a foreign skill is foreign instructions inside your agent's prompt") →
 **Confirm & save** (`POST /skills`, `source: imported_url`). Nothing is saved
 before confirm; only text is read.
