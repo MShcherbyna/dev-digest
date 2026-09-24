@@ -56,6 +56,23 @@ buttons") still failing, which was the more consequential gap of the two.
 
 ## Codebase Patterns
 
+- **2026-09-24** — `CLAUDE.md` is a symlink to `AGENTS.md` in the root and in
+  every package (client, server, reviewer-core, e2e), so editing either name
+  edits the instructions loaded into every Claude session. Any write guard
+  must block BOTH names and every package copy, or a write via the other name
+  slips through; `doc-writer-guard.sh` does this, so the doc-writer agent can
+  only propose "Read when" links. Check: `ls -l CLAUDE.md */CLAUDE.md`.
+- **2026-09-24** — The agent guard hooks differ on bad input:
+  `.claude/hooks/implementer-guard.sh` swallows parse errors (`2>/dev/null`) and
+  falls through to allow (fail-open), while `test-writer-guard.sh`,
+  `doc-writer-guard.sh` and `readonly-bash-guard.sh` exit 2 on unparsable
+  input or an unknown tool, and the first two also on an unset
+  `CLAUDE_PROJECT_DIR` (fail-closed; the read-only guard never reads it). Copy
+  the new guards, not the implementer's, when adding one. Their Bash blocks
+  are regex allowlists, not a shell parser: `cp`/`mv`/`python -c` writes are
+  not caught in `test-writer-guard.sh`. `pr-self-review` does not cover
+  `.claude/**`, so review hook changes by hand.
+
 - **2026-09-18** — `server/src/vendor/shared` and `client/src/vendor/shared`
   are meant to be the same contracts package but there is no sync script
   between them — confirmed firsthand adding `cost_usd` to `contracts/
@@ -72,6 +89,11 @@ buttons") still failing, which was the more consequential gap of the two.
 
 ## Tool & Library Notes
 
+- **2026-09-24** — `python3` here has no PyYAML, so
+  `python3 -c 'import yaml'` fails with `ModuleNotFoundError`; the plan's
+  frontmatter check for `.claude/agents/*.md` cannot run that way. Parse it
+  with Ruby instead: `ruby -ryaml -e 'puts YAML.safe_load(File.read(ARGV[0])
+  .split("---")[1]).inspect' .claude/agents/<name>.md`.
 - **2026-09-18** — On this machine `pnpm` is not on `PATH`, and `corepack
   pnpm` fails with `EACCES` opening `~/.cache/node/corepack` (permission/
   sandbox issue) — use `npx --yes pnpm@10 <cmd>` instead; it installs and

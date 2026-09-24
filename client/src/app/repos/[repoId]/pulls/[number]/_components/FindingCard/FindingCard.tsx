@@ -20,6 +20,7 @@ import {
 import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
+import { useTranslateFinding, type TranslatedFinding } from "@/lib/hooks/translation";
 import { githubBlobUrl } from "@/lib/github-urls";
 import { s } from "./styles";
 
@@ -50,6 +51,24 @@ export function FindingCard({
   const accepted = !!f.accepted_at;
   const dismissed = !!f.dismissed_at;
   const muted = accepted || dismissed;
+  // Per-finding translation state: fetched on demand, toggling back needs no request.
+  const translate = useTranslateFinding(f.id);
+  const [translation, setTranslation] = React.useState<TranslatedFinding | null>(null);
+  const [showTranslated, setShowTranslated] = React.useState(false);
+  const onTranslate = () => {
+    if (showTranslated) return setShowTranslated(false);
+    if (translation) return setShowTranslated(true);
+    translate.mutate(undefined, {
+      onSuccess: (r) => {
+        setTranslation(r);
+        setShowTranslated(true);
+      },
+    });
+  };
+  const shown = showTranslated ? translation : null;
+  const title = shown?.title ?? f.title;
+  const rationale = shown?.rationale ?? f.rationale;
+  const suggestion = shown ? shown.suggestion : f.suggestion;
 
   return (
     <div data-finding-id={f.id} style={s.card(!!focused, sevColor, muted)}>
@@ -59,7 +78,7 @@ export function FindingCard({
         </div>
         <div style={s.headerMain}>
           <div style={s.titleRow}>
-            <span style={s.title(muted, dismissed)}>{f.title}</span>
+            <span style={s.title(muted, dismissed)}>{title}</span>
             <CategoryTag category={f.category as Category} />
             {accepted && <span style={s.acceptedTag}>{t("finding.accepted")}</span>}
             {dismissed && <span style={s.dismissedTag}>{t("finding.dismissed")}</span>}
@@ -77,13 +96,13 @@ export function FindingCard({
       {expanded && (
         <div style={s.body}>
           <div style={s.prose}>
-            <Markdown>{f.rationale}</Markdown>
+            <Markdown>{rationale}</Markdown>
           </div>
-          {f.suggestion && (
+          {suggestion && (
             <div style={s.suggestionWrap}>
               <div style={s.suggestionLabel}>{t("finding.suggestedFix")}</div>
               <div style={s.prose}>
-                <Markdown>{f.suggestion}</Markdown>
+                <Markdown>{suggestion}</Markdown>
               </div>
             </div>
           )}
@@ -109,6 +128,17 @@ export function FindingCard({
             >
               {t("finding.dismiss")}
             </Button>
+            <Button
+              kind="ghost"
+              size="sm"
+              icon="Globe"
+              loading={translate.isPending}
+              active={showTranslated}
+              onClick={onTranslate}
+            >
+              {showTranslated ? t("finding.showOriginal") : t("finding.translate")}
+            </Button>
+            {translate.isError && <span style={s.translateError}>{t("finding.translateFailed")}</span>}
           </div>
         </div>
       )}

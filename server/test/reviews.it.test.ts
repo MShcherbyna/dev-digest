@@ -110,6 +110,14 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     await pg?.stop();
   });
 
+  const INTENT_FIXTURE = {
+    intent: 'Test PR intent.',
+    in_scope: ['In scope item'],
+    out_of_scope: ['Out of scope item'],
+    risk_areas: ['Risk area'],
+    model_confidence: 'medium',
+  };
+
   function appWith(structured: unknown, provider: 'openai' | 'anthropic' = 'openai') {
     return buildApp({
       config: config(),
@@ -119,6 +127,10 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
         git: new MockGitClient({ diff: DIFF }),
         llm: {
           [provider]: new MockLLMProvider(provider, { structured }),
+          // The review run derives the PR intent (cheap model, default provider
+          // openrouter). Mock it so no test makes a real network call with the
+          // developer's ~/.devdigest/secrets.json key.
+          openrouter: new MockLLMProvider('openai', { structured: INTENT_FIXTURE }),
         },
       },
     });

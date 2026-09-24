@@ -4,6 +4,9 @@ import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
 
+vi.mock("@/lib/hooks/translation", () => ({
+  useTranslateFinding: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+}));
 vi.mock("@/lib/hooks/reviews", () => ({
   useFindingAction: () => ({ mutate: vi.fn(), isPending: false }),
 }));
@@ -104,5 +107,13 @@ describe("FindingsPanel (smoke)", () => {
     expect(screen.getByRole("button", { name: "Critical" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Warning" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Suggestion" })).toBeInTheDocument();
+  });
+});
+
+describe("FindingsPanel translation", () => {
+  it("has no toolbar Translate button (translation is per finding, in the card actions)", () => {
+    renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
+    // The first card is expanded: its actions row carries the single Translate button.
+    expect(screen.getAllByRole("button", { name: "Translate" })).toHaveLength(1);
   });
 });

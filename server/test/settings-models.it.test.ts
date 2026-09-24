@@ -8,6 +8,7 @@ import type { SecretsProvider } from '@devdigest/shared';
 import {
   resolveFeatureModel,
   getFeatureModelOverride,
+  resolveTranslationLanguage,
 } from '../src/modules/settings/feature-models.js';
 
 const hasDocker = await dockerAvailable();
@@ -50,6 +51,13 @@ d('Settings: feature models + secrets status (Testcontainers pg)', () => {
       provider: 'openrouter',
       model: 'z-ai/glm-4.7-flash',
     });
+    // The translation feature ships a default and language defaults to uk.
+    expect(await resolveFeatureModel(app.container, workspaceId, 'translation')).toEqual({
+      provider: 'openrouter',
+      model: 'deepseek/deepseek-v4-flash',
+    });
+    expect(await resolveTranslationLanguage(app.container, workspaceId)).toBe('uk');
+
     // An unset feature still resolves to its own registry default.
     expect(await resolveFeatureModel(app.container, workspaceId, 'risk_brief')).toEqual({
       provider: 'openai',

@@ -30,4 +30,18 @@ describe("VerdictBanner (smoke)", () => {
     expect(screen.getByText("42")).toBeInTheDocument();
     expect(screen.getByText(/1 findings · 1 blockers/)).toBeInTheDocument();
   });
+
+  // Catches: null score rendering a score ring, null summary rendering an empty
+  // paragraph, zero blockers still printing the blockers suffix, or a missing
+  // agent name rendering an empty agent badge.
+  it("empty state: no summary, score, blockers or agent renders only label + count", () => {
+    renderWithIntl(
+      <VerdictBanner verdict="comment" summary={null} score={null} findingsCount={0} blockers={0} />,
+    );
+    expect(screen.getByText("Comment")).toBeInTheDocument();
+    expect(screen.getByText("0 findings")).toBeInTheDocument();
+    expect(screen.queryByText(/blockers/)).not.toBeInTheDocument();
+    expect(screen.queryByText("PR SCORE")).not.toBeInTheDocument();
+    expect(screen.queryByRole("paragraph")).not.toBeInTheDocument();
+  });
 });

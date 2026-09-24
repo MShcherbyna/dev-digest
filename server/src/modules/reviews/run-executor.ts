@@ -34,6 +34,12 @@ export type RunOutcome = {
   raw: Review;
 };
 
+/** Per-run intent inputs resolved once in executeRuns and shared by every agent. */
+type IntentRunContext = {
+  promptIntent: ReturnType<Container['intent']['toPromptIntent']>;
+  toolCall: { tool: string; args: string; meta: string; ms: number };
+};
+
 /**
  * Owns the background execution of queued agent runs (extracted from
  * ReviewService; behaviour unchanged). Loads the diff + intent once, then
@@ -105,6 +111,36 @@ export class ReviewRunExecutor {
     }
     runLog.info(`Diff ready — ${diff.files.length} changed file(s); starting ${jobs.length} agent run(s)`);
 
+    // Intent: read the stored one (even if stale) or derive it now. Fail-open —
+    // never throws, and deliberately NOT wrapped in runLog.step (its `error`
+    // event would toast in the studio). Runs without intent are byte-identical
+    // to the pre-intent prompt.
+    const intentStart = Date.now();
+    const intentResult = await this.container.intent.intentForRun(
+      {
+        workspaceId,
+        pull,
+        repo: { owner: repo.owner, name: repo.name },
+        changedPaths: diff.files.map((f) => f.path),
+      },
+      {
+        info: (msg, data) => runLog.info(msg, data),
+        tool: (msg, data) => runLog.tool(msg, data),
+        warn: (msg, data) => runLog.info(msg, data),
+      },
+    );
+    const intentCtx = intentResult
+      ? {
+          promptIntent: this.container.intent.toPromptIntent(intentResult.intent),
+          toolCall: {
+            tool: 'derive_intent',
+            args: `pr#${pull.number}`,
+            meta: intentResult.origin === 'derived' ? (intentResult.intent.model ?? 'derived') : intentResult.origin,
+            ms: Date.now() - intentStart,
+          },
+        }
+      : undefined;
+
     for (const { agent, runId } of jobs) {
       const agentStart = Date.now();
       logger?.info(
@@ -112,7 +148,7 @@ export class ReviewRunExecutor {
         `review: agent "${agent.name}" started (${agent.provider}/${agent.model})`,
       );
       try {
-        const outcome = await this.runOneAgent(workspaceId, pull, repo, diff, agent, runId, runLog);
+        const outcome = await this.runOneAgent(workspaceId, pull, repo, diff, agent, runId, runLog, intentCtx);
         logger?.info(
           {
             runId,
@@ -144,6 +180,7 @@ export class ReviewRunExecutor {
     agent: AgentRow,
     runId: string,
     parentLog: RunLogger,
+    intentCtx?: IntentRunContext,
   ): Promise<RunOutcome> {
     const start = Date.now();
     // Narrow the fanned-out pre-work logger to THIS run; the shared diff/intent
@@ -212,6 +249,8 @@ export class ReviewRunExecutor {
         // PR author's description/body — untrusted; assemblePrompt wraps +
         // truncates it. Omitted when the PR has no body.
         ...(pull.body ? { prDescription: pull.body } : {}),
+        // Derived intent — untrusted, wrapped by assemblePrompt; never narrows the review.
+        ...(intentCtx ? { intent: intentCtx.promptIntent } : {}),
         task,
         sessionId: `${repo.owner}/${repo.name}#${pull.number}:${agent.name}`,
         onEvent: (e) => runLog.event(e.kind, e.msg, e.data),
@@ -280,12 +319,15 @@ export class ReviewRunExecutor {
           grounding,
         },
         prompt_assembly: outcome.assembly,
-        tool_calls: outcome.chunks.map((c) => ({
-          tool: 'review_file',
-          args: c.label,
-          meta: outcome.mode,
-          ms: Math.round(durationMs / Math.max(outcome.chunks.length, 1)),
-        })),
+        tool_calls: [
+          ...(intentCtx ? [intentCtx.toolCall] : []),
+          ...outcome.chunks.map((c) => ({
+            tool: 'review_file',
+            args: c.label,
+            meta: outcome.mode,
+            ms: Math.round(durationMs / Math.max(outcome.chunks.length, 1)),
+          })),
+        ],
         raw_output: outcome.raw,
         memory_pulled: [],
         specs_read: [],

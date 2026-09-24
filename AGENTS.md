@@ -117,3 +117,4 @@ Before answering any question about Claude Code, always verify the answer agains
 Always follow the design shown in the provided screenshots.
 Treat screenshots as the single source of truth for visual implementation.
 Do not redesign, simplify, or add visual elements unless explicitly requested.
+When no screenshot covers an element, fall back to the file in `design/` — see the `design` skill.

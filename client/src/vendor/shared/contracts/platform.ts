@@ -17,6 +17,7 @@ export const FeatureModelId = z.enum([
   'risk_brief',
   'conformance',
   'conventions',
+  'translation',
 ]);
 export type FeatureModelId = z.infer<typeof FeatureModelId>;
 
@@ -52,8 +53,8 @@ export const FEATURE_MODELS: FeatureModelDef[] = [
     id: 'review_intent',
     label: 'PR Review · Intent',
     description: 'Derives a PR’s intent and scope before review.',
-    defaultProvider: 'openai',
-    defaultModel: 'gpt-4.1',
+    defaultProvider: 'openrouter',
+    defaultModel: 'deepseek/deepseek-v4-flash',
   },
   {
     id: 'risk_brief',
@@ -76,9 +77,20 @@ export const FEATURE_MODELS: FeatureModelDef[] = [
     defaultProvider: 'openai',
     defaultModel: 'gpt-5.4',
   },
+  {
+    id: 'translation',
+    label: 'Translation',
+    description: 'Translates review findings into the chosen language.',
+    defaultProvider: 'openrouter',
+    defaultModel: 'deepseek/deepseek-v4-flash',
+  },
 ];
 
 // ---- Settings ----
+/** Target languages for finding translation (Settings → Feature Models). */
+export const TranslationLanguage = z.enum(['uk', 'ru']);
+export type TranslationLanguage = z.infer<typeof TranslationLanguage>;
+
 /**
  * Non-secret prefs/config. Secrets (API keys) are NOT stored here — they go
  * through SecretsProvider (.env in MVP). Settings is a flat key/value bag,
@@ -92,6 +104,8 @@ export const SettingsKnown = z.object({
   automatic_reviews: z.boolean().default(false),
   /** Per-feature model overrides (provider+model), keyed by FeatureModelId. */
   feature_models: z.record(FeatureModelId, FeatureModelChoice).default({}),
+  /** Target language of the "Translate" button on review findings. */
+  translation_language: TranslationLanguage.default('uk'),
 });
 export type SettingsKnown = z.infer<typeof SettingsKnown>;
 

@@ -25,6 +25,9 @@
     "body": "Choose the model each system feature uses. The list and live prices come from OpenRouter; a feature falls back to its default until you pick one.",
     "usingDefault": "default",
     "search": "Search models…",
+    "translationLanguage": "Translation language",
+    "languageUk": "Ukrainian",
+    "languageRu": "Russian",
     "liveNote": "Prices are pulled live from OpenRouter — USD per 1M input/output tokens.",
     "noKeyNote": "Add an OpenRouter API key under API Keys to load the model list and prices."
   },

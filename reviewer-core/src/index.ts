@@ -17,6 +17,8 @@ export {
   wrapUntrusted,
   skillTokenEstimates,
   estimateTokens,
+  renderIntentBlock,
+  type PromptIntent,
   type PromptSkill,
   type PromptParts,
   type AssembledPrompt,

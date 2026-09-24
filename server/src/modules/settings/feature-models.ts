@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import {
   FEATURE_MODELS,
   FeatureModelChoice,
+  TranslationLanguage,
   type FeatureModelId,
 } from '@devdigest/shared';
 import type { Container } from '../../platform/container.js';
@@ -11,7 +12,7 @@ import { rowsToSettings } from './helpers.js';
 /**
  * Per-feature model configuration.
  *
- * System LLM features (onboarding, intent, risk brief, conformance, conventions)
+ * System LLM features (onboarding, intent, risk brief, conformance, conventions, translation)
  * read their provider/model from the workspace's Settings instead of a hardcoded
  * module constant. When the workspace hasn't chosen one, we fall back to the
  * registry default in `FEATURE_MODELS` — which mirrors each module's old
@@ -54,4 +55,18 @@ export async function resolveFeatureModel(
   id: FeatureModelId,
 ): Promise<FeatureModelChoice> {
   return (await getFeatureModelOverride(container, workspaceId, id)) ?? DEFAULTS[id];
+}
+
+/** The workspace's finding-translation target language (`translation_language`), default `uk`. */
+export async function resolveTranslationLanguage(
+  container: Container,
+  workspaceId: string,
+): Promise<TranslationLanguage> {
+  const rows = await container.db
+    .select({ key: t.settings.key, value: t.settings.value })
+    .from(t.settings)
+    .where(eq(t.settings.workspaceId, workspaceId));
+  const raw = (rowsToSettings(rows) as { translation_language?: unknown }).translation_language;
+  const parsed = TranslationLanguage.safeParse(raw);
+  return parsed.success ? parsed.data : 'uk';
 }

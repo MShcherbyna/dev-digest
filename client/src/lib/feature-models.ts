@@ -46,4 +46,11 @@ export const FEATURE_MODELS: FeatureModelDef[] = [
     defaultProvider: "openai",
     defaultModel: "gpt-5.4",
   },
+  {
+    id: "translation",
+    label: "Translation",
+    description: "Translates review findings into the chosen language.",
+    defaultProvider: "openrouter",
+    defaultModel: "deepseek/deepseek-v4-flash",
+  },
 ];

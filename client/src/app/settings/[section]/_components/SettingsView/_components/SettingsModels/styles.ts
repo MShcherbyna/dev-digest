@@ -4,6 +4,9 @@ import type { CSSProperties } from "react";
 export const s = {
   wrap: { maxWidth: 640 } satisfies CSSProperties,
   row: { marginBottom: 18 } satisfies CSSProperties,
+  pickerRow: { display: "flex", alignItems: "flex-start", gap: 10 } satisfies CSSProperties,
+  picker: { flex: 1, minWidth: 0 } satisfies CSSProperties,
+  language: { width: 160, flexShrink: 0 } satisfies CSSProperties,
   defaultTag: {
     marginLeft: 8,
     fontSize: 12,

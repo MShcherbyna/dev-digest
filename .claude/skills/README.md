@@ -14,6 +14,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [react-best-practices](react-best-practices/SKILL.md) | Frontend | React anti-patterns, state management, hooks rules |
 | [react-frontend-architecture](react-frontend-architecture/SKILL.md) | Frontend | Where components, constants, helpers, hooks, business logic live; folder structure; server/client boundary |
 | [react-testing-library](react-testing-library/SKILL.md) | Frontend | General-purpose React Testing Library guide with Vitest |
+| [design](design/SKILL.md) | Frontend | Screenshot-first UI design source of truth; falls back to the `design/` folder |
 | [zod](zod/SKILL.md) | Full-stack | Zod schema validation, parsing, error handling, type inference |
 | [typescript-expert](typescript-expert/SKILL.md) | Full-stack | Type-level programming, performance, tooling, migrations |
 | [security](security/SKILL.md) | Full-stack | OWASP Top 10:2025, auth, injection, uploads, secrets |

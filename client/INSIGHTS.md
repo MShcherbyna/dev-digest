@@ -14,6 +14,15 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-09-24** — `client/src/lib/feature-models.ts` is a hand-mirrored copy
+  of `FEATURE_MODELS` (the client can't import shared runtime values) and it
+  has already drifted: `review_intent` is `openai/gpt-4.1` there but
+  `openrouter/deepseek/deepseek-v4-flash` in
+  `server/src/vendor/shared/contracts/platform.ts`, so Settings shows the
+  wrong "default" model for that row. A new feature model must be added to
+  BOTH vendored `contracts/platform.ts` copies and this file; diff them:
+  `diff server/src/vendor/shared/contracts/platform.ts client/src/vendor/shared/contracts/platform.ts`.
+
 - **2026-09-18** — The PR list has no "Findings" column live in
   `PRRow.tsx`/`constants.ts` (`COLUMN_KEYS` has no `findings` entry) even
   though design screenshots show one — but a matching unused type,
