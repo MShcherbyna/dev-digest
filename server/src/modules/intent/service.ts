@@ -188,9 +188,19 @@ export class IntentService implements IntentDeriver {
 
     if (mode === 'regenerate') {
       const stored = await this.deps.store.get(pull.id);
-      if (stored && stored.inputHash === hash) {
-        // Same inputs → same answer: skip the model. If only the head moved,
-        // re-anchor the row to the new head (derived_at is unchanged).
+      // Reuse only when the same model would answer: after the workspace picks
+      // another model in Settings, Regenerate must call it (rows written before
+      // provider/model were stored have nulls and are re-derived once).
+      const choice = stored ? await this.deps.modelChoice(workspaceId) : undefined;
+      if (
+        stored &&
+        choice &&
+        stored.inputHash === hash &&
+        stored.provider === choice.provider &&
+        stored.model === choice.model
+      ) {
+        // Same inputs and model → same answer: skip the model. If only the head
+        // moved, re-anchor the row to the new head (derived_at is unchanged).
         const kept =
           stored.headSha === pull.headSha
             ? stored
