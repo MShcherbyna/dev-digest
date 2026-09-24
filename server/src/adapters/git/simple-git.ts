@@ -1,6 +1,6 @@
 import { simpleGit, type SimpleGit } from 'simple-git';
-import { join } from 'node:path';
-import { mkdir, readFile, access, rm } from 'node:fs/promises';
+import { join, sep } from 'node:path';
+import { mkdir, readFile, access, rm, realpath } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import type {
   GitClient,
@@ -127,7 +127,19 @@ export class SimpleGitClient implements GitClient {
   }
 
   async readFile(repo: RepoRef, path: string): Promise<string> {
-    return readFile(join(this.clonePathFor(repo), path), 'utf8');
+    const root = this.clonePathFor(repo);
+    const file = join(root, path);
+    // Refuse anything that resolves outside the clone (e.g. a symlink to /etc/passwd).
+    // A missing clone/file falls through so readFile reports the ENOENT itself.
+    try {
+      const [realRoot, realFile] = await Promise.all([realpath(root), realpath(file)]);
+      if (realFile !== realRoot && !realFile.startsWith(realRoot + sep)) {
+        throw new Error('path escapes the clone');
+      }
+    } catch (err) {
+      if ((err as Error).message === 'path escapes the clone') throw err;
+    }
+    return readFile(file, 'utf8');
   }
 }
 

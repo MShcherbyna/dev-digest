@@ -29,6 +29,12 @@ import type { RepoIntel } from '../modules/repo-intel/types.js';
 import { RepoIntelService } from '../modules/repo-intel/service.js';
 import { type DepGraph, DepCruiseGraph } from '../adapters/depgraph/index.js';
 import { type Tokenizer, TiktokenTokenizer } from '../adapters/tokenizer/index.js';
+import type { IntentDeriver } from '../modules/intent/ports.js';
+import { IntentRepository } from '../modules/intent/repository.js';
+import { IntentService } from '../modules/intent/service.js';
+import { GitHubIntentSources } from '../modules/intent/sources.js';
+import { DEFAULT_INTENT_MODEL, DEFAULT_INTENT_PROVIDER } from '../modules/intent/constants.js';
+import { getFeatureModelOverride } from '../modules/settings/feature-models.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -51,6 +57,8 @@ export interface ContainerOverrides {
   /** repo-intel T3 adapters — only the indexer pipeline reads these. */
   depgraph?: DepGraph;
   tokenizer?: Tokenizer;
+  /** Intent layer — tests inject a fake deriver. */
+  intent?: IntentDeriver;
 }
 
 export class Container {
@@ -76,6 +84,7 @@ export class Container {
   private _depgraph?: DepGraph;
   private _tokenizer?: Tokenizer;
   private _priceBook?: PriceBook;
+  private _intent?: IntentDeriver;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -98,6 +107,33 @@ export class Container {
 
   get reviewRepo(): ReviewRepository {
     return (this._reviewRepo ??= new ReviewRepository(this.db));
+  }
+
+  /**
+   * Intent layer. A singleton per container on purpose: the service's in-flight
+   * map (one LLM call per PR at a time) is shared by the routes and the run executor.
+   */
+  get intent(): IntentDeriver {
+    if (this.overrides.intent) return this.overrides.intent;
+    if (!this._intent) {
+      const repo = new IntentRepository(this.db);
+      this._intent = new IntentService({
+        store: repo,
+        pulls: repo,
+        sources: new GitHubIntentSources({
+          github: () => this.github(),
+          git: this.git,
+          pulls: repo,
+        }),
+        llm: (provider) => this.llm(provider),
+        modelChoice: async (workspaceId) =>
+          (await getFeatureModelOverride(this, workspaceId, 'review_intent')) ?? {
+            provider: DEFAULT_INTENT_PROVIDER,
+            model: DEFAULT_INTENT_MODEL,
+          },
+      });
+    }
+    return this._intent;
   }
 
   get codeIndex(): CodeIndex {

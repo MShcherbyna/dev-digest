@@ -74,6 +74,17 @@ read by the `engineering-insights` skill.
 
 ## Recurring Errors & Fixes
 
+- **2026-09-24** — `*.it.test.ts` suites build `loadConfig(process.env)`, so
+  `LocalSecretsProvider` reads the developer's REAL `~/.devdigest/secrets.json`
+  (`secretsPath` = `homedir()`), and tests only override the LLM ids they name
+  (`openai`/`anthropic`). Any new LLM call on the review path that defaults to
+  another provider (intent layer → `openrouter`) makes a real network call on
+  a machine with that key, blowing `waitForPrRuns`'s 10s (reviews.it.test.ts
+  failed 3-4 of 6 tests); with no keys it fails open instantly and passes.
+  Isolate to confirm: `HOME=<empty dir> env -u OPENROUTER_API_KEY -u GITHUB_TOKEN
+  npx vitest run test/reviews.it.test.ts`. New review-path LLM/GitHub calls need
+  a test-side override for that provider, or they flake per developer machine.
+
 - **2026-09-18** — Adding a field to `reviewer-core`'s `ReviewOutcome` return
   type does not guarantee it reaches the DB: `run-executor.ts` destructures
   the outcome by name right before persistence, so a new field is silently

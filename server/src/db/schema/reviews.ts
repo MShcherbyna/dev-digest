@@ -52,6 +52,24 @@ export const prIntent = pgTable('pr_intent', {
   intent: text('intent').notNull(),
   inScope: jsonb('in_scope').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   outOfScope: jsonb('out_of_scope').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  riskAreas: jsonb('risk_areas').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  confidence: text('confidence', { enum: ['high', 'medium', 'low'] }).notNull().default('low'),
+  /** Which inputs fed the derivation: `{kind, ref, status}` (refs only, never content). */
+  sources: jsonb('sources')
+    .$type<{ kind: string; ref: string; status: string }[]>()
+    .notNull()
+    .default(sql`'[]'::jsonb`),
+  /** PR head commit the intent was derived at; a moved head marks it stale. */
+  headSha: text('head_sha'),
+  /** sha256 of the normalised inputs; null on legacy rows (treated as stale). */
+  inputHash: text('input_hash'),
+  trigger: text('trigger', { enum: ['page_visit', 'regenerate', 'review_run'] }),
+  provider: text('provider'),
+  model: text('model'),
+  tokensIn: integer('tokens_in'),
+  tokensOut: integer('tokens_out'),
+  costUsd: doublePrecision('cost_usd'),
+  derivedAt: timestamp('derived_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const prBrief = pgTable('pr_brief', {

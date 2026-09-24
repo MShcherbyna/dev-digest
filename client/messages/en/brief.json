@@ -15,5 +15,23 @@
     "blame": "blame",
     "noHistory": "No history available for this line.",
     "noCommits": "No commits found for this line."
+  },
+  "intent": {
+    "inScope": "In scope",
+    "outOfScope": "Out of scope",
+    "riskAreas": "Risk areas",
+    "confidence": {
+      "high": "High confidence",
+      "medium": "Medium confidence",
+      "low": "Low confidence"
+    },
+    "lowConfidenceHint": "Low confidence: there is no description, issue or linked doc, so this is inferred from the branch, commits and file paths.",
+    "stale": "PR changed since this intent was derived",
+    "generating": "Deriving intent…",
+    "error": "Couldn't derive intent",
+    "errorWithReason": "Couldn't derive intent: {message}",
+    "derive": "Derive intent",
+    "regenerate": "Regenerate",
+    "retry": "Retry"
   }
 }
