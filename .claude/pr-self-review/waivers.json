@@ -26,5 +26,19 @@
     "reason": "Pre-existing drift: the client copy already lacked AgentVersionConfig/AgentVersion and differed in adapters.ts, eval-ci.ts, productionize.ts, trace.ts and comments before this work. All skills contracts (Skill*, AgentSkillLink.enabled, AgentUsageStats) were added identically to both knowledge.ts copies. Follow-up: resync both copies from the source.",
     "author": "Claude Code (session 2026-09-20; user approved hand-editing vendored files) — needs owner confirmation",
     "expires": "2026-10-31"
+  },
+  {
+    "rule": "det/do-not-touch",
+    "file": "server/src/db/migrations/meta/_journal.json",
+    "reason": "False positive: the journal only gained the entry for 0013_cooing_wilson_fisk (pr_intent columns), appended by `pnpm db:generate`. No existing migration or snapshot was hand-edited or removed.",
+    "author": "Maksym Shcherbyna (approved 2026-09-24, added by Claude Code) — needs owner confirmation",
+    "expires": "2026-10-31"
+  },
+  {
+    "rule": "det/vendor-drift",
+    "file": "server/src/vendor/shared",
+    "reason": "Pre-existing drift on main (5 files differ between the server and client copies). This branch only changed contracts/platform.ts (review_intent registry default), identical in both copies, with the user's approval on 2026-09-24. Follow-up: resync both copies from the source.",
+    "author": "Maksym Shcherbyna (approved 2026-09-24, added by Claude Code) — needs owner confirmation",
+    "expires": "2026-10-31"
   }
 ]
