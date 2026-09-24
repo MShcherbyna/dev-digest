@@ -191,7 +191,11 @@ export class IntentService implements IntentDeriver {
       // Reuse only when the same model would answer: after the workspace picks
       // another model in Settings, Regenerate must call it (rows written before
       // provider/model were stored have nulls and are re-derived once).
-      const choice = stored ? await this.deps.modelChoice(workspaceId) : undefined;
+      // A failing lookup just means "not reusable": classify() resolves the model
+      // again and maps its own failure to 502 intent_failed.
+      const choice = stored
+        ? await this.deps.modelChoice(workspaceId).catch(() => undefined)
+        : undefined;
       if (
         stored &&
         choice &&
