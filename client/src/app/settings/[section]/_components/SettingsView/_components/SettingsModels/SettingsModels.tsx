@@ -2,13 +2,14 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { FormField, SearchableSelect, Icon } from "@devdigest/ui";
+import { FormField, SearchableSelect, SelectInput, Icon } from "@devdigest/ui";
 import { useSettings, useUpdateSettings } from "@/lib/hooks";
 import { useProviderModels } from "@/lib/hooks/agents";
 import { toModelOptions } from "@/lib/model-label";
 import { FEATURE_MODELS } from "@/lib/feature-models";
 import type { FeatureModelChoice, FeatureModelId } from "@/lib/types";
 import { SectionTitle } from "../SectionTitle";
+import { LANGUAGE_OPTIONS, DEFAULT_TRANSLATION_LANGUAGE } from "./constants";
 import { s } from "./styles";
 
 /**
@@ -31,6 +32,9 @@ export function SettingsModels() {
     update.mutate({
       feature_models: { ...chosen, [id]: { provider: "openrouter", model } },
     });
+
+  const language = (settings?.translation_language as string | undefined) ?? DEFAULT_TRANSLATION_LANGUAGE;
+  const languageOptions = LANGUAGE_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }));
 
   return (
     <div style={s.wrap}>
@@ -55,12 +59,26 @@ export function SettingsModels() {
               }
               hint={f.description}
             >
-              <SearchableSelect
-                value={current}
-                onChange={(m) => setModel(f.id, m)}
-                options={options}
-                placeholder={t("models.search")}
-              />
+              <div style={s.pickerRow}>
+                <div style={s.picker}>
+                  <SearchableSelect
+                    value={current}
+                    onChange={(m) => setModel(f.id, m)}
+                    options={options}
+                    placeholder={t("models.search")}
+                  />
+                </div>
+                {f.id === "translation" && (
+                  <div style={s.language} aria-label={t("models.translationLanguage")}>
+                    <SelectInput
+                      value={language}
+                      onChange={(v) => update.mutate({ translation_language: v as "uk" | "ru" })}
+                      options={languageOptions}
+                      mono={false}
+                    />
+                  </div>
+                )}
+              </div>
             </FormField>
           </div>
         );

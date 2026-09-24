@@ -3,9 +3,18 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
+
+const translateMutate = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/hooks/translation", () => ({
+  useTranslateFinding: () => ({ mutate: translateMutate, isPending: false, isError: false }),
+}));
+
 import { FindingCard } from "./FindingCard";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  translateMutate.mockReset();
+});
 
 const FINDING: FindingRecord = {
   id: "f1",
@@ -56,5 +65,34 @@ describe("FindingCard (smoke, both themes)", () => {
     expect(onAction).toHaveBeenCalledWith("accept");
     fireEvent.click(screen.getByText("Dismiss"));
     expect(onAction).toHaveBeenCalledWith("dismiss");
+  });
+});
+
+describe("FindingCard translation", () => {
+  const RESPONSE = {
+    language: "uk",
+    model: "m",
+    finding_id: "f1",
+    title: "Захардкоджений секрет",
+    rationale: "Секрет у коді.",
+    suggestion: null,
+  };
+  const ok = (_v: unknown, opts: { onSuccess: (r: unknown) => void }) => opts.onSuccess(RESPONSE);
+
+  it("translates this finding from the actions row and toggles back without a new request", () => {
+    translateMutate.mockImplementation(ok);
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded />);
+    fireEvent.click(screen.getByRole("button", { name: "Translate" }));
+    expect(translateMutate).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Захардкоджений секрет")).toBeInTheDocument();
+    expect(screen.queryByText(FINDING.title)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show original" }));
+    expect(screen.getByText(FINDING.title)).toBeInTheDocument();
+
+    // Translating again reuses the held translation: still one request.
+    fireEvent.click(screen.getByRole("button", { name: "Translate" }));
+    expect(screen.getByText("Захардкоджений секрет")).toBeInTheDocument();
+    expect(translateMutate).toHaveBeenCalledTimes(1);
   });
 });

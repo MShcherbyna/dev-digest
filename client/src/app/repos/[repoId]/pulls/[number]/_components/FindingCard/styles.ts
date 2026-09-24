@@ -79,6 +79,7 @@ export const s = {
     marginTop: 14,
     flexWrap: "wrap",
   } satisfies CSSProperties,
+  translateError: { fontSize: 12.5, color: "var(--crit)", alignSelf: "center" } satisfies CSSProperties,
   composer: {
     marginTop: 12,
     display: "flex",

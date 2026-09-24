@@ -99,6 +99,13 @@
       "when": 1790273074355,
       "tag": "0013_cooing_wilson_fisk",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790279389227,
+      "tag": "0014_colorful_gauntlet",
+      "breakpoints": true
     }
   ]
 }

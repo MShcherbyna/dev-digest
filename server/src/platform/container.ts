@@ -34,7 +34,14 @@ import { IntentRepository } from '../modules/intent/repository.js';
 import { IntentService } from '../modules/intent/service.js';
 import { GitHubIntentSources } from '../modules/intent/sources.js';
 import { DEFAULT_INTENT_MODEL, DEFAULT_INTENT_PROVIDER } from '../modules/intent/constants.js';
-import { getFeatureModelOverride } from '../modules/settings/feature-models.js';
+import {
+  getFeatureModelOverride,
+  resolveFeatureModel,
+  resolveTranslationLanguage,
+} from '../modules/settings/feature-models.js';
+import type { Translator } from '../modules/translation/ports.js';
+import { TranslationRepository } from '../modules/translation/repository.js';
+import { TranslationService } from '../modules/translation/service.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -85,6 +92,7 @@ export class Container {
   private _tokenizer?: Tokenizer;
   private _priceBook?: PriceBook;
   private _intent?: IntentDeriver;
+  private _translation?: Translator;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -134,6 +142,20 @@ export class Container {
       });
     }
     return this._intent;
+  }
+
+  /**
+   * Finding translation. A singleton per container on purpose: the service's
+   * in-flight map (one LLM call per review+language at a time) must be shared.
+   */
+  get translation(): Translator {
+    this._translation ??= new TranslationService({
+      store: new TranslationRepository(this.db),
+      llm: (provider) => this.llm(provider),
+      modelChoice: (workspaceId) => resolveFeatureModel(this, workspaceId, 'translation'),
+      language: (workspaceId) => resolveTranslationLanguage(this, workspaceId),
+    });
+    return this._translation;
   }
 
   get codeIndex(): CodeIndex {

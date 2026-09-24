@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm';
-import { pgTable, uuid, text, integer, jsonb, timestamp, doublePrecision } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  text,
+  integer,
+  jsonb,
+  timestamp,
+  doublePrecision,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { now } from './_shared';
 import { workspaces } from './core';
 import { pullRequests } from './pulls';
@@ -44,6 +53,30 @@ export const findings = pgTable('findings', {
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
   dismissedAt: timestamp('dismissed_at', { withTimezone: true }),
 });
+
+/** Cached translation of one finding into one language (reused unless model/language/source changed). */
+export const findingTranslations = pgTable(
+  'finding_translations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    findingId: uuid('finding_id')
+      .notNull()
+      .references(() => findings.id, { onDelete: 'cascade' }),
+    language: text('language').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    /** sha256 of the source title/rationale/suggestion the translation was made from. */
+    sourceHash: text('source_hash').notNull(),
+    title: text('title').notNull(),
+    rationale: text('rationale').notNull(),
+    suggestion: text('suggestion'),
+    tokensIn: integer('tokens_in'),
+    tokensOut: integer('tokens_out'),
+    costUsd: doublePrecision('cost_usd'),
+    translatedAt: timestamp('translated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('finding_translations_finding_language_uq').on(t.findingId, t.language)],
+);
 
 export const prIntent = pgTable('pr_intent', {
   prId: uuid('pr_id')
