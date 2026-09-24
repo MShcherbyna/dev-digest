@@ -84,6 +84,9 @@ read by the `engineering-insights` skill.
   Isolate to confirm: `HOME=<empty dir> env -u OPENROUTER_API_KEY -u GITHUB_TOKEN
   npx vitest run test/reviews.it.test.ts`. New review-path LLM/GitHub calls need
   a test-side override for that provider, or they flake per developer machine.
+  **Fixed 2026-09-24**: `reviews.it.test.ts` `appWith()` now registers an
+  `openrouter` mock (`INTENT_FIXTURE`), so the suite passes with a real
+  `~/.devdigest/secrets.json` too (178/178).
 
 - **2026-09-18** — Adding a field to `reviewer-core`'s `ReviewOutcome` return
   type does not guarantee it reaches the DB: `run-executor.ts` destructures
