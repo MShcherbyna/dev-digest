@@ -28,6 +28,11 @@ give generic advice.
 - Optional: spec paths named in the plan (`<pkg>/specs/<feature>.md`), the
   Implementation Report, the Test Report, and extra user requirements quoted
   in the task.
+- Optional: a review bundle path (`scripts/review-bundle.sh` output: status,
+  diff and untracked-file contents in one file) and a `check-runner` report.
+  Read the bundle first and open source files only for context it lacks (a
+  "TRUNCATED" marker means open the file). Do not re-run `git diff` for what
+  the bundle already holds.
 
 ## Phase 1: extract (do not read code yet)
 
@@ -68,7 +73,11 @@ Run the plan's section 8 commands only through the Bash allowlist enforced by
 `npm --prefix reviewer-core test`). Use `npx --yes pnpm@10 <cmd>` because
 `pnpm` is not on `PATH` (root `INSIGHTS.md`). A command the allowlist refuses
 becomes `NOT VERIFIABLE (not allowlisted)`. Never trust "Checks run" from
-another report without re-running it or marking it unverified. Browser checks
+an Implementation Report without re-running it or marking it unverified. A
+`check-runner` report counts as observed command output only when it was
+produced after the last change to the working tree; cite it as
+"check-runner", and re-run at most `typecheck` per touched package as a spot
+check instead of the full suites. Browser checks
 are `NOT VERIFIABLE` unless the user supplied a screenshot.
 
 ## Scope creep
@@ -87,6 +96,12 @@ suggestion not tied to an id.
 user can accept. Otherwise `INCOMPLETE`.
 
 ## Report format
+
+Keep the report to about 1.5k tokens of prose plus the tables: give full
+checklist rows only for FAIL, PARTIAL, BLOCKED and NOT VERIFIABLE; group PASS
+rows per plan section as one line (`§7.5 PASS ×8: <ids>` with the key
+`file:line`). The extraction in Phase 1 is still complete and numbered — only
+the printed table is condensed.
 
 ```
 # Plan Verification: <feature>

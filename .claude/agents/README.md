@@ -7,24 +7,41 @@ live in each agent's own `.md` file; don't copy them here.
 
 | Agent | Responsibility | Model / effort / maxTurns | Tools | Denied |
 |---|---|---|---|---|
-| [planner](planner.md) | Turns a task into a structured Development Plan; saves it as `docs/plans/<feature>_en.md` + `docs/plans/<feature>_uk.md` | opus / high / 30 | Read, Grep, Glob, Write (guarded) | Agent, Edit, Bash |
+| [planner](planner.md) | Turns a task into a structured Development Plan; saves it as `docs/plans/<feature>_en.md` (English only) | opus / high / 30 | Read, Grep, Glob, Write (guarded) | Agent, Edit, Bash |
 | [implementer](implementer.md) | Executes an approved plan in `client/` and `server/`, verifies its own changes, records INSIGHTS | sonnet / medium / 60 | Read, Grep, Glob, Edit, Write, Bash, Skill | Agent |
 | [researcher](researcher.md) | Read-only research of the repo or external sources; reports findings with evidence | sonnet / default / default | all except Write, Edit | Write, Edit |
 | [test-writer](test-writer.md) | Writes UI and backend tests with the matching project skills; reports which regression each test catches | sonnet / medium / 50 | Read, Grep, Glob, Edit, Write, Bash, Skill | Agent, NotebookEdit |
 | [architecture-reviewer](architecture-reviewer.md) | Read-only check of architectural boundaries; findings with `file:line` evidence and a "cannot verify" list | opus / high / 30 | Read, Grep, Glob, Bash (guarded) | Write, Edit, NotebookEdit, Agent |
 | [plan-verifier](plan-verifier.md) | Audits finished code against every plan/spec/requirement item (PASS / FAIL / PARTIAL / NOT VERIFIABLE / BLOCKED) | opus / high / 40 | Read, Grep, Glob, Bash (guarded) | Write, Edit, NotebookEdit, Agent |
 | [doc-writer](doc-writer.md) | Turns plans, reports or code into docs with Mermaid diagrams, placed in the right `docs/` / README section | sonnet / medium / 30 | Read, Grep, Glob, Edit, Write (guarded) | Bash, NotebookEdit, Agent |
+| [plan-translator](plan-translator.md) | Translates an approved `_en` plan into `docs/plans/<feature>_uk.md` once, in a single pass | haiku / low / 10 | Read, Write (guarded) | Bash, Edit, NotebookEdit, Agent |
+| [check-runner](check-runner.md) | Runs typecheck / lint / tests for the touched packages once and returns a short pass/fail table | haiku / low / 15 | Read, Grep, Glob, Bash (guarded, `verify` mode) | Write, Edit, NotebookEdit, Agent |
 
 ## Workflow
 
 ```
-task ─► planner ─► plan ─► implementer ─► test-writer ─► architecture-reviewer ─┐
-                                                        plan-verifier ◄─────────┘
-                                                             │ COMPLETE
-                                                             ▼
-                                                         doc-writer
+task ─► planner ─► en plan ─► (user approves) ─► plan-translator (once) ─► uk plan
+                                   │
+                                   ▼
+                              implementer ─► test-writer ─► check-runner
+                                                                │
+              scripts/review-bundle.sh <out> ◄──────────────────┘
+                      │ bundle + check-runner report
+                      ▼
+      architecture-reviewer ∥ plan-verifier ─► one merged fix pass ─► check-runner
+                                                    │ COMPLETE
+                                                    ▼
+                                                doc-writer
 researcher ── standalone: answers questions, feeds the user or planner input
 ```
+
+Token rules: the `_uk` plan is generated **once**, after the English plan is
+approved; if `_en` changes later, re-run the translator (full pass) and never
+hand-edit `_uk`. Both reviewers read one shared bundle
+(`scripts/review-bundle.sh <out-file>`, deterministic, no LLM) instead of each
+re-running `git diff`, and reuse the check-runner report instead of re-running
+the suites (plan-verifier keeps a `typecheck` spot check). Run plan-verifier
+after the fix pass, not while code is still changing.
 
 Architecture review is done by architecture-reviewer, but its verdict is
 advisory: the `pr-self-review` skill remains the gate. Security review is
@@ -37,8 +54,8 @@ implementer lists it under "Handoff to review".
 - **Inputs:** the task; root `CLAUDE.md`; `AGENTS.md` and `INSIGHTS.md` of each touched package; the code itself.
 - **Output:** a 10-section *Development Plan* (goal, context read, affected modules, contracts, skills for implementer, architecture constraints, steps, acceptance checks, risks/open questions, could-not-determine). Ambiguous tasks return only questions.
 - **Preloaded skills:** engineering-insights, onion-architecture, react-frontend-architecture, fastify-best-practices, drizzle-orm-patterns, postgresql-table-design.
-- **Also writes:** the plan as two files in `docs/plans/` — `<feature>_en.md` (English) and `<feature>_uk.md` (Ukrainian).
-- **Permissions:** Write is allowed only for those two paths, enforced by a `PreToolUse` hook ([../hooks/planner-guard.sh](../hooks/planner-guard.sh)) wired in the agent's frontmatter. Cannot edit files, spawn agents or run commands.
+- **Also writes:** the plan as one file in `docs/plans/` — `<feature>_en.md` (English). The Ukrainian copy comes from `plan-translator`.
+- **Permissions:** Write is allowed only for that one path, enforced by a `PreToolUse` hook ([../hooks/planner-guard.sh](../hooks/planner-guard.sh)) wired in the agent's frontmatter. Cannot edit files, spawn agents or run commands.
 
 ### implementer
 - **Inputs:** a plan in the planner format (needs sections 5, 7, 8 — otherwise it stops); `AGENTS.md` / `INSIGHTS.md` of touched packages.
@@ -68,6 +85,16 @@ implementer lists it under "Handoff to review".
 - **Output:** a *Plan Verification* report: a numbered requirement checklist, a verdict with evidence per item, commands run, unplanned changes.
 - **Preloaded skills:** none, on purpose, so it cannot drift into generic advice.
 - **Permissions:** no Write/Edit; Bash only through `readonly-bash-guard.sh` in `verify` mode (read-only git plus typecheck/test/lint and targeted vitest runs).
+
+### plan-translator
+- **Inputs:** the path of an approved `docs/plans/<feature>_en.md`.
+- **Output:** `docs/plans/<feature>_uk.md` in one Write call, same structure and ids; reply with the path, heading counts (must match) and any unclear passages.
+- **Permissions:** [../hooks/plan-translator-guard.sh](../hooks/plan-translator-guard.sh) allows only `docs/plans/<feature>_uk.md`; fails closed on unparsable input, non-Write tools or an unset project dir. No Bash, Edit or subagents.
+
+### check-runner
+- **Inputs:** the touched packages, or an Implementation Report to derive them from.
+- **Output:** a table `command | exit code | passed-failed | note`, plus verbatim failing test names and first error lines (≤ ~1.5k tokens). No diagnosis or fixes.
+- **Permissions:** no Write/Edit; Bash only through `readonly-bash-guard.sh` in `verify` mode. It cannot set env (e.g. an isolated `HOME`), so a check that needs it is reported as "not run (blocked by guard)".
 
 ### doc-writer
 - **Inputs:** a plan, spec, report or the code itself; existing docs of the touched package.

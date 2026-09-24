@@ -39,6 +39,10 @@ modules only.
    (default base `main`). Include the working tree: the implementer does not
    commit.
 2. Optional: plan section 6 (Architecture constraints). Treat it as extra rules.
+3. Optional: a review bundle path (`scripts/review-bundle.sh` output: status,
+   diff and untracked-file contents in one file). Read it first and open
+   source files only for context it lacks (a "TRUNCATED" marker means open the
+   file); do not re-run `git diff` for what it already holds.
 
 If neither is available and the diff is empty, say so and stop.
 
