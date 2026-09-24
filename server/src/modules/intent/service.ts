@@ -232,7 +232,7 @@ export class IntentService implements IntentDeriver {
     log: IntentLog,
   ): Promise<IntentRecord> {
     const t0 = Date.now();
-    let choice: Awaited<ReturnType<IntentServiceDeps['modelChoice']>>;
+    let choice: Awaited<ReturnType<IntentServiceDeps['modelChoice']>> | undefined;
     let res: Awaited<ReturnType<LLMProvider['completeStructured']>> & { data: IntentClassification };
     try {
       choice = await this.deps.modelChoice(workspaceId);
@@ -247,9 +247,14 @@ export class IntentService implements IntentDeriver {
         maxRetries: INTENT_MAX_RETRIES,
       });
     } catch (err) {
-      // Config errors (missing key) carry a safe, actionable message; anything else stays generic.
       // Missing key / config carries a safe, actionable message; provider and
-      // output-validation failures are collapsed to a generic one (no secrets, no bodies).
+      // output-validation failures are collapsed to a generic one for the client
+      // (no secrets, no bodies). The cause goes to the server log only, truncated.
+      log.warn(
+        `intent: classifier failed (${choice?.provider ?? '?'}/${choice?.model ?? '?'}): ${
+          err instanceof Error ? err.message.slice(0, 300) : 'unknown error'
+        }`,
+      );
       const safe =
         err instanceof AppError && err.code === 'config_error'
           ? err.message
