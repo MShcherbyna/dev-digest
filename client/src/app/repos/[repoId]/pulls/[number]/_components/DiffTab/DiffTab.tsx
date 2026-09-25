@@ -15,6 +15,7 @@ import { notify } from "@/lib/toast";
 import type { PrFile } from "@devdigest/shared";
 import { FindingCard } from "../FindingCard";
 import { SmartDiffGroups } from "./_components/SmartDiffGroups";
+import { OrderHeader, type FileOrder } from "./_components/OrderHeader";
 import { buildViewGroups, findingsByPath, latestReview, linesByPath } from "./helpers";
 
 interface DiffTabProps {
@@ -36,7 +37,7 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
   const action = useFindingAction();
   // Comments start hidden so the diff is clean by default — toggle to reveal.
   const [showComments, setShowComments] = React.useState(false);
-  const [order, setOrder] = React.useState<"smart" | "original">("smart");
+  const [order, setOrder] = React.useState<FileOrder>("smart");
 
   const commentCount = comments?.length ?? 0;
   const totalAdditions = files.reduce((sum, f) => sum + (f.additions ?? 0), 0);
@@ -106,64 +107,29 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
               icon={showComments ? "EyeOff" : "Eye"}
               onClick={() => setShowComments((v) => !v)}
             >
-              {showComments ? "Hide comments" : "Show comments"} ({commentCount})
+              {showComments ? t("smartDiff.hideComments") : t("smartDiff.showComments")} ({commentCount})
             </Button>
           ) : undefined
         }
       >
-        Files changed · {filesCount} files
+        {t("smartDiff.filesChanged", { count: filesCount })}
       </SectionLabel>
 
-      <div style={{ marginBottom: 14 }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: "0.07em",
-            textTransform: "uppercase",
-            color: "var(--text-muted)",
-            marginBottom: 6,
-          }}
-        >
-          Reviewer-ordered diff
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-            {filesCount} files · +{totalAdditions} −{totalDeletions}
-          </span>
-          <span style={{ flex: 1 }} />
-          <div
-            role="group"
-            aria-label={t("smartDiff.orderToggleLabel")}
-            style={{
-              display: "inline-flex",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              overflow: "hidden",
-            }}
-          >
-            <Button
-              kind="ghost"
-              size="sm"
-              active={order === "smart"}
-              onClick={() => setOrder("smart")}
-            >
-              {t("smartDiff.smartOrder")}
-            </Button>
-            <Button
-              kind="ghost"
-              size="sm"
-              active={order === "original"}
-              onClick={() => setOrder("original")}
-            >
-              {t("smartDiff.originalOrder")}
-            </Button>
-          </div>
-        </div>
-      </div>
+      <OrderHeader
+        filesCount={filesCount}
+        additions={totalAdditions}
+        deletions={totalDeletions}
+        order={order}
+        onOrderChange={setOrder}
+      />
 
       {order === "smart" && smartDiff ? (
-        <SmartDiffGroups groups={viewGroups} commenting={commenting} findings={findings} />
+        <SmartDiffGroups
+          groups={viewGroups}
+          reviewed={!!latest}
+          commenting={commenting}
+          findings={findings}
+        />
       ) : (
         <DiffViewer files={files} commenting={commenting} findings={findings} />
       )}

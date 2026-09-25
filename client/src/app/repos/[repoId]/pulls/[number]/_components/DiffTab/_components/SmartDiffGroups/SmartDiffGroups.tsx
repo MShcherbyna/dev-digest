@@ -10,17 +10,19 @@ import { Icon } from "@devdigest/ui";
 import type { SmartDiffRole } from "@devdigest/shared";
 import { FileCard, type DiffCommentApi, type DiffFindingsApi } from "@/components/diff-viewer";
 import type { ViewGroup } from "../../helpers";
-import { DEFAULT_COLLAPSED_ROLES, ROLE_TEXT } from "./constants";
+import { DEFAULT_COLLAPSED_ROLES, ROLE_COLOR, ROLE_TEXT } from "./constants";
 import { s, chevronFor } from "./styles";
 
 function GroupSection({
   group,
+  reviewed,
   open,
   onToggle,
   commenting,
   findings,
 }: {
   group: ViewGroup;
+  reviewed: boolean;
   open: boolean;
   onToggle: () => void;
   commenting?: DiffCommentApi;
@@ -45,10 +47,12 @@ function GroupSection({
         style={s.header}
       >
         <Icon.ChevronRight size={13} style={chevronFor(open)} />
+        <span aria-hidden style={{ ...s.roleDot, background: ROLE_COLOR[group.role] }} />
         <span style={s.label}>{t(text.label)}</span>
         <span style={s.description}>— {t(text.description)}</span>
         <span style={s.spacer} />
-        {group.findingFiles > 0 && (
+        {!reviewed && <span style={s.notReviewed}>{t("smartDiff.notReviewed")}</span>}
+        {reviewed && group.findingFiles > 0 && (
           <span
             style={s.findingFilesDot}
             aria-label={t("smartDiff.filesWithFindings", { count: group.findingFiles })}
@@ -60,6 +64,7 @@ function GroupSection({
       </div>
       {open && (
         <div style={s.body}>
+          {!reviewed && <div style={s.hint}>{t("smartDiff.notReviewedHint")}</div>}
           {group.files.map((f) => (
             <FileCard key={f.path} file={f} commenting={commenting} findings={findings} />
           ))}
@@ -71,10 +76,12 @@ function GroupSection({
 
 export function SmartDiffGroups({
   groups,
+  reviewed,
   commenting,
   findings,
 }: {
   groups: ViewGroup[];
+  reviewed: boolean;
   commenting?: DiffCommentApi;
   findings?: DiffFindingsApi;
 }) {
@@ -97,6 +104,7 @@ export function SmartDiffGroups({
         <GroupSection
           key={g.role}
           group={g}
+          reviewed={reviewed}
           open={!collapsed.has(g.role)}
           onToggle={() => toggle(g.role)}
           commenting={commenting}

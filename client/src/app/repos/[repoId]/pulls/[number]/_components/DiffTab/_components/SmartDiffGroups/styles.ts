@@ -5,7 +5,7 @@ export const s = {
   section: {
     border: "1px solid var(--border)",
     borderRadius: 7,
-    overflow: "hidden",
+    overflow: "clip",
     background: "var(--bg-elevated)",
   } satisfies CSSProperties,
   header: {
@@ -15,7 +15,12 @@ export const s = {
     padding: "10px 12px",
     cursor: "pointer",
     color: "var(--text-primary)",
+    position: "sticky",
+    top: "var(--pr-header-h, 0px)",
+    zIndex: 2,
+    background: "var(--bg-elevated)",
   } satisfies CSSProperties,
+  roleDot: { width: 9, height: 9, borderRadius: 2, flexShrink: 0 } satisfies CSSProperties,
   label: { fontSize: 13, fontWeight: 700 } satisfies CSSProperties,
   description: { fontSize: 12.5, color: "var(--text-muted)" } satisfies CSSProperties,
   spacer: { flex: 1 } satisfies CSSProperties,
@@ -26,6 +31,8 @@ export const s = {
     fontSize: 12,
     color: "var(--crit)",
   } satisfies CSSProperties,
+  notReviewed: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
+  hint: { fontSize: 12, color: "var(--text-muted)", padding: "8px 12px 0" } satisfies CSSProperties,
   filesCount: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
   body: {
     borderTop: "1px solid var(--border)",

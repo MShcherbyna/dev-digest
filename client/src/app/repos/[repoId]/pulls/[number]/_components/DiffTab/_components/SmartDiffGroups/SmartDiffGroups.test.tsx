@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { render, screen, cleanup, within, fireEvent } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord, PrFile } from "@devdigest/shared";
 import type { DiffFindingsApi } from "@/components/diff-viewer";
@@ -53,7 +53,7 @@ const GROUPS: ViewGroup[] = [
 
 describe("SmartDiffGroups", () => {
   it("shows all 5 group headers in order with labels and file counts; docs/boilerplate start collapsed", () => {
-    renderWithIntl(<SmartDiffGroups groups={GROUPS} />);
+    renderWithIntl(<SmartDiffGroups groups={GROUPS} reviewed />);
 
     const headers = screen.getAllByRole("button");
     expect(headers.map((h) => h.textContent)).toEqual([
@@ -72,6 +72,19 @@ describe("SmartDiffGroups", () => {
     // docs/boilerplate start collapsed — their file paths are not visible yet.
     expect(screen.queryByText("README.md")).not.toBeInTheDocument();
     expect(screen.queryByText("pnpm-lock.yaml")).not.toBeInTheDocument();
+
+    // clicking the Docs / Boilerplate headers reveals their files.
+    fireEvent.click(screen.getByRole("button", { name: /Docs/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Boilerplate/ }));
+    expect(screen.getByText("README.md")).toBeInTheDocument();
+    expect(screen.getByText("pnpm-lock.yaml")).toBeInTheDocument();
+  });
+
+  it("before any review shows a 'Not reviewed yet' empty state instead of zero counters", () => {
+    renderWithIntl(<SmartDiffGroups groups={GROUPS} reviewed={false} />);
+    expect(screen.getAllByText("Not reviewed yet")).toHaveLength(5);
+    expect(screen.getAllByText(/Run review to see findings/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^● /)).not.toBeInTheDocument();
   });
 
   it("the finding-files dot shows the file count (not the finding count), and a file with findings shows the 'Has findings' dot plus the inline card under its line", () => {
@@ -80,7 +93,7 @@ describe("SmartDiffGroups", () => {
       byPath: new Map([["src/core.ts", [finding({})]]]),
       renderFinding: (f) => <div data-testid={`finding-${f.id}`}>{f.title}</div>,
     };
-    renderWithIntl(<SmartDiffGroups groups={GROUPS} findings={findings} />);
+    renderWithIntl(<SmartDiffGroups groups={GROUPS} reviewed findings={findings} />);
 
     const coreHeader = screen.getAllByRole("button")[0]!;
     expect(within(coreHeader).getByText("● 1")).toBeInTheDocument();
@@ -90,6 +103,8 @@ describe("SmartDiffGroups", () => {
 
     // this file's patch is short, so it starts expanded — the inline finding
     // card (injected via renderFinding) renders under line 2.
-    expect(screen.getByTestId("finding-f1")).toBeInTheDocument();
+    // and it sits in the row block right after line 2, not in the trailing unanchored block.
+    const card = screen.getByTestId("finding-f1");
+    expect(card.previousElementSibling ?? card.parentElement?.previousElementSibling).toHaveTextContent("line2");
   });
 });

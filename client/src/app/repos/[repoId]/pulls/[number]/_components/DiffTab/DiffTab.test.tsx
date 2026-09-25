@@ -104,6 +104,8 @@ describe("DiffTab", () => {
     expect(screen.queryByRole("button", { name: /Core logic/ })).not.toBeInTheDocument();
     expect(screen.getByText("src/core.ts")).toBeInTheDocument();
     expect(screen.getByText("README.md")).toBeInTheDocument();
+    const paths = screen.getAllByText(/\.(ts|md)$/).map((n) => n.textContent);
+    expect(paths).toEqual(FILES.map((f) => f.path));
 
     // Switch back to Smart order: group headers reappear.
     fireEvent.click(screen.getByRole("button", { name: "Smart order" }));

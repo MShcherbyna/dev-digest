@@ -11,3 +11,12 @@ export const ROLE_TEXT: Record<SmartDiffRole, { label: string; description: stri
   docs: { label: "smartDiff.docsLabel", description: "smartDiff.docsDescription" },
   boilerplate: { label: "smartDiff.boilerplateLabel", description: "smartDiff.boilerplateDescription" },
 };
+
+/** Marker colour per role (design: core blue, wiring amber, boilerplate grey). */
+export const ROLE_COLOR: Record<SmartDiffRole, string> = {
+  core: "var(--accent)",
+  tests: "var(--ok)",
+  wiring: "var(--warn)",
+  docs: "#a78bfa",
+  boilerplate: "var(--text-muted)",
+};

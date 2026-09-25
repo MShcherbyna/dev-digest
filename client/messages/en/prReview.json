@@ -72,7 +72,14 @@
     "smartOrder": "Smart order",
     "originalOrder": "Original order",
     "orderToggleLabel": "File order",
-    "filesWithFindings": "{count} files with findings"
+    "filesWithFindings": "{count} files with findings",
+    "eyebrow": "Reviewer-ordered diff",
+    "statsLine": "{count} files ·",
+    "filesChanged": "Files changed · {count} files",
+    "showComments": "Show comments",
+    "hideComments": "Hide comments",
+    "notReviewed": "Not reviewed yet",
+    "notReviewedHint": "Run review to see findings right in the diff."
   },
   "list": {
     "breadcrumb": "Pull Requests",

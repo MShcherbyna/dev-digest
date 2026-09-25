@@ -49,6 +49,11 @@ describe("latestReview", () => {
     expect(latestReview(reviews)?.id).toBe("r1");
   });
 
+  it("returns the first (newest) of several 'review' rows", () => {
+    const reviews = [review({ id: "new", kind: "review" }), review({ id: "old", kind: "review" })];
+    expect(latestReview(reviews)?.id).toBe("new");
+  });
+
   it("returns undefined for an empty/undefined list", () => {
     expect(latestReview(undefined)).toBeUndefined();
     expect(latestReview([])).toBeUndefined();
