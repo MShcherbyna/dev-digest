@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Icon, Avatar, Badge, Button, Tabs } from "@devdigest/ui";
 import { RunReviewDropdown } from "../RunReviewDropdown";
 import { s } from "./styles";
@@ -36,6 +36,23 @@ export function PrDetailHeader({
     onRunsStarted();
   }, [onRunsStarted]);
 
+  // Publish this sticky header's height so sticky elements below it (Smart Diff
+  // group headers) can pin under it instead of hiding behind it.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty("--pr-header-h", `${el.offsetHeight}px`);
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.removeProperty("--pr-header-h");
+    };
+  }, []);
+
   const statusColor =
     pr.status === "merged"
       ? "var(--ok)"
@@ -44,7 +61,7 @@ export function PrDetailHeader({
         : "var(--warn)";
 
   return (
-    <div style={s.root}>
+    <div ref={rootRef} style={s.root}>
       <div style={s.titleRow}>
         <div style={s.titleCol}>
           <h1 style={s.h1}>

@@ -28,6 +28,23 @@ export const s = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   } satisfies CSSProperties,
+  /** Wraps the path text + the findings dot so the dot sits right after the
+   *  text (not pushed to the far right by `filePath`'s own flex:1). */
+  filePathWrap: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+  } satisfies CSSProperties,
+  filePathText: {
+    fontSize: 13,
+    fontWeight: 500,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
   fileStat: { fontSize: 12 } satisfies CSSProperties,
   addText: { color: "var(--code-add-text)" } satisfies CSSProperties,
   delText: { color: "var(--code-del-text)" } satisfies CSSProperties,
@@ -64,7 +81,42 @@ export const s = {
     color: "var(--text-primary)",
     paddingRight: 12,
   } satisfies CSSProperties,
+  /** Small dot next to a file path that has findings. */
+  findingDot: {
+    display: "inline-block",
+    width: 7,
+    height: 7,
+    borderRadius: "50%",
+    background: "var(--crit)",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  /** Indented rail for inline finding cards, same indentation as `cs.thread`. */
+  findingRail: {
+    margin: "6px 14px 8px 58px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  } satisfies CSSProperties,
 } as const;
+
+/** Right-aligned severity label on a code line (colour passed in). */
+export function findingLineLabel(color: string): CSSProperties {
+  return {
+    marginLeft: "auto",
+    fontSize: 11.5,
+    fontWeight: 600,
+    color,
+    flexShrink: 0,
+    paddingRight: 4,
+  };
+}
+
+/** Coloured left-edge stripe for a code line with findings. Uses box-shadow
+ *  (not borderLeft) to avoid the shorthand/longhand lint warning and to avoid
+ *  shifting the gutter width. */
+export function findingStripeFor(color: string): CSSProperties {
+  return { boxShadow: `inset 3px 0 0 ${color}` };
+}
 
 /** Chevron rotates 90deg when the file card is open. */
 export function chevronFor(open: boolean): CSSProperties {
