@@ -68,6 +68,11 @@ export class ReviewRepository {
     return reviewRepo.getReview(this.db, reviewId);
   }
 
+  /** Finding anchors (file + start line) of the PR's latest review, for Smart Diff. */
+  latestReviewFindingAnchors(prId: string): Promise<{ file: string; startLine: number }[]> {
+    return reviewRepo.latestReviewFindingAnchors(this.db, prId);
+  }
+
   /** In-flight runs for a PR (status='running') — the server-side source of
    *  truth for "which agents are running now". Joined with the agent name. */
   activeRunsForPull(

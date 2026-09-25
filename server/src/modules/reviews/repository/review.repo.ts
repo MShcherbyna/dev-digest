@@ -73,6 +73,30 @@ export async function reviewsForPull(
   }));
 }
 
+/**
+ * Finding anchors (file + start line) of the PR's latest `kind='review'`
+ * review, by `created_at`. This is the same "latest review" rule the PR list
+ * uses for its score/findings columns (`modules/pulls/routes.ts`), so the
+ * Smart Diff's highlighted findings match the PR list's findings breakdown.
+ * Includes every finding of that review (accepted, dismissed, any kind).
+ */
+export async function latestReviewFindingAnchors(
+  db: Db,
+  prId: string,
+): Promise<{ file: string; startLine: number }[]> {
+  const [latest] = await db
+    .select({ id: t.reviews.id })
+    .from(t.reviews)
+    .where(and(eq(t.reviews.prId, prId), eq(t.reviews.kind, 'review')))
+    .orderBy(desc(t.reviews.createdAt))
+    .limit(1);
+  if (!latest) return [];
+  return db
+    .select({ file: t.findings.file, startLine: t.findings.startLine })
+    .from(t.findings)
+    .where(eq(t.findings.reviewId, latest.id));
+}
+
 export async function getReview(db: Db, reviewId: string): Promise<ReviewRow | undefined> {
   const [row] = await db.select().from(t.reviews).where(eq(t.reviews.id, reviewId));
   return row;
