@@ -3,9 +3,15 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
+import { SEV } from "@devdigest/ui";
+import type { FindingRecord } from "@devdigest/shared";
 import { commentTargetFor, type CommentThread, type DiffCommentApi, cs } from "../comments";
 import { type Line } from "../helpers";
-import { s, lineRowFor, lineSignFor } from "../styles";
+import { type DiffFindingsApi } from "../findings";
+import { worstSeverity } from "../findings";
+import { s, lineRowFor, lineSignFor, findingLineLabel, findingStripeFor } from "../styles";
+import { LABELED_SEVERITIES } from "../constants";
 import { CommentThreadView } from "../CommentThreadView";
 import { InlineComposer } from "../InlineComposer";
 
@@ -14,12 +20,17 @@ export function CodeLine({
   path,
   threads,
   commenting,
+  findings,
+  renderFinding,
 }: {
   ln: Line;
   path: string;
   threads: CommentThread[];
   commenting?: DiffCommentApi;
+  findings?: FindingRecord[];
+  renderFinding?: DiffFindingsApi["renderFinding"];
 }) {
+  const t = useTranslations("shell");
   const [hover, setHover] = React.useState(false);
   const [composing, setComposing] = React.useState(false);
 
@@ -34,6 +45,12 @@ export function CodeLine({
   const sign = ln.kind === "add" ? "+" : ln.kind === "del" ? "−" : "";
   const target = commenting?.canComment ? commentTargetFor(ln) : null;
   const showAdd = hover && !!target && !composing;
+  const hasFindings = !!findings && findings.length > 0;
+  const worst = hasFindings ? worstSeverity(findings!) : null;
+  const rowStyle = worst
+    ? { ...lineRowFor(ln.kind), ...findingStripeFor(SEV[worst].c) }
+    : lineRowFor(ln.kind);
+  const hasLabel = !!worst && LABELED_SEVERITIES.includes(worst);
 
   return (
     <div
@@ -41,7 +58,7 @@ export function CodeLine({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <div style={lineRowFor(ln.kind)}>
+      <div style={rowStyle}>
         <span className="mono tnum" style={{ ...s.lineNo, position: "relative" }}>
           {showAdd && target && (
             <button
@@ -62,7 +79,18 @@ export function CodeLine({
         <span className="mono" style={s.lineText}>
           {ln.text || " "}
         </span>
+        {worst && hasLabel && (
+          <span style={findingLineLabel(SEV[worst].c)}>{t(`diffViewer.findingLabel.${worst}`)}</span>
+        )}
       </div>
+
+      {hasFindings && (
+        <div style={s.findingRail}>
+          {findings!.map((f) => (
+            <React.Fragment key={f.id}>{renderFinding?.(f)}</React.Fragment>
+          ))}
+        </div>
+      )}
 
       {commenting &&
         commenting.showComments &&

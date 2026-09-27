@@ -28,6 +28,10 @@ export const queryKeys = {
   agentSkills: (agentId: string | null | undefined) => ["agent-skills", agentId] as const,
 
   reviews: (prId: string | null | undefined) => ["reviews", prId] as const,
+  // Nested under the `["reviews", prId]` prefix on purpose: every existing
+  // `invalidateQueries({queryKey: queryKeys.reviews(prId)})` call (run review,
+  // accept/dismiss, delete review, delete run) also refreshes the smart diff.
+  prSmartDiff: (prId: string | null | undefined) => ["reviews", prId, "smart-diff"] as const,
   prRuns: (prId: string | null | undefined) => ["pr-runs", prId] as const,
   prActiveRuns: (prId: string | null | undefined) => ["pr-active-runs", prId] as const,
   prComments: (prId: string | null | undefined) => ["pr-comments", prId] as const,

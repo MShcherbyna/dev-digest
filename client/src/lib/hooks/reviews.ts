@@ -14,6 +14,7 @@ import type {
   ReviewRunResponse,
   RunEvent,
   RunSummary,
+  SmartDiffResponse,
 } from "@devdigest/shared";
 
 // ---- Active (in-flight) runs — server-side source of truth ----
@@ -53,6 +54,15 @@ export function usePrReviews(prId: string | null | undefined) {
   return useQuery({
     queryKey: queryKeys.reviews(prId),
     queryFn: () => api.get<ReviewRecord[]>(`/pulls/${prId}/reviews`),
+    enabled: !!prId,
+  });
+}
+
+/** Smart Diff: files grouped by role + latest-review finding lines. */
+export function usePrSmartDiff(prId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.prSmartDiff(prId),
+    queryFn: () => api.get<SmartDiffResponse>(`/pulls/${prId}/smart-diff`),
     enabled: !!prId,
   });
 }

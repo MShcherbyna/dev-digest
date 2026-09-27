@@ -162,6 +162,11 @@ export default function PRDetailPage() {
               refetchReviews();
               // A run may have derived the intent (no stored row before it).
               invalidateIntent(prId);
+              // refetchReviews() is a refetch, not an invalidation, so the
+              // ["reviews", prId] key-prefix trick doesn't cover this path —
+              // invalidate the smart diff explicitly so its finding_lines/dots
+              // catch up with the run that just finished.
+              if (prId) qc.invalidateQueries({ queryKey: queryKeys.prSmartDiff(prId) });
             }}
           />
         )}
@@ -172,6 +177,8 @@ export default function PRDetailPage() {
             filesCount={pr.files_count}
             files={pr.files}
             canComment={pr.status === "open"}
+            repoFullName={repoFullName}
+            headSha={pr.head_sha}
           />
         )}
       </div>

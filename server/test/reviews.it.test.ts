@@ -346,4 +346,60 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     expect(body.runs.length).toBeGreaterThanOrEqual(2);
     await app.close();
   });
+
+  it('GET /pulls/:id/smart-diff: groups before a review, then attaches finding_lines after one', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+    const { pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+
+    const before = await app.inject({ method: 'GET', url: `/pulls/${pr.id}/smart-diff` });
+    expect(before.statusCode).toBe(200);
+    const beforeBody = before.json();
+    expect(beforeBody.groups).toEqual([
+      {
+        role: 'core',
+        files: [
+          {
+            path: 'src/config.ts',
+            additions: 1,
+            deletions: 0,
+            finding_lines: [],
+            pseudocode_summary: null,
+          },
+        ],
+      },
+    ]);
+    expect(beforeBody.split_suggestion.total_lines).toBe(1);
+
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'SmartDiffAgent', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+    await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } });
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+
+    const after = await app.inject({ method: 'GET', url: `/pulls/${pr.id}/smart-diff` });
+    expect(after.statusCode).toBe(200);
+    const afterBody = after.json();
+    expect(afterBody.groups[0].files[0].finding_lines).toEqual([11]);
+
+    await app.close();
+  });
+
+  it('GET /pulls/:id/smart-diff: 404 for an unknown PR, 422 for a non-uuid id', async () => {
+    const app = await appWith(REVIEW_FIXTURE);
+
+    const notFound = await app.inject({
+      method: 'GET',
+      url: '/pulls/00000000-0000-0000-0000-000000000000/smart-diff',
+    });
+    expect(notFound.statusCode).toBe(404);
+
+    const invalid = await app.inject({ method: 'GET', url: '/pulls/not-a-uuid/smart-diff' });
+    expect(invalid.statusCode).toBe(422);
+
+    await app.close();
+  });
 });
