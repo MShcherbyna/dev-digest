@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: "Use to implement an approved Development Plan (from the planner agent) in client/ and server/: applies the plan's skills, runs existing tests and typecheck, self-checks its own changes, and records INSIGHTS.md entries. Does not review architecture or security, and does not commit or push."
+description: "Use to implement an approved Development Plan (from the planner agent) in client/, server/ and mcp/: applies the plan's skills, runs existing tests and typecheck, self-checks its own changes, and records INSIGHTS.md entries. Does not review architecture or security, and does not commit or push."
 model: sonnet
 effort: medium
 maxTurns: 60

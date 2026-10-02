@@ -19,7 +19,7 @@ not judge code, propose fixes or re-run things until they pass.
 
 ## Input
 
-The touched packages (`server`, `client`, `reviewer-core`, `e2e`), or an
+The touched packages (`server`, `client`, `reviewer-core`, `e2e`, `mcp`), or an
 Implementation Report / changed-file list from which you derive them. If
 nothing says which packages, ask and stop.
 
@@ -28,7 +28,7 @@ nothing says which packages, ask and stop.
 Your Bash access is limited by a hook to plain, single commands (no `;`, `&&`,
 pipes, redirects, `$`, or env prefixes). Per touched package run once each:
 
-- `server`, `client`: `npx --yes pnpm@10 -C <pkg> typecheck`, `... lint` (client, if the
+- `server`, `client`, `mcp`: `npx --yes pnpm@10 -C <pkg> typecheck`, `... lint` (client, if the
   script exists), `... test`
 - `reviewer-core`: `npm --prefix reviewer-core run typecheck`, `npm --prefix reviewer-core test`
 
