@@ -33,6 +33,7 @@ import type {
   SecretKey,
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from './git/diff-parser.js';
+import type { PriorPrHit, PriorPrQuery, PriorPrSource } from '../modules/blast/ports.js';
 
 /**
  * Deterministic MOCK adapters for tests/dev — NO real network. Each mirrors the
@@ -305,6 +306,31 @@ export class MockCodeIndex implements CodeIndex {
   }
   async references(_repo: RepoRef, symbol: string): Promise<CodeReference[]> {
     return [{ fromPath: 'src/api/public/index.ts', toSymbol: symbol, line: 23 }];
+  }
+}
+
+// ---------- Mock Prior-PR source ----------
+/**
+ * Deterministic prior-PR hits: three merged PRs, one unmerged and one equal to
+ * the current PR number (exercises both filters). All touch the first queried path.
+ */
+export class MockPriorPrSource implements PriorPrSource {
+  readonly calls: PriorPrQuery[] = [];
+  constructor(private opts: { selfNumber?: number } = {}) {}
+
+  async listForPaths(q: PriorPrQuery): Promise<PriorPrHit[]> {
+    this.calls.push(q);
+    const path = q.paths[0] ?? '';
+    const hit = (number: number, title: string, mergedAt: string | null, author: string, body: string): PriorPrHit => ({
+      number, title, mergedAt, author, body, path,
+    });
+    return [
+      hit(288, 'Webhook forwarding for connect accounts', '2025-12-11T10:00:00Z', 'tomek.w', 'Last change to webhooks.'),
+      hit(401, 'Introduce public API namespace', '2026-03-18T10:00:00Z', 'deepak.r', '## Summary\n\nOriginal split-out of the public router.'),
+      hit(356, 'Add ioredis client for session cache', '2026-02-02T10:00:00Z', 'marisa.koch', ''),
+      hit(500, 'Still open', null, 'someone', 'not merged'),
+      hit(this.opts.selfNumber ?? 1, 'The current PR', '2026-04-01T10:00:00Z', 'me', 'self'),
+    ];
   }
 }
 

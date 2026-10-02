@@ -14,6 +14,15 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-02** — Resync completion is the index state's `updatedAt`
+  advancing, not `POST /repos/:id/resync` returning (it is 202 and returns
+  before reindexing) and not `lastIndexedSha` (unchanged when a failed index is
+  redone on the same commit). `useResyncAndRefresh`
+  (`src/lib/hooks/repo-intel.ts`) polls `useRepoIntelStatus` until it changes
+  (120 s cap) and then invalidates `queryKeys.prBlastAll()`. Prior-PR history
+  uses `prBlastHistory`, deliberately outside the `pr-blast` prefix so a
+  resync does not re-hit GitHub.
+
 - **2026-09-24** — `client/src/lib/feature-models.ts` is a hand-mirrored copy
   of `FEATURE_MODELS` (the client can't import shared runtime values) and it
   has already drifted: `review_intent` is `openai/gpt-4.1` there but
