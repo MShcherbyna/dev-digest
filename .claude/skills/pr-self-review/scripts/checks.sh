@@ -92,7 +92,7 @@ run_pkg() { # <pkg> <script> <rule> <label>
   echo "[checks] $pkg: pnpm $script" >&2
   log=$(cd "$pkg" && pnpm "$script" 2>&1) || add "${5:-critical}" "$rule" "$pkg/package.json" 0 "pnpm $script failed in $pkg: $(echo "$log" | tail -n 8 | tr '\n\t' '  ' | cut -c1-500)"
 }
-for pkg in server client reviewer-core e2e; do
+for pkg in server client reviewer-core e2e mcp; do
   echo "$CHANGED_ALL" | grep -q "^$pkg/" || continue
   # only source/config changes matter for validation
   echo "$CHANGED_ALL" | grep -E "^$pkg/" | grep -qvE '\.md$|/specs/|/docs/' || continue

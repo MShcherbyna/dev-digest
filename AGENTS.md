@@ -1,6 +1,6 @@
 # DevDigest — repo map
 
-Local-first AI PR review. 4 standalone packages, no workspace — cross-package
+Local-first AI PR review. 5 standalone packages, no workspace — cross-package
 contracts are shared by vendoring `vendor/shared` into each package that needs
 it (not published, not npm-linked).
 
@@ -17,6 +17,7 @@ Docker (Postgres only — API and web run on the host).
 | [client/](client/) | Next.js studio UI | touching pages, components, hooks |
 | [reviewer-core/](reviewer-core/) | diff → prompt → LLM → findings engine | touching review logic, grounding, prompt assembly |
 | [e2e/](e2e/) | deterministic browser e2e (agent-browser) | writing/debugging e2e flows |
+| [mcp/](mcp/) | local stdio MCP server — thin layer over the running API | touching MCP tools, descriptions, `.mcp.json` |
 
 ## Read when
 
