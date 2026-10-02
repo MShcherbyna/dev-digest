@@ -15,9 +15,10 @@ export async function getContext(
   container: Container,
   req: FastifyRequest,
 ): Promise<RequestContext> {
-  const [user, workspace] = await Promise.all([
-    container.auth.currentUser(req),
-    container.auth.currentWorkspace(req),
+  const { auth } = container;
+  const [{ id: userId }, { id: workspaceId }] = await Promise.all([
+    auth.currentUser(req),
+    auth.currentWorkspace(req),
   ]);
-  return { workspaceId: workspace.id, userId: user.id };
+  return { workspaceId, userId };
 }
