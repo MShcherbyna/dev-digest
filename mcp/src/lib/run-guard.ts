@@ -29,8 +29,8 @@ export class RunGuard {
       throw new BusinessError({
         what: `Run limit reached (${this.opts.maxRuns} runs per ${mins} min in this session) to cap LLM cost`,
         expected: 'fewer review starts',
-        example: 'get_findings with repo, pr to read an existing run',
-        next: 'use get_findings on existing runs, or wait for the window to pass',
+        example: 'devdigest_get_findings with repo, pr to read an existing run',
+        next: 'use devdigest_get_findings on existing runs, or wait for the window to pass',
       });
     }
   }

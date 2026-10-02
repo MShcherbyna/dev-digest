@@ -6,7 +6,7 @@ export interface FakeApi {
   close: () => Promise<void>;
 }
 
-/** Minimal node:http stand-in for the DevDigest API (just what list_agents needs). */
+/** Minimal node:http stand-in for the DevDigest API (just what devdigest_list_agents needs). */
 export async function startFakeApi(delayMs = 0): Promise<FakeApi> {
   const server: Server = createServer(async (req, res) => {
     if (delayMs) await new Promise((r) => setTimeout(r, delayMs));

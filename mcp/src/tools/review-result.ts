@@ -82,7 +82,7 @@ export function buildDoneResult(a: BuildArgs): ReviewResult {
     next_step:
       a.nextStep ??
       (nextCursor
-        ? 'More findings: call get_findings with repo, pr, run_id and cursor = next_cursor.'
+        ? 'More findings: call devdigest_get_findings with repo, pr, run_id and cursor = next_cursor.'
         : a.review
           ? null
           : 'The run finished but no review record was found; open web_url in DevDigest.'),
@@ -132,7 +132,7 @@ export function failedRunError(run: RunRecord): BusinessError {
   return new BusinessError({
     what: `Run ${run.runId} ${run.status === 'cancelled' ? 'was cancelled' : 'failed'}: ${reason}`,
     expected: 'a run that finishes with status done',
-    example: 'run_agent_on_pr with repo "acme/payments-api", pr 482, agent "security-reviewer"',
+    example: 'devdigest_run_agent_on_pr with repo "acme/payments-api", pr 482, agent "security-reviewer"',
     next: "check the agent's provider API key in DevDigest Settings, then re-run",
   });
 }

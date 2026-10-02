@@ -14,11 +14,11 @@ import { AgentArg, LimitArg, MinSeverityArg, PrArg, RepoArg, ReviewResultShape }
 
 export function registerRunAgentOnPr(server: McpServer, deps: ToolDeps): void {
   server.registerTool(
-    'run_agent_on_pr',
+    'devdigest_run_agent_on_pr',
     {
       title: 'Run agent review on PR',
       description:
-        'Run one DevDigest reviewer agent on a pull request, wait for it, and return its verdict and findings. Each call costs LLM money; if the run outlasts the wait it returns status "running" — then call get_findings.',
+        'Run one DevDigest reviewer agent on a pull request, wait for it, and return its verdict and findings. Each call costs LLM money; if the run outlasts the wait it returns status "running" — then call devdigest_get_findings.',
       inputSchema: {
         repo: RepoArg,
         pr: PrArg,
@@ -75,7 +75,7 @@ export function registerRunAgentOnPr(server: McpServer, deps: ToolDeps): void {
               {
                 ...base,
                 run,
-                nextStep: `Run is still going. Call get_findings with repo, pr and run_id "${runId}" in ~30s.${reused ? ' (Attached to an already running review; no new cost.)' : ''}`,
+                nextStep: `Run is still going. Call devdigest_get_findings with repo, pr and run_id "${runId}" in ~30s.${reused ? ' (Attached to an already running review; no new cost.)' : ''}`,
               },
               'running',
             ),

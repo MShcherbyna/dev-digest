@@ -12,7 +12,7 @@ const EMPTY_NOTE = 'No conventions extracted yet; run extraction from the DevDig
 
 export function registerGetConventions(server: McpServer, deps: ToolDeps): void {
   server.registerTool(
-    'get_conventions',
+    'devdigest_get_conventions',
     {
       title: 'Get repo conventions',
       description: 'Get the coding conventions DevDigest extracted from a repository, paginated.',

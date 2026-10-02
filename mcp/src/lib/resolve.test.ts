@@ -53,9 +53,9 @@ describe('matchAgent', () => {
     try { matchAgent(dup, 'sec_bot'); } catch (e) { expect((e as BusinessError).parts.what).toContain('Sec Bot'); }
   });
 
-  it('points to list_agents on a miss', () => {
+  it('points to devdigest_list_agents on a miss', () => {
     try { matchAgent(agents, 'secuirty'); expect.unreachable(); } catch (e) {
-      expect((e as BusinessError).parts.next).toContain('list_agents');
+      expect((e as BusinessError).parts.next).toContain('devdigest_list_agents');
       expect((e as BusinessError).parts.example).toContain('security-reviewer');
     }
   });

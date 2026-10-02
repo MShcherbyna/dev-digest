@@ -27,12 +27,12 @@ async function withClient<T>(apiUrl: string, fn: (c: Client) => Promise<T>): Pro
 }
 
 describe('stdio entrypoint (spawned process)', () => {
-  it('initializes, lists 5 tools and answers list_agents (stdout carries only JSON-RPC)', async () => {
+  it('initializes, lists 5 tools and answers devdigest_list_agents (stdout carries only JSON-RPC)', async () => {
     const api = await startFakeApi();
     try {
       await withClient(api.url, async (c) => {
         expect((await c.listTools()).tools).toHaveLength(5);
-        const r = await c.callTool({ name: 'list_agents', arguments: {} });
+        const r = await c.callTool({ name: 'devdigest_list_agents', arguments: {} });
         expect(r.isError).toBeFalsy();
         expect(JSON.stringify(r.structuredContent)).toContain('security-reviewer');
         expect(JSON.stringify(r)).not.toContain('SECRET');
@@ -45,7 +45,7 @@ describe('stdio entrypoint (spawned process)', () => {
   it('still starts with the API down and returns an api_down isError', async () => {
     const url = await deadPortUrl();
     await withClient(url, async (c) => {
-      const r = await c.callTool({ name: 'list_agents', arguments: {} });
+      const r = await c.callTool({ name: 'devdigest_list_agents', arguments: {} });
       expect(r.isError).toBe(true);
       expect(JSON.stringify(r.content)).toContain('not reachable');
     });
@@ -70,7 +70,7 @@ describe('stdio entrypoint (spawned process)', () => {
       send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '0' } } });
       await new Promise((r) => setTimeout(r, 1500));
       send({ jsonrpc: '2.0', method: 'notifications/initialized' });
-      send({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_agents', arguments: {} } });
+      send({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'devdigest_list_agents', arguments: {} } });
       await new Promise((r) => setTimeout(r, 200));
       child.stdin.end(); // EOF while the API call (700 ms) is still in flight
       expect(await exited).toBe(0);

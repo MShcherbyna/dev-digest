@@ -18,9 +18,9 @@ export const AgentArg = z
   .trim()
   .min(1)
   .max(100)
-  .describe('Agent name, slug or id from list_agents, e.g. security-reviewer');
+  .describe('Agent name, slug or id from devdigest_list_agents, e.g. security-reviewer');
 
-export const RunIdArg = z.string().uuid().describe('Run id from run_agent_on_pr, e.g. 3f2b8c1e-5d4a-4e7b-9c1d-2a6b8f0e4d11');
+export const RunIdArg = z.string().uuid().describe('Run id from devdigest_run_agent_on_pr, e.g. 3f2b8c1e-5d4a-4e7b-9c1d-2a6b8f0e4d11');
 
 export const MinSeverityArg = z
   .enum(['CRITICAL', 'WARNING', 'SUGGESTION'])

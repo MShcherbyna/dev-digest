@@ -5,7 +5,7 @@ import { BlastRadiusStubShape, PrArg, RepoArg } from './schemas.js';
 
 export function registerGetBlastRadius(server: McpServer, deps: ToolDeps): void {
   server.registerTool(
-    'get_blast_radius',
+    'devdigest_get_blast_radius',
     {
       title: 'Blast radius (stub)',
       description:

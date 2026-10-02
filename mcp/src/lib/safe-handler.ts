@@ -31,7 +31,7 @@ export function toErrorResult(err: unknown, logger: Logger): CallToolResult {
       what: `DevDigest API did not answer within ${err.timeoutMs ?? 'the configured'} ms`,
       expected: 'a responsive local API',
       example: 'check the API terminal for errors, or raise DEVDIGEST_MCP_HTTP_TIMEOUT_MS',
-      next: 'retry the tool; for run_agent_on_pr use get_findings first, a run may already be in progress',
+      next: 'retry the tool; for devdigest_run_agent_on_pr use devdigest_get_findings first, a run may already be in progress',
     });
   }
 

@@ -12,33 +12,33 @@ const conv = (i: number, accepted: boolean): ConventionRecord => ({
 
 type Res = { total: number; accepted_count: number; note: string | null; next_cursor: string | null; conventions: { snippet?: string }[] };
 
-describe('get_conventions', () => {
+describe('devdigest_get_conventions', () => {
   it('empty list is not an error and carries a note', async () => {
     h = await connect();
-    const r = await h.call('get_conventions', { repo: 'acme/payments-api' });
+    const r = await h.call('devdigest_get_conventions', { repo: 'acme/payments-api' });
     expect(r.isError).toBeFalsy();
     expect(structured<Res>(r).note).toContain('not available via MCP');
   });
 
   it('snippets are opt-in; accepted_only filters; pagination works', async () => {
     h = await connect(makeFake({ conventions: [conv(1, true), conv(2, false), conv(3, true)] }));
-    const plain = structured<Res>(await h.call('get_conventions', { repo: 'acme/payments-api' }));
+    const plain = structured<Res>(await h.call('devdigest_get_conventions', { repo: 'acme/payments-api' }));
     expect(plain.conventions[0]?.snippet).toBeUndefined();
-    const withSnip = structured<Res>(await h.call('get_conventions', { repo: 'acme/payments-api', include_snippets: true }));
+    const withSnip = structured<Res>(await h.call('devdigest_get_conventions', { repo: 'acme/payments-api', include_snippets: true }));
     expect(withSnip.conventions[0]?.snippet).toBe('code 1');
-    const acc = structured<Res>(await h.call('get_conventions', { repo: 'acme/payments-api', accepted_only: true }));
+    const acc = structured<Res>(await h.call('devdigest_get_conventions', { repo: 'acme/payments-api', accepted_only: true }));
     expect(acc.total).toBe(2);
     expect(acc.accepted_count).toBe(2);
-    const p1 = structured<Res>(await h.call('get_conventions', { repo: 'acme/payments-api', limit: 2 }));
+    const p1 = structured<Res>(await h.call('devdigest_get_conventions', { repo: 'acme/payments-api', limit: 2 }));
     expect(p1.next_cursor).not.toBeNull();
-    const p2 = structured<Res>(await h.call('get_conventions', { repo: 'acme/payments-api', limit: 2, cursor: p1.next_cursor as string }));
+    const p2 = structured<Res>(await h.call('devdigest_get_conventions', { repo: 'acme/payments-api', limit: 2, cursor: p1.next_cursor as string }));
     expect(p2.conventions).toHaveLength(1);
     expect(p2.next_cursor).toBeNull();
   });
 
   it('unknown repo is a recovery error', async () => {
     h = await connect();
-    const r = await h.call('get_conventions', { repo: 'x/y' });
+    const r = await h.call('devdigest_get_conventions', { repo: 'x/y' });
     expect(r.isError).toBe(true);
     expect(textOf(r)).toContain('Next:');
   });

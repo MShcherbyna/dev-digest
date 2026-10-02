@@ -8,7 +8,7 @@ import { AgentListShape, type AgentList } from './schemas.js';
 
 export function registerListAgents(server: McpServer, deps: ToolDeps): void {
   server.registerTool(
-    'list_agents',
+    'devdigest_list_agents',
     {
       title: 'List review agents',
       description:

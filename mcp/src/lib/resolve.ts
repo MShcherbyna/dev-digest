@@ -97,9 +97,9 @@ export function matchAgent(agents: AgentRecord[], query: string): AgentRecord {
 
   throw new BusinessError({
     what: `Agent '${sanitizeText(q, 100)}' not found`,
-    expected: 'an agent name or slug from list_agents',
+    expected: 'an agent name or slug from devdigest_list_agents',
     example: 'agent: "security-reviewer"',
-    next: 'call list_agents',
+    next: 'call devdigest_list_agents',
   });
 }
 
@@ -108,6 +108,6 @@ function ambiguous(q: string, candidates: AgentRecord[]): BusinessError {
     what: `Agent '${sanitizeText(q, 100)}' is ambiguous (matches: ${candidates.map((c) => sanitizeText(c.name, 60)).join(', ')})`,
     expected: 'a unique agent name or the agent id',
     example: `agent: "${candidates[0]?.id ?? '<agent id>'}"`,
-    next: 'call list_agents and pass the id of the agent you want',
+    next: 'call devdigest_list_agents and pass the id of the agent you want',
   });
 }
