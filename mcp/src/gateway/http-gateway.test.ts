@@ -85,4 +85,35 @@ describe('HttpGateway', () => {
     const repo = gw(() => json([{ id: 'x', owner: 'o', name: 'n', full_name: 'O/N' }]));
     expect(await repo.findRepo('o/n')).toEqual({ id: 'x', owner: 'o', name: 'n', fullName: 'O/N' });
   });
+
+  it('getBlastRadius maps the route response, drops unknown keys and encodes the id', async () => {
+    let seenUrl = '';
+    const g = gw((url) => {
+      seenUrl = url;
+      return json({
+        changed_symbols: [{ name: 'a', file: 'a.ts', kind: 'function' }],
+        downstream: [{ symbol: 'a', callers: [{ name: 'c', file: 'c.ts', line: 3 }], endpoints_affected: ['GET /x'], crons_affected: ['nightly'], extra: 1 }],
+        summary: 's',
+        degraded: true,
+        reason: 'some_new_reason',
+        ref_sha: 'abc',
+        secret: 'nope',
+      });
+    });
+    const b = await g.getBlastRadius('p 1');
+    expect(seenUrl).toBe('http://localhost:3001/pulls/p%201/blast');
+    expect(b).toEqual({
+      changedSymbols: [{ name: 'a', file: 'a.ts', kind: 'function' }],
+      downstream: [{ symbol: 'a', callers: [{ name: 'c', file: 'c.ts', line: 3 }], endpoints: ['GET /x'], crons: ['nightly'] }],
+      summary: 's',
+      degraded: true,
+      reason: 'some_new_reason',
+      refSha: 'abc',
+    });
+  });
+
+  it('getBlastRadius: 404 -> not found, malformed body -> unexpected_response', async () => {
+    await expect(gw(() => json({}, 404)).getBlastRadius('p')).rejects.toBeInstanceOf(GatewayNotFoundError);
+    await expect(gw(() => json({ downstream: 'nope' })).getBlastRadius('p')).rejects.toMatchObject({ code: 'unexpected_response' });
+  });
 });

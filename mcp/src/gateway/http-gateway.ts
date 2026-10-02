@@ -4,6 +4,7 @@ import { nullLogger, type Logger } from '../lib/logger.js';
 import {
   ApiActiveRun,
   ApiAgent,
+  ApiBlastRadius,
   ApiConventionList,
   ApiErrorEnvelope,
   ApiPrMeta,
@@ -16,6 +17,7 @@ import { GatewayNotFoundError, GatewayResponseError, GatewayUnavailableError } f
 import type {
   ActiveRunRecord,
   AgentRecord,
+  BlastRecord,
   ConventionRecord,
   DevDigestGateway,
   PullRecord,
@@ -148,6 +150,23 @@ export class HttpGateway implements DevDigestGateway {
         confidence: c.confidence,
         accepted: c.accepted,
       })),
+    };
+  }
+
+  async getBlastRadius(prId: string): Promise<BlastRecord> {
+    const res = await this.get(`/pulls/${encodeURIComponent(prId)}/blast`, ApiBlastRadius, { what: 'blast radius' });
+    return {
+      changedSymbols: res.changed_symbols,
+      downstream: res.downstream.map((g) => ({
+        symbol: g.symbol,
+        callers: g.callers,
+        endpoints: g.endpoints_affected,
+        crons: g.crons_affected,
+      })),
+      summary: res.summary,
+      degraded: res.degraded,
+      reason: res.reason,
+      refSha: res.ref_sha,
     };
   }
 

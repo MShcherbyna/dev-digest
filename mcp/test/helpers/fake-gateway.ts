@@ -1,6 +1,8 @@
+import { GatewayNotFoundError } from '../../src/gateway/errors.js';
 import type {
   ActiveRunRecord,
   AgentRecord,
+  BlastRecord,
   ConventionRecord,
   DevDigestGateway,
   FindingRecord,
@@ -18,6 +20,8 @@ export interface FakeState {
   runs: RunRecord[];
   reviews: ReviewRecord[];
   conventions: ConventionRecord[];
+  /** blast map per PR id (default: a small complete map) */
+  blast: Record<string, BlastRecord>;
   /** status per poll for runs started via startReview (last entry repeats) */
   startedStatuses: RunStatus[];
   startCount: number;
@@ -38,6 +42,30 @@ export const review = (runId: string, findings: FindingRecord[]): ReviewRecord =
   verdict: 'request_changes', summary: 'Needs work', score: 55, findings,
 });
 
+export const blastFixture = (over: Partial<BlastRecord> = {}): BlastRecord => ({
+  changedSymbols: [
+    { name: 'rateLimit', file: 'src/mw/ratelimit.ts', kind: 'function' },
+    { name: 'bucketKey', file: 'src/mw/ratelimit.ts', kind: 'function' },
+  ],
+  downstream: [
+    {
+      symbol: 'rateLimit',
+      callers: [
+        { name: 'publicRouter', file: 'src/api/public/index.ts', line: 23 },
+        { name: 'app', file: 'src/server.ts', line: 88 },
+      ],
+      endpoints: ['GET /api/public/items'],
+      crons: ['reset-rate-buckets (hourly)'],
+    },
+    { symbol: 'bucketKey', callers: [{ name: 'reset', file: 'src/jobs/reset.ts', line: 8 }], endpoints: [], crons: [] },
+  ],
+  summary: '2 symbols · 3 callers · 1 endpoint · 1 cron',
+  degraded: false,
+  reason: null,
+  refSha: 'idx123',
+  ...over,
+});
+
 export function makeFake(over: Partial<FakeState> = {}): DevDigestGateway & { state: FakeState } {
   const state: FakeState = {
     agents: [agent('a1', 'Security Reviewer'), agent('a2', 'Style Bot', false)],
@@ -46,6 +74,7 @@ export function makeFake(over: Partial<FakeState> = {}): DevDigestGateway & { st
     runs: [],
     reviews: [],
     conventions: [],
+    blast: { pr1: blastFixture() },
     startedStatuses: ['running', 'running', 'done'],
     startCount: 0,
     ...over,
@@ -85,6 +114,12 @@ export function makeFake(over: Partial<FakeState> = {}): DevDigestGateway & { st
       return state.runs;
     },
     async reviewsForPull() { guard(); return state.reviews; },
+    async getBlastRadius(prId) {
+      guard();
+      const b = state.blast[prId];
+      if (!b) throw new GatewayNotFoundError('blast radius');
+      return b;
+    },
     async conventions() { guard(); return { headSha: 'abc123', items: state.conventions }; },
   };
 }

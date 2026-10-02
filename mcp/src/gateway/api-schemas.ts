@@ -90,6 +90,29 @@ export const ApiConventionList = z.object({
   conventions: z.array(ApiConvention),
 });
 
+/**
+ * Mirrors the server's module-local `BlastRadiusResponse` (server/src/modules/blast/schemas.ts):
+ * the vendored `BlastRadius` plus `degraded` / `reason` / `ref_sha`. Kept in sync BY HAND — this
+ * package never imports server code. `reason` is a plain string (not the server's enum) so a new
+ * reason added server-side does not make every call fail the safeParse.
+ */
+export const ApiBlastRadius = z.object({
+  changed_symbols: z.array(z.object({ name: z.string(), file: z.string(), kind: z.string() })),
+  downstream: z.array(
+    z.object({
+      symbol: z.string(),
+      callers: z.array(z.object({ name: z.string(), file: z.string(), line: z.number().int() })),
+      endpoints_affected: z.array(z.string()),
+      crons_affected: z.array(z.string()),
+    }),
+  ),
+  summary: z.string(),
+  degraded: z.boolean(),
+  reason: z.string().nullable(),
+  ref_sha: z.string().nullable(),
+});
+export type ApiBlastRadiusRecord = z.infer<typeof ApiBlastRadius>;
+
 export const ApiStartedReview = z.object({
   runs: z.array(z.object({ run_id: z.string(), agent_id: z.string() })),
 });

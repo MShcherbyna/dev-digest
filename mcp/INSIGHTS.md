@@ -14,6 +14,17 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-02** — `devdigest_get_blast_radius` is a pass-through of
+  `GET /pulls/:id/blast` (the server groups, ranks and caps; the tool never
+  recomputes). It paginates the per-symbol groups with the same
+  `paginate`/`decodeCursor` helpers as `get_conventions` (changed_symbols is
+  cut at 100 with `changed_symbols_total`), and `degraded` is data + `note`,
+  never `isError`. `ApiBlastRadius.reason` is `z.string()` on purpose (the
+  server's enum can grow). openWorldHint is `true` because `resolvePr` may sync
+  from GitHub, same as `get_findings`; the description is pinned verbatim in
+  `src/server.test.ts` (1b). Real stdio call on PR #26: 3.2 KB.
+  `grep -n "blast" mcp/src/server.test.ts`.
+
 ## Tool & Library Notes
 
 - **2026-10-02** — `@modelcontextprotocol/sdk` 1.31.0 does NOT raise invalid
