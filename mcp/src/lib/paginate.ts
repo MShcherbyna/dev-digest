@@ -3,6 +3,9 @@ import { BusinessError } from './result.js';
 
 export const MAX_RESPONSE_CHARS = 16_000;
 
+/** Share of the page kept on each shrink step while it exceeds `maxChars`. */
+const SHRINK_FACTOR = 0.75;
+
 const CursorPayload = z.object({ o: z.number().int().min(0), k: z.string() });
 
 export function encodeCursor(offset: number, scopeKey: string): string {
@@ -51,7 +54,7 @@ export function paginate<T>(opts: {
   const maxChars = opts.maxChars ?? MAX_RESPONSE_CHARS;
   let page = opts.all.slice(opts.offset, opts.offset + opts.limit);
   while (page.length > 1 && opts.measure(page) > maxChars) {
-    page = page.slice(0, Math.max(1, Math.floor(page.length * 0.75)));
+    page = page.slice(0, Math.max(1, Math.floor(page.length * SHRINK_FACTOR)));
   }
   const end = opts.offset + page.length;
   return { items: page, nextCursor: end < opts.all.length ? encodeCursor(end, opts.scopeKey) : null };
