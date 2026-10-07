@@ -1,18 +1,49 @@
 {
   "stat": {
-    "symbols": "symbols",
-    "callers": "callers",
-    "endpoints": "endpoints",
-    "crons": "cron/jobs"
+    "symbols": "{count, plural, one {symbol} other {symbols}}",
+    "callers": "{count, plural, one {caller} other {callers}}",
+    "endpoints": "{count, plural, one {endpoint} other {endpoints}}",
+    "crons": "cron"
   },
   "view": {
-    "tree": "tree",
-    "graph": "graph"
+    "tree": "Tree",
+    "graph": "Graph",
+    "label": "View"
   },
-  "callerCount": "{count} callers",
+  "callerCount": "{count, plural, one {# caller} other {# callers}}",
   "noDownstream": "{count} changed symbol(s), no downstream callers found.",
   "graph": {
     "empty": "No downstream callers to graph.",
-    "ariaLabel": "Blast radius graph"
+    "ariaLabel": "Blast radius graph",
+    "symbolPicker": "Symbol",
+    "legend": {
+      "symbol": "changed symbol",
+      "callers": "callers",
+      "endpoints": "endpoints affected",
+      "crons": "crons affected"
+    }
+  },
+  "degraded": {
+    "title": "Repo index incomplete",
+    "flag_off": "Repo intelligence is turned off — the map may be empty or partial.",
+    "index_failed": "Indexing this repo failed — the map may be incomplete.",
+    "index_partial": "The repo index is partial — some callers may be missing.",
+    "repo_too_large": "This repo is too large to index fully — the map may be incomplete.",
+    "no_data": "This repo has not been indexed yet — callers, endpoints and crons may be missing.",
+    "no_changed_files": "No changed files are recorded for this PR yet.",
+    "resync": "Resync index",
+    "resyncing": "Resyncing…",
+    "resyncFailed": "Couldn't start a resync."
+  },
+  "error": "Couldn't load the blast radius.",
+  "retry": "Retry",
+  "chips": {
+    "endpoints": "Endpoints affected",
+    "crons": "Crons affected"
+  },
+  "history": {
+    "title": "Prior PRs touching these files",
+    "byline": "{author} · {date}",
+    "listLabel": "Prior pull requests"
   }
 }

@@ -3,17 +3,24 @@
 import React from "react";
 import { SectionLabel } from "@devdigest/ui";
 import { IntentCard } from "../IntentCard";
+import { BlastRadiusCard } from "../BlastRadiusCard";
 import { s } from "./styles";
 
 interface OverviewTabProps {
   prId: string | null;
   prBody: string | null | undefined;
+  repoId: string | null | undefined;
+  repoFullName: string | null;
+  headSha: string;
 }
 
-export function OverviewTab({ prId, prBody }: OverviewTabProps) {
+export function OverviewTab({ prId, prBody, repoId, repoFullName, headSha }: OverviewTabProps) {
   return (
     <>
-      <IntentCard prId={prId} />
+      <div style={s.briefGrid}>
+        <IntentCard prId={prId} />
+        <BlastRadiusCard prId={prId} repoId={repoId} repoFullName={repoFullName} headSha={headSha} />
+      </div>
       {prBody && (
         <section>
           <SectionLabel icon="MessageSquare">Description</SectionLabel>

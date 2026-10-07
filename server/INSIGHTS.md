@@ -14,6 +14,26 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-02** — `repoIntel.getBlastRadius` cannot be trusted alone for
+  "is the index degraded?": the persistent path reports `degraded:false` even
+  for a `partial` index, the ripgrep fallback always says `no_data` (never
+  `flag_off`), and `MAX_CALLERS_PER_SYMBOL` slices the whole caller list, so a
+  PR gets at most 20 callers in total. `modules/blast/helpers.ts`
+  `deriveDegradation` therefore also reads `getIndexState` + the config flag.
+  Reasons `degraded`/`reason`/`ref_sha` are module-local
+  (`blast/schemas.ts` `BlastRadius.extend`) since `vendor/shared` is
+  do-not-touch. `pr_files` is only filled by `GET /pulls/:id`, so
+  `BlastService` falls back to GitHub (`blast/sources.ts`) without persisting,
+  bounded by `BLAST_GITHUB_DEADLINE_MS`. **Updated 2026-10-02:** blast now uses
+  `platform/resilience.ts` `withTimeout` (no local copy); only
+  `intent/sources.ts` still has its own `withDeadline`, so migrate it before a
+  third copy appears. Per-symbol caller cap: the facade slices the WHOLE PR
+  list, so `blast/helpers.ts` `groupCallers` re-applies
+  `MAX_CALLERS_PER_SYMBOL` per group (imported through the `repo-intel/index.ts`
+  barrel, which re-exports `constants.ts`), drops callers in the symbol's own
+  declaring file, and orders groups by caller rank. The facade's global slice
+  (`repo-intel/service.ts:386`) is unchanged and can still starve a symbol.
+
 - **2026-09-18** — `server/src/modules/pulls/status.ts` already has a
   unit-tested `rollupSeverities`/`SeverityCounts` aggregator, but it's
   deliberately not wired into any route — `server/src/modules/pulls/
@@ -71,6 +91,16 @@ read by the `engineering-insights` skill.
   ~50s, 28 verified candidates.
 
 ## Tool & Library Notes
+
+- **2026-10-02** — `GitHubClient` (vendored) has no history/associated-PR
+  call, so Prior PRs uses a blast-local port `PriorPrSource` with an Octokit
+  GraphQL adapter (`adapters/github/pr-history.ts`); the query text is built
+  from indices/constants only and paths/ref travel as variables. Tests inject
+  `ContainerOverrides.priorPrs` (`MockPriorPrSource`) — without it an `.it`
+  test would use the developer's real `GITHUB_TOKEN`. Live GraphQL
+  (`Commit.history(path:)` + `associatedPullRequests`) was NOT run against
+  github.com; a fine-grained PAT that cannot call it makes the block silently
+  vanish (`available:false`).
 
 ## Recurring Errors & Fixes
 

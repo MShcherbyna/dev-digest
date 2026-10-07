@@ -20,7 +20,10 @@ no server imports. Read [../AGENTS.md](../AGENTS.md) for the repo-wide picture.
 - Every tool handler goes through `safeHandler` — no exception escapes.
 - Tool set is closed (5 tools), flat scalar args only, snake_case names.
 - API responses are `safeParse`d against the minimal schemas in
-  `src/gateway/api-schemas.ts`; do not vendor `@devdigest/shared` here.
+  `src/gateway/api-schemas.ts`; do not vendor `@devdigest/shared` here. A schema that
+  mirrors a server-local response (`ApiBlastRadius` ↔ `server/src/modules/blast/schemas.ts`)
+  is kept in sync by hand; enum-like fields stay plain strings so a new server value
+  does not break every call.
 - Tests are co-located `<name>.test.ts`, hermetic (no real API/DB/LLM).
 
 ## Do-not-touch

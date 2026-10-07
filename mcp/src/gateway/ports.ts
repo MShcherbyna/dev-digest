@@ -77,6 +77,31 @@ export interface ConventionRecord {
   accepted: boolean;
 }
 
+export interface BlastCallerRecord {
+  name: string;
+  file: string;
+  line: number;
+}
+
+export interface BlastGroupRecord {
+  symbol: string;
+  callers: BlastCallerRecord[];
+  endpoints: string[];
+  crons: string[];
+}
+
+/** The server's blast map, as served (grouped, ranked, per-symbol capped; no recomputation here). */
+export interface BlastRecord {
+  changedSymbols: { name: string; file: string; kind: string }[];
+  downstream: BlastGroupRecord[];
+  summary: string;
+  degraded: boolean;
+  /** Server-side reason string; kept open so a new server reason does not break MCP. */
+  reason: string | null;
+  /** Commit the index (and every caller line) was built from. */
+  refSha: string | null;
+}
+
 /** What the tools need from DevDigest. Implemented by HttpGateway (and in-memory fakes in tests). */
 export interface DevDigestGateway {
   listAgents(): Promise<AgentRecord[]>;
@@ -87,4 +112,6 @@ export interface DevDigestGateway {
   listRuns(prId: string): Promise<RunRecord[]>;
   reviewsForPull(prId: string): Promise<ReviewRecord[]>;
   conventions(repoId: string): Promise<{ headSha: string; items: ConventionRecord[] }>;
+  /** GET /pulls/:id/blast — the precomputed blast map (no analysis, no LLM). */
+  getBlastRadius(prId: string): Promise<BlastRecord>;
 }

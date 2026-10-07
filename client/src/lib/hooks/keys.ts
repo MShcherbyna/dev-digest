@@ -36,5 +36,10 @@ export const queryKeys = {
   prActiveRuns: (prId: string | null | undefined) => ["pr-active-runs", prId] as const,
   prComments: (prId: string | null | undefined) => ["pr-comments", prId] as const,
   prIntent: (prId: string | null | undefined) => ["pr-intent", prId] as const,
+  /** Prefix of every PR's blast query — invalidate this after a repo re-index. */
+  prBlastAll: () => ["pr-blast"] as const,
+  /** Deliberately OUTSIDE the `pr-blast` prefix: a resync invalidates the map, not GitHub history. */
+  prBlastHistory: (prId: string | null | undefined) => ["pr-blast-history", prId] as const,
+  prBlast: (prId: string | null | undefined) => ["pr-blast", prId] as const,
   runTrace: (runId: string | null | undefined) => ["run-trace", runId] as const,
 };

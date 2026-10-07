@@ -26,7 +26,7 @@ then returns an actionable error.
 | `devdigest_run_agent_on_pr` | Runs ONE agent on a PR (`repo` "owner/name", `pr` number, `agent` name/slug/id), waits up to the wait budget, returns `{verdict, findings[]}`. |
 | `devdigest_get_findings` | Verdict + findings of a run (latest by default), paginated (`limit`, `cursor`). |
 | `devdigest_get_conventions` | A repo's extracted conventions, paginated. |
-| `devdigest_get_blast_radius` | Stub: always `{status:"not_implemented", message}`. |
+| `devdigest_get_blast_radius` | Precomputed blast radius of a PR (`repo`, `pr`), via `GET /pulls/:id/blast`: changed symbols → callers (`file:line`) → endpoints/crons, most important symbol first, plus `summary`, `degraded`/`reason`/`ref_sha`. A degraded (incomplete) index is data with a `note`, not an error. Symbol groups are paginated (`limit`, `cursor`). Read-only: no analysis, no LLM. |
 
 Behaviour worth knowing:
 

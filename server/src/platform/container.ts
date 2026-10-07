@@ -42,6 +42,11 @@ import {
 import type { Translator } from '../modules/translation/ports.js';
 import { TranslationRepository } from '../modules/translation/repository.js';
 import { TranslationService } from '../modules/translation/service.js';
+import type { BlastHistoryReader, BlastReader, PriorPrSource } from '../modules/blast/ports.js';
+import { OctokitPriorPrSource } from '../adapters/github/pr-history.js';
+import { BlastRepository } from '../modules/blast/repository.js';
+import { BlastService } from '../modules/blast/service.js';
+import { GitHubChangedFiles } from '../modules/blast/sources.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -66,6 +71,8 @@ export interface ContainerOverrides {
   tokenizer?: Tokenizer;
   /** Intent layer — tests inject a fake deriver. */
   intent?: IntentDeriver;
+  /** Prior-PR source (GitHub GraphQL) — tests inject a mock so no GITHUB_TOKEN is used. */
+  priorPrs?: PriorPrSource;
 }
 
 export class Container {
@@ -93,6 +100,8 @@ export class Container {
   private _priceBook?: PriceBook;
   private _intent?: IntentDeriver;
   private _translation?: Translator;
+  private _blast?: BlastReader & BlastHistoryReader;
+  private _priorPrs?: PriorPrSource;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -158,6 +167,18 @@ export class Container {
     return this._translation;
   }
 
+  /** Blast radius read model (pure read over the repo-intel facade; goes through `this.repoIntel` so test overrides apply). */
+  get blast(): BlastReader & BlastHistoryReader {
+    this._blast ??= new BlastService({
+      pulls: new BlastRepository(this.db),
+      remoteFiles: new GitHubChangedFiles({ github: () => this.github() }),
+      intel: this.repoIntel,
+      history: () => this.priorPrSource(),
+      intelEnabled: () => this.config.repoIntelEnabled,
+    });
+    return this._blast;
+  }
+
   get codeIndex(): CodeIndex {
     if (this.overrides.codeIndex) return this.overrides.codeIndex;
     this._codeIndex ??= new RipgrepCodeIndex(this.git);
@@ -217,6 +238,16 @@ export class Container {
     return this._github;
   }
 
+  /** Prior-PR source; throws (no token) so the blast service reports `available:false`. */
+  async priorPrSource(): Promise<PriorPrSource> {
+    if (this.overrides.priorPrs) return this.overrides.priorPrs;
+    if (this._priorPrs) return this._priorPrs;
+    const token = await this.secrets.get('GITHUB_TOKEN');
+    if (!token) throw new ConfigError('GITHUB_TOKEN is not configured');
+    this._priorPrs = OctokitPriorPrSource.fromToken(token);
+    return this._priorPrs;
+  }
+
   /** Resolve an LLM provider by id; constructs from the secret key, cached. */
   async llm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
     const injected = this.overrides.llm?.[id];
@@ -272,6 +303,7 @@ export class Container {
   invalidateSecretCaches(): void {
     this.llmCache.clear();
     this._github = undefined;
+    this._priorPrs = undefined;
     this._embedder = undefined;
   }
 }
