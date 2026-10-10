@@ -75,6 +75,10 @@ five phases — this isn't tooling, just the expected shape of a session:
 2. **Planning** — for anything beyond a trivial fix, sketch the approach
    (file paths, contracts touched, open questions) and resolve ambiguity
    with the user before touching code.
+   A request for an implementation plan ("згенеруй план", "make a plan") is
+   an explicit request for the `implementation-planner` agent: launch it
+   directly, without first writing a draft plan yourself. Pass it the spec
+   path and the design screenshot paths, not pasted content.
 3. **Implementation** — make the change, following each touched package's
    own conventions (see the matching best-practices skill: Fastify/Drizzle/
    Zod/React/etc.) rather than copying the nearest adjacent pattern

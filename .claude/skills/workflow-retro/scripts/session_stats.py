@@ -135,7 +135,21 @@ def main():
 
     spec, plan, reports = (opt(argv, "--spec") or [None])[0], (opt(argv, "--plan") or [None])[0], opt(argv, "--report")
     if spec:
-        ids_of = lambda t: set(re.findall(r"\bAC-\d+\b", t))
+        def ids_of(t):
+            # "AC-24/25", "AC-14, 15", "AC-3-5", "AC-3 and 4" count as every id they list
+            out = set()
+            for m in re.finditer(r"\bAC-(\d+)((?:\s*(?:/|,|&|and|-|\u2013)\s*\d+)*)", t):
+                first, rest = int(m.group(1)), m.group(2)
+                out.add(f"AC-{first}")
+                prev = first
+                for sep, num in re.findall(r"(/|,|&|and|-|\u2013)\s*(\d+)", rest):
+                    n = int(num)
+                    if sep in "-\u2013" and prev < n <= prev + 50:
+                        out.update(f"AC-{k}" for k in range(prev + 1, n + 1))
+                    else:
+                        out.add(f"AC-{n}")
+                    prev = n
+            return out
         read = lambda f: open(f).read() if f and os.path.exists(f) else ""
         spec_ac = ids_of(read(spec))
         plan_ac = ids_of(read(plan))

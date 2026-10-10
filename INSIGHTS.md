@@ -89,6 +89,12 @@ buttons") still failing, which was the more consequential gap of the two.
 
 ## Tool & Library Notes
 
+- **2026-10-11** — The shell here is zsh, so an unquoted glob in a Bash call
+  such as `grep -rn foo src --include=*.ts` aborts with `(eval):1: no matches
+  found: --include=*.ts` and prints nothing else (it hit twice in one
+  session, and `session_stats.py` does not count it as a tool error because
+  the output has no `Exit code`). Quote it: `--include='*.ts'`.
+
 - **2026-09-25** — `implementer-guard.sh`'s Edit/Write block on `*/vendor/shared/**`
   has no exception for a plan that explicitly sanctions one specific line
   (Smart Diff plan step 1, extending `SmartDiffRole`): the hook still exits 2
