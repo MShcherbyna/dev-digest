@@ -14,6 +14,24 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-11** — project-context trace field is module-local:
+  `RunTraceWithContext` (`project-context/schemas.ts`) extends the vendored
+  `RunTrace` with `project_context_docs` because `vendor/shared` is
+  do-not-touch, and it is safe because the trace is stored as raw jsonb with
+  no response schema that would strip the key. `reviews/*` imports only the
+  type. See `server/src/modules/project-context/schemas.ts`.
+- **2026-10-11** — the project-context fs adapter fails closed, unlike
+  `SimpleGitClient.readFile`: any `realpath` error is a skip (never a
+  fallback to the raw path) and every path segment is `lstat`-checked, so a
+  symlink anywhere in the chain is rejected, not just the leaf. Do not
+  "simplify" it to a single realpath-prefix check. See
+  `server/test/project-context-fs.test.ts`.
+- **2026-10-11** — project-context status codes: path-rule and duplicate
+  violations are 400 (`BadRequestError`, added to `platform/errors.ts`),
+  while a malformed body (wrong shape/types) is 422 from the Zod schema, per
+  the repo convention. Don't move path rules into the Zod schema or they
+  become 422. See `server/src/modules/project-context/service.ts`.
+
 - **2026-10-02** — `repoIntel.getBlastRadius` cannot be trusted alone for
   "is the index degraded?": the persistent path reports `degraded:false` even
   for a `partial` index, the ripgrep fallback always says `no_data` (never

@@ -1,5 +1,5 @@
 /* SkillDetail — right column: header (name, type, version, Run on evals) and
-   the Config / Preview / Evals / Stats / Versions tabs. Tab state lives in
+   the Config / Context / Preview / Evals / Stats / Versions tabs. Tab state lives in
    ?tab=. `id === "new"` renders the empty Create form (Config tab only). */
 "use client";
 
@@ -13,6 +13,7 @@ import { SKILL_TYPE_COLOR } from "@/lib/skill-format";
 import { SKILLS_SELECT_ROUTE } from "../SkillsWorkspace/constants";
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { ConfigTab } from "../ConfigTab";
+import { ContextTab } from "../ContextTab";
 import { EvalsTab } from "../EvalsTab";
 import { PreviewTab } from "../PreviewTab";
 import { StatsTab } from "../StatsTab";
@@ -104,6 +105,7 @@ export function SkillDetail({ id }: { id: string }) {
             onCancelNew={() => router.push("/skills")}
           />
         )}
+        {skill && tab === "context" && <ContextTab skillId={skill.id} />}
         {skill && tab === "preview" && <PreviewTab skill={skill} />}
         {skill && tab === "evals" && <EvalsTab />}
         {skill && tab === "stats" && <StatsTab skillId={skill.id} />}

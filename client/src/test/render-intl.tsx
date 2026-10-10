@@ -7,11 +7,12 @@ import skills from "../../messages/en/skills.json";
 import agents from "../../messages/en/agents.json";
 import conventions from "../../messages/en/conventions.json";
 import common from "../../messages/en/common.json";
+import context from "../../messages/en/context.json";
 import { ToastProvider } from "@/lib/toast";
 
 export function renderWithIntl(ui: React.ReactElement): RenderResult {
   return render(
-    <NextIntlClientProvider locale="en" messages={{ skills, agents, conventions, common }}>
+    <NextIntlClientProvider locale="en" messages={{ skills, agents, conventions, common, context }}>
       <ToastProvider>{ui}</ToastProvider>
     </NextIntlClientProvider>,
   );

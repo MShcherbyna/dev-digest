@@ -12,7 +12,12 @@ export const queryKeys = {
   repos: () => ["repos"] as const,
   pulls: (repoId: string | null | undefined) => ["pulls", repoId] as const,
   pull: (prId: string | number | null | undefined) => ["pull", prId] as const,
+  /** Prefix of the discovery list AND every file preview of one repo. */
   context: (repoId: string | null | undefined) => ["context", repoId] as const,
+  contextFile: (repoId: string | null | undefined, path: string | null | undefined) =>
+    ["context", repoId, "file", path] as const,
+  agentContext: (id: string | null | undefined) => ["agent-context", id] as const,
+  skillContext: (id: string | null | undefined) => ["skill-context", id] as const,
   repoIntelState: (repoId: string | null | undefined) => ["repo-intel-state", repoId] as const,
 
   agents: () => ["agents"] as const,

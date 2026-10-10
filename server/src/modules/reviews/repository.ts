@@ -1,6 +1,7 @@
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import type { Finding, RunSummary, RunTrace } from '@devdigest/shared';
+import type { RunTraceWithContext } from '../project-context/schemas.js';
 
 /**
  * A2 — review data-access. The ONLY layer touching the DB for the review
@@ -171,7 +172,7 @@ export class ReviewRepository {
   }
 
   /** Persist the WHOLE run log as ONE document. PK = runId → agent_runs. */
-  saveRunTrace(runId: string, trace: RunTrace): Promise<void> {
+  saveRunTrace(runId: string, trace: RunTraceWithContext): Promise<void> {
     return runRepo.saveRunTrace(this.db, runId, trace);
   }
 

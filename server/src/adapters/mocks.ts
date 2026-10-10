@@ -34,6 +34,7 @@ import type {
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from './git/diff-parser.js';
 import type { PriorPrHit, PriorPrQuery, PriorPrSource } from '../modules/blast/ports.js';
+import type { DocFile, DocRead, RepoDocsSource } from '../modules/project-context/ports.js';
 
 /**
  * Deterministic MOCK adapters for tests/dev — NO real network. Each mirrors the
@@ -352,5 +353,37 @@ export class MockSecretsProvider implements SecretsProvider {
   constructor(private secrets: Partial<Record<string, string>> = {}) {}
   async get(key: SecretKey): Promise<string | undefined> {
     return this.secrets[key as string];
+  }
+}
+
+// ---------- Mock repo docs (project-context) ----------
+/** Files keyed by repo-relative path: text, `{ size }` (too large), or 'unreadable'. */
+export type MockRepoDocsFiles = Record<string, string | { size: number } | 'unreadable'>;
+
+export class MockRepoDocsSource implements RepoDocsSource {
+  /** `root` is ignored; null `files` simulates a missing clone directory. */
+  constructor(private files: MockRepoDocsFiles | null = {}) {}
+
+  async walk(
+    _root: string,
+    excluded: ReadonlySet<string>,
+    accept: (relPath: string) => boolean,
+  ): Promise<DocFile[] | null> {
+    if (!this.files) return null;
+    return Object.entries(this.files)
+      .filter(([p]) => !p.split('/').slice(0, -1).some((s) => excluded.has(s)) && accept(p))
+      .map(([path, v]) => ({
+        path,
+        size:
+          v === 'unreadable' ? 0 : typeof v === 'string' ? Buffer.byteLength(v, 'utf8') : v.size,
+      }));
+  }
+
+  async read(_root: string, relPath: string, maxBytes: number): Promise<DocRead> {
+    const v = this.files?.[relPath];
+    if (v === undefined) return { kind: 'missing' };
+    if (v === 'unreadable') return { kind: 'unreadable' };
+    if (typeof v !== 'string') return v.size > maxBytes ? { kind: 'too_large' } : { kind: 'unreadable' };
+    return Buffer.byteLength(v, 'utf8') > maxBytes ? { kind: 'too_large' } : { kind: 'ok', content: v };
   }
 }

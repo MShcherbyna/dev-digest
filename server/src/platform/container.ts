@@ -47,6 +47,11 @@ import { OctokitPriorPrSource } from '../adapters/github/pr-history.js';
 import { BlastRepository } from '../modules/blast/repository.js';
 import { BlastService } from '../modules/blast/service.js';
 import { GitHubChangedFiles } from '../modules/blast/sources.js';
+import type { ProjectContextResolver, RepoDocsSource } from '../modules/project-context/ports.js';
+import { ProjectContextRepository } from '../modules/project-context/repository.js';
+import { ProjectContextService } from '../modules/project-context/service.js';
+import { resolveGlob } from '../modules/project-context/glob.js';
+import { FsRepoDocsSource } from '../adapters/repo-docs/fs.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -73,6 +78,8 @@ export interface ContainerOverrides {
   intent?: IntentDeriver;
   /** Prior-PR source (GitHub GraphQL) — tests inject a mock so no GITHUB_TOKEN is used. */
   priorPrs?: PriorPrSource;
+  /** Project-context repo-clone reader — tests inject `MockRepoDocsSource`. */
+  repoDocs?: RepoDocsSource;
 }
 
 export class Container {
@@ -102,6 +109,7 @@ export class Container {
   private _translation?: Translator;
   private _blast?: BlastReader & BlastHistoryReader;
   private _priorPrs?: PriorPrSource;
+  private _projectContext?: ProjectContextService;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -177,6 +185,17 @@ export class Container {
       intelEnabled: () => this.config.repoIntelEnabled,
     });
     return this._blast;
+  }
+
+  /** Project Context (attached markdown docs): discovery, attachments, run-time resolution. */
+  get projectContext(): ProjectContextService & ProjectContextResolver {
+    this._projectContext ??= new ProjectContextService({
+      store: new ProjectContextRepository(this.db),
+      docs: this.overrides.repoDocs ?? new FsRepoDocsSource(),
+      glob: resolveGlob(this.config.projectContextGlob),
+      log: { warn: (msg) => console.warn(msg) },
+    });
+    return this._projectContext;
   }
 
   get codeIndex(): CodeIndex {

@@ -92,6 +92,16 @@ export function taskLine(pull: PullRow): string {
   );
 }
 
+/** Links whose skill reaches the prompt (globally + link enabled), in link order. */
+function activeSkillLinks(links: LinkedSkillRow[]): LinkedSkillRow[] {
+  return links.filter((l) => l.skill.enabled && l.enabled).sort((a, b) => a.order - b.order);
+}
+
+/** `{id, name}` of the skills selectPromptSkills keeps, same order (project-context lookup). */
+export function selectPromptSkillRefs(links: LinkedSkillRow[]): { id: string; name: string }[] {
+  return activeSkillLinks(links).map((l) => ({ id: l.skill.id, name: l.skill.name }));
+}
+
 /**
  * Pick the skills that reach an agent's prompt: globally enabled AND enabled on
  * the agent's link, in ascending link `order`. Only manually authored skills are
@@ -100,10 +110,7 @@ export function taskLine(pull: PullRow): string {
 export function selectPromptSkills(
   links: LinkedSkillRow[],
 ): { name: string; body: string; trusted: boolean }[] {
-  return links
-    .filter((l) => l.skill.enabled && l.enabled)
-    .sort((a, b) => a.order - b.order)
-    .map((l) => ({ name: l.skill.name, body: l.skill.body, trusted: l.skill.source === 'manual' }));
+  return activeSkillLinks(links).map((l) => ({ name: l.skill.name, body: l.skill.body, trusted: l.skill.source === 'manual' }));
 }
 
 /** Live-log line for the skills attached to a run; undefined when none apply. */

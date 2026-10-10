@@ -54,7 +54,10 @@ indexes it (the **Indexed** badge) → **import PRs** from GitHub → open a PR 
 **Review** → `reviewer-core` assembles a prompt from the diff + the repo map,
 calls the LLM, validates every finding against the diff (the **grounding gate**
 drops hallucinated line references), and persists structured findings with a
-severity and score. All local; the only outbound calls are to GitHub (PR data)
+severity and score. Agents and skills can also have markdown docs from the
+repo clone attached (**Project Context**); they are added to the prompt as
+untrusted reference text and listed in the run trace
+([details](server/docs/project-context.md)). All local; the only outbound calls are to GitHub (PR data)
 and the LLM (via OpenRouter).
 
 Each package has its own README with deeper diagrams:

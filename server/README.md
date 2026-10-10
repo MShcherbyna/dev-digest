@@ -77,12 +77,33 @@ flowchart TB
   subgraph Intel["Repo intelligence"]
     repoIntel["repo-intel<br/>/repos/:id/index-state · /resync"]
   end
+  subgraph Context["Project Context"]
+    projectContext["project-context<br/>/repos/:id/context · /repos/:id/context/file<br/>/agents/:id/context · /skills/:id/context"]
+  end
   subgraph Platform["Platform"]
     settings["settings<br/>/settings · /providers"]
     workspace["workspace<br/>/workspace"]
   end
   HEALTH["/health (liveness) · /health/ready (DB ping → 200/503)"]
 ```
+
+### Project Context endpoints
+
+Attached markdown docs (specs/docs/insights) that are read from the repo clone
+into the review prompt. Internals, security rules and trace fields:
+[docs/project-context.md](docs/project-context.md).
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /repos/:id/context` | discovered docs in the clone (type, size, tokens, `used_by`; capped at 2000) |
+| `GET /repos/:id/context/file?path=` | text of one discoverable doc (413 over 3 MiB) |
+| `GET /agents/:id/context` | ordered attached paths |
+| `PUT /agents/:id/context` | replace the list (no version bump) |
+| `GET /skills/:id/context` | ordered attached paths |
+| `PUT /skills/:id/context` | replace the list (no version bump) |
+
+Path-rule/duplicate violations are 400; a malformed body is 422. Needs
+migration `0015` (`pnpm db:migrate`).
 
 ## Environment
 
@@ -97,6 +118,7 @@ flowchart TB
 | `EMBEDDINGS_ENABLED` | `false` | memory/RAG embeddings (OpenAI); off → **zero** OpenAI calls |
 | `REPO_INTEL_ENABLED` | `true` | repo skeleton + callers in the prompt; `false` → ripgrep-only |
 | `DEVDIGEST_CLONE_DIR` | `./clones` | imported-repo checkouts (git-ignored) |
+| `PROJECT_CONTEXT_GLOB` | `**/{specs,docs,insights}/**/*.md` | Project Context discovery glob; invalid values fall back to the default with a warning (see [docs/project-context.md](docs/project-context.md)) |
 | `LOG_LEVEL` | `info` (`silent` in test) | pino level |
 | `NODE_ENV` | `development` | `test` → silent logs + global rate-limit disabled |
 

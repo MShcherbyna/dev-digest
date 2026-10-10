@@ -57,7 +57,9 @@ read by the `engineering-insights` skill.
 
 - `client/src/vendor/ui/nav.ts` was edited locally (not at the sync source) to
   add the SKILLS LAB group (Agents, Skills, Conventions) — port it to the sync
-  source or the next re-vendor will revert it.
+  source or the next re-vendor will revert it. **Refined 2026-10-11:** a second
+  local edit adds the WORKSPACE "Project Context" item (`key: "context"`, icon
+  `Folder`, no `gKey`); `activeKeyFor` and `shell.nav.context` already existed.
 - Conventions confidence bar turns amber below `CONFIDENCE_WARN_BELOW` (0.85,
   `ConventionCard/constants.ts`): the design shows 90% neutral and 80% amber.
 

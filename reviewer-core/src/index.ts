@@ -18,6 +18,8 @@ export {
   skillTokenEstimates,
   estimateTokens,
   renderIntentBlock,
+  renderProjectContextBlock,
+  type ProjectDoc,
   type PromptIntent,
   type PromptSkill,
   type PromptParts,
