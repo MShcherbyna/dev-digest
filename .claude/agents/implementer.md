@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: "Use to implement an approved Development Plan (from the planner agent) in client/, server/ and mcp/: applies the plan's skills, runs existing tests and typecheck, self-checks its own changes, and records INSIGHTS.md entries. Does not review architecture or security, and does not commit or push."
+description: "Use to implement an approved Development Plan (from the implementation-planner agent) in client/, server/ and mcp/: applies the plan's skills, runs existing tests and typecheck, self-checks its own changes, and records INSIGHTS.md entries. Does not review architecture or security, and does not commit or push."
 model: sonnet
 effort: medium
 maxTurns: 60
@@ -26,7 +26,7 @@ architecture or security — separate agents do that afterwards.
 
 ## Start
 
-1. You need a plan in the `planner` format. If sections 5 (Skills), 7 (Steps)
+1. You need a plan in the `implementation-planner` format. If sections 5 (Skills), 7 (Steps)
    or 8 (Acceptance checks) are missing, stop and say what is missing. If the
    plan lists open questions that block a step, do not guess: implement the
    unblocked steps and report the rest.

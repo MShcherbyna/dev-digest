@@ -4,7 +4,7 @@ Type: reference.
 
 The `.claude/agents/*` sub-agents are constrained by `PreToolUse` hooks that
 live in `.claude/hooks/`. Each hook is wired in the agent's own frontmatter
-(for example the `hooks:` block in `.claude/agents/planner.md`), so it applies
+(for example the `hooks:` block in `.claude/agents/implementation-planner.md`), so it applies
 only while that agent runs and never affects the main session. Every hook
 follows the same contract: read the tool-call JSON on stdin, exit 0 to allow,
 exit 2 to block (stderr is shown to the agent).
@@ -15,12 +15,13 @@ session-level hooks, not agent guards, and are not described here.
 
 ## Guards at a glance
 
-Five scripts are wired to six agents: `readonly-bash-guard.sh` is used twice,
+Six scripts are wired to seven agents: `readonly-bash-guard.sh` is used twice,
 in `git` mode and in `verify` mode.
 
 | Agent | Hook script | Tools it gates | Allows | Blocks | On bad input |
 |---|---|---|---|---|---|
-| planner | `.claude/hooks/planner-guard.sh` | Write path | `<root>/docs/plans/<feature>_en.md` and `_uk.md` (kebab-case name) | every other path | blocks, but only by accident (see limitations) |
+| implementation-planner | `.claude/hooks/implementation-planner-guard.sh` | Write path | `<root>/docs/plans/<feature>_en.md` and `_uk.md` (kebab-case name) | every other path | blocks, but only by accident (see limitations) |
+| spec-creator | `.claude/hooks/spec-creator-guard.sh` | Write, Edit path | `<root>/specs/YYYY-MM-DD-<feature>.md` and `<root>/<server\|client\|reviewer-core\|e2e\|mcp>/specs/YYYY-MM-DD-<feature>.md` (kebab-case name) | `README.md`, `server/clones/**`, every other path | fails closed |
 | implementer | `.claude/hooks/implementer-guard.sh` | Edit, Write, Bash | everything not listed as blocked | Edit/Write on protected paths; `git commit`/`git push`; `db:migrate`; `sed -i`, `>`, `>>`, `tee` targeting protected paths | fails open |
 | test-writer | `.claude/hooks/test-writer-guard.sh` | Edit, Write, Bash | Edit/Write on `*.test.ts(x)`, `client/src/test/*`, `server/test/helpers/*`, `INSIGHTS.md` | protected paths; commit/push; `db:migrate`; pnpm/npm/yarn dependency changes; `sed -i`, `tee`, any redirection except fd merges and `/dev/null` | fails closed |
 | doc-writer | `.claude/hooks/doc-writer-guard.sh` | Edit, Write only | documentation allowlist (package `docs/<topic>.md`, package `README.md`, `server/src/modules/<name>/README.md`, root `README.md`, `docs/<section>/<topic>.md`) | `docs/plans/`, `INSIGHTS.md`, `CLAUDE.md`, `AGENTS.md`, `specs/`, `.claude/`, protected paths, anything outside the project | fails closed |
@@ -37,17 +38,20 @@ Protected paths (shared by implementer, test-writer and doc-writer):
 
 ```mermaid
 flowchart TD
-  call[Agent tool call] -->|frontmatter PreToolUse| planner[planner-guard.sh]
+  call[Agent tool call] -->|frontmatter PreToolUse| ip[implementation-planner-guard.sh]
+  call -->|frontmatter PreToolUse| sc[spec-creator-guard.sh]
   call -->|frontmatter PreToolUse| impl[implementer-guard.sh]
   call -->|frontmatter PreToolUse| tw[test-writer-guard.sh]
   call -->|frontmatter PreToolUse| dw[doc-writer-guard.sh]
   call -->|frontmatter PreToolUse| ro[readonly-bash-guard.sh git or verify]
-  planner -->|path matches docs/plans/feature_en or _uk| allow[exit 0: allow]
+  ip -->|path matches docs/plans/feature_en or _uk| allow[exit 0: allow]
+  sc -->|specs/dated-feature.md or package specs/dated-feature.md| allow
   impl -->|no rule matched| allow
   tw -->|allowlisted test path or clean Bash| allow
   dw -->|documentation allowlist| allow
   ro -->|fullmatch on allowlist regex| allow
-  planner -->|any other path| block[exit 2: block, stderr to agent]
+  ip -->|any other path| block[exit 2: block, stderr to agent]
+  sc -->|README.md, other path, bad input| block
   impl -->|protected path, commit/push, db:migrate| block
   tw -->|not allowlisted, or denied Bash pattern| block
   dw -->|denied name, off allowlist, bad input| block
@@ -56,12 +60,20 @@ flowchart TD
 
 ## Per-hook details
 
-### planner-guard.sh
+### implementation-planner-guard.sh
 
 Reads `tool_input.file_path` and matches it against
 `^<root>/docs/plans/[a-z0-9][a-z0-9-]*_(en|uk)\.md$`, where `<root>` is
 `CLAUDE_PROJECT_DIR` or `git rev-parse --show-toplevel`
-(`.claude/hooks/planner-guard.sh:13-15`). Anything else exits 2.
+(`.claude/hooks/implementation-planner-guard.sh:13-15`). Anything else exits 2.
+
+### spec-creator-guard.sh
+
+Reads `tool_input.file_path` (Write and Edit) and matches it against
+`^<root>/((server|client|reviewer-core|e2e|mcp)/)?specs/[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-z0-9][a-z0-9-]*\.md$`,
+then refuses `README.md`. The anchored regex also rejects nested copies such as
+`server/clones/**/specs/`. An unset root or a failed parse leaves the match
+empty, so the script exits 2 (`.claude/hooks/spec-creator-guard.sh:13-21`).
 
 ### implementer-guard.sh
 
@@ -111,7 +123,7 @@ anchored regex:
   `npm --prefix reviewer-core test|run typecheck` (`:46-51`).
 
 This script does not read `CLAUDE_PROJECT_DIR`. Only `test-writer-guard.sh`
-and `doc-writer-guard.sh` fail closed when it is unset. `planner-guard.sh`
+and `doc-writer-guard.sh` fail closed when it is unset. `implementation-planner-guard.sh`
 falls back to `git rev-parse`.
 
 ## Known limitations
@@ -124,9 +136,9 @@ falls back to `git rev-parse`.
 - `test-writer-guard.sh` does not catch `cp`, `mv`, `python -c` or `node -e`
   writes, since only `sed -i`, `tee` and `>` are matched
   (`.claude/hooks/test-writer-guard.sh:64-71`).
-- `planner-guard.sh` blocks on a parse error only by accident: a failed parse
+- `implementation-planner-guard.sh` blocks on a parse error only by accident: a failed parse
   leaves `target` empty, which simply fails the path regex
-  (`.claude/hooks/planner-guard.sh:7-20`). There is no explicit fail-closed
+  (`.claude/hooks/implementation-planner-guard.sh:7-20`). There is no explicit fail-closed
   branch.
 - Guards are frontmatter-scoped: they protect only the agent that declares
   them, not the main session.

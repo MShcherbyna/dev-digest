@@ -7,7 +7,8 @@ live in each agent's own `.md` file; don't copy them here.
 
 | Agent | Responsibility | Model / effort / maxTurns | Tools | Denied |
 |---|---|---|---|---|
-| [planner](planner.md) | Turns a task into a structured Development Plan; saves it as `docs/plans/<feature>_en.md` (English only) | opus / high / 30 | Read, Grep, Glob, Write (guarded) | Agent, Edit, Bash |
+| [spec-creator](spec-creator.md) | Writes feature specs (EARS AC, edge cases, NFR, provenance, untrusted inputs) from requirements and design analysis; asks the user about gaps and proposes UX improvements | opus / high / 30 | Read, Grep, Glob, Write, Edit (guarded), AskUserQuestion, Agent (researcher only, by prompt) | Bash, NotebookEdit |
+| [implementation-planner](implementation-planner.md) | Reviews requirements, asks questions, recommends improvements, asks single- vs multi-agent mode, then writes an implementation plan (never specs) as `docs/plans/<feature>_en.md` (English only) | opus / high / 30 | Read, Grep, Glob, Write (guarded) | Agent, Edit, Bash |
 | [implementer](implementer.md) | Executes an approved plan in `client/` and `server/`, verifies its own changes, records INSIGHTS | sonnet / medium / 60 | Read, Grep, Glob, Edit, Write, Bash, Skill | Agent |
 | [researcher](researcher.md) | Read-only research of the repo or external sources; reports findings with evidence | sonnet / default / default | all except Write, Edit | Write, Edit |
 | [test-writer](test-writer.md) | Writes UI and backend tests with the matching project skills; reports which regression each test catches | sonnet / medium / 50 | Read, Grep, Glob, Edit, Write, Bash, Skill | Agent, NotebookEdit |
@@ -20,7 +21,7 @@ live in each agent's own `.md` file; don't copy them here.
 ## Workflow
 
 ```
-task ─► planner ─► en plan ─► (user approves) ─► plan-translator (once) ─► uk plan
+task ─► implementation-planner ─► en plan ─► (user approves) ─► plan-translator (once) ─► uk plan
                                    │
                                    ▼
                               implementer ─► test-writer ─► check-runner
@@ -32,7 +33,7 @@ task ─► planner ─► en plan ─► (user approves) ─► plan-translator
                                                     │ COMPLETE
                                                     ▼
                                                 doc-writer
-researcher ── standalone: answers questions, feeds the user or planner input
+researcher ── standalone: answers questions, feeds the user or implementation-planner input
 ```
 
 Token rules: the `_uk` plan is generated **once**, after the English plan is
@@ -45,20 +46,27 @@ after the fix pass, not while code is still changing.
 
 Architecture review is done by architecture-reviewer, but its verdict is
 advisory: the `pr-self-review` skill remains the gate. Security review is
-still **not** done by these agents; the planner flags what to scrutinise, the
+still **not** done by these agents; the implementation-planner flags what to scrutinise, the
 implementer lists it under "Handoff to review".
 
 ## Per-agent card
 
-### planner
-- **Inputs:** the task; root `CLAUDE.md`; `AGENTS.md` and `INSIGHTS.md` of each touched package; the code itself.
-- **Output:** a 10-section *Development Plan* (goal, context read, affected modules, contracts, skills for implementer, architecture constraints, steps, acceptance checks, risks/open questions, could-not-determine). Ambiguous tasks return only questions.
+### spec-creator
+- **Inputs:** the feature request, screenshots (top priority), `design/`, `AGENTS.md` / `INSIGHTS.md` of touched packages, existing `<pkg>/specs/`.
+- **Output:** `specs/YYYY-MM-DD-<feature>.md` (multi-module) or `<pkg>/specs/YYYY-MM-DD-<feature>.md` (single-module; kebab-case, `SPEC-YYYY-MM-DD-<kebab>` ID, `Status: draft`, fixed 9-heading template, English) and a short report of remaining `[NEEDS CLARIFICATION]` items. Asks all questions in one batch before writing; can fan out parallel `researcher` subagents; reads INSIGHTS only of touched packages; each AC carries `Traces:` / `Verify:`; ends with a self-check.
+- **Preloaded skills:** engineering-insights, design, mermaid-diagram, security.
+- **Permissions:** Write/Edit only on top-level `specs/<kebab>.md` (cross-module) and `<server|client|reviewer-core|e2e|mcp>/specs/<kebab>.md`, never `README.md`, enforced by [../hooks/spec-creator-guard.sh](../hooks/spec-creator-guard.sh) (fails closed). No Bash. May spawn `researcher` subagents (the `Agent(type)` allowlist is ignored in subagents, so this is enforced by its prompt only).
+
+### implementation-planner
+- **Inputs:** the task and its requirements/specs (read-only); root `CLAUDE.md`; `AGENTS.md` and `INSIGHTS.md` of each touched package; the code itself.
+- **Two rounds:** round 1 returns a requirements review (questions, gaps, recommendations) plus the question *multi-agent or single-agent?* and writes nothing; the caller asks the user and re-invokes it with the answers. Round 2 writes the plan.
+- **Output:** a 12-section *Implementation Plan* (sections 1-10 as before: goal, context read, affected modules, contracts, skills for implementer, architecture constraints, steps, acceptance checks, risks/open questions, could-not-determine; plus 11 requirements review and 12 execution mode). Never writes or edits specifications.
 - **Preloaded skills:** engineering-insights, onion-architecture, react-frontend-architecture, fastify-best-practices, drizzle-orm-patterns, postgresql-table-design.
 - **Also writes:** the plan as one file in `docs/plans/` — `<feature>_en.md` (English). The Ukrainian copy comes from `plan-translator`.
-- **Permissions:** Write is allowed only for that one path, enforced by a `PreToolUse` hook ([../hooks/planner-guard.sh](../hooks/planner-guard.sh)) wired in the agent's frontmatter. Cannot edit files, spawn agents or run commands.
+- **Permissions:** Write is allowed only for that one path, enforced by a `PreToolUse` hook ([../hooks/implementation-planner-guard.sh](../hooks/implementation-planner-guard.sh)) wired in the agent's frontmatter. Cannot edit files, spawn agents or run commands.
 
 ### implementer
-- **Inputs:** a plan in the planner format (needs sections 5, 7, 8 — otherwise it stops); `AGENTS.md` / `INSIGHTS.md` of touched packages.
+- **Inputs:** a plan in the implementation-planner format (needs sections 5, 7, 8 — otherwise it stops); `AGENTS.md` / `INSIGHTS.md` of touched packages.
 - **Output:** an *Implementation Report* (done, skills applied, checks run, deviations, not verified, INSIGHTS.md entries, handoff to review); changed source/test files; possibly `INSIGHTS.md` entries.
 - **Preloaded skills:** engineering-insights, typescript-expert, zod, onion-architecture, react-frontend-architecture (plus whatever plan section 5 lists).
 - **Permissions:** can edit and run Bash, but a `PreToolUse` hook ([../hooks/implementer-guard.sh](../hooks/implementer-guard.sh)) blocks edits to do-not-touch paths, `git commit`/`push`, and `db:migrate`. The hook is wired in the agent's frontmatter, so it applies to this agent only. It cannot spawn agents.
@@ -127,7 +135,7 @@ Design plan for the four agents below: [docs/plans/quality-subagents_en.md](../.
 ### plan-verifier
 | Rule area | Source |
 |---|---|
-| Plan format it audits (sections 3, 4, 6, 7, 8) | [planner.md](planner.md) output format; `docs/plans/<feature>_en.md` |
+| Plan format it audits (sections 3, 4, 6, 7, 8) | [implementation-planner.md](implementation-planner.md) output format; `docs/plans/<feature>_en.md` |
 | Acceptance commands it may re-run | [/CLAUDE.md](../../CLAUDE.md) "Validation"; [/TESTING.md](../../TESTING.md); [/INSIGHTS.md](../../INSIGHTS.md) (`npx --yes pnpm@10`) |
 | Per-item requirement traceability † (verdict schema is inferred, not standard) | [LLM static verification](https://arxiv.org/pdf/2605.17926), [TraceDev](https://arxiv.org/pdf/2607.18886) |
 
@@ -141,7 +149,7 @@ Design plan for the four agents below: [docs/plans/quality-subagents_en.md](../.
 | Diagram syntax and limits | skill: [mermaid-diagram](../skills/mermaid-diagram/SKILL.md) |
 | Doc types, Mermaid in Markdown | [Diátaxis](https://diataxis.fr/), [GitHub diagrams](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-diagrams) |
 
-### planner
+### implementation-planner
 | Rule area | Source |
 |---|---|
 | Read order, do-not-touch list, naming, validation commands, design policy | [/CLAUDE.md](../../CLAUDE.md) (Development workflow: Initiation → Planning) |
@@ -157,7 +165,7 @@ Design plan for the four agents below: [docs/plans/quality-subagents_en.md](../.
 | Rule area | Source |
 |---|---|
 | Plan-first, package conventions, five-phase workflow (Implementation → Validation → Completion) | [/CLAUDE.md](../../CLAUDE.md) |
-| Plan format it consumes (sections 5, 7, 8) | [planner.md](planner.md) output format |
+| Plan format it consumes (sections 5, 7, 8) | [implementation-planner.md](implementation-planner.md) output format |
 | Do-not-touch paths, no commit/push, no `db:migrate` | CLAUDE.md "Do-not-touch", "GIT" and `server/` migration note; enforced by [implementer-guard.sh](../hooks/implementer-guard.sh) |
 | Verify with `pnpm typecheck` + `pnpm test`, no success on typecheck alone | CLAUDE.md "Validation"; [/TESTING.md](../../TESTING.md) |
 | INSIGHTS recording (section, specificity bar, duplicate check) | [engineering-insights](../skills/engineering-insights/SKILL.md) |

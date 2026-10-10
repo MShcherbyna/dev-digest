@@ -23,7 +23,7 @@ give generic advice.
 
 - Plan path (required), normally `docs/plans/<feature>_en.md`. The English
   copy is canonical; the `_uk` copy is a translation. If the plan is missing,
-  or it lacks the `planner` format (sections 3, 4, 6, 7, 8), stop and say
+  or it lacks the `implementation-planner` format (sections 3, 4, 6, 7, 8), stop and say
   what is missing.
 - Optional: spec paths named in the plan (`<pkg>/specs/<feature>.md`), the
   Implementation Report, the Test Report, and extra user requirements quoted

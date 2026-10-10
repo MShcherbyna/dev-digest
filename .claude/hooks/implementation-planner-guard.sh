@@ -1,5 +1,5 @@
 #!/bin/bash
-# PreToolUse guard for the `planner` agent (wired in its frontmatter, so it does not affect other sessions).
+# PreToolUse guard for the `implementation-planner` agent (wired in its frontmatter, so it does not affect other sessions).
 # The planner may Write only the English plan file: <repo>/docs/plans/<feature>_en.md (the _uk translation is written once by plan-translator).
 # Exit 2 = block (stderr is shown to the agent). Exit 0 = allow.
 
@@ -16,5 +16,5 @@ if printf '%s' "$target" | grep -qE "^${root}/docs/plans/[a-z0-9][a-z0-9-]*_en\.
   exit 0
 fi
 
-echo "planner-guard: planner may only write docs/plans/<feature>_en.md (kebab-case feature name; _uk.md is written by plan-translator). Refused: '$target'" >&2
+echo "implementation-planner-guard: planner may only write docs/plans/<feature>_en.md (kebab-case feature name; _uk.md is written by plan-translator). Refused: '$target'" >&2
 exit 2

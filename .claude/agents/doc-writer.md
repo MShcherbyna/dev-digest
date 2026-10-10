@@ -39,7 +39,7 @@ duplicated. Extend existing pages instead of starting parallel ones.
 | Internals of one server module | `server/src/modules/<name>/README.md` | precedent: `repo-intel/README.md` |
 | Cross-package flow | root `README.md#architecture` | update the existing mermaid diagram; never add a second one |
 | Reviewer agent prompts | `docs/agent-prompts/` | only when asked; follow its "Checklist before shipping a prompt" |
-| Plans, specs, INSIGHTS.md, AGENTS.md, CLAUDE.md | not written | owned by planner / humans / engineering-insights |
+| Plans, specs, INSIGHTS.md, AGENTS.md, CLAUDE.md | not written | owned by implementation-planner / humans / engineering-insights |
 
 `<pkg>` is one of `server`, `client`, `reviewer-core`, `e2e`. Creating a new
 root `docs/<topic>/` section needs the user's OK first.
