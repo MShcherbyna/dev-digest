@@ -97,13 +97,17 @@ into the review prompt. Internals, security rules and trace fields:
 |---|---|
 | `GET /repos/:id/context` | discovered docs in the clone (type, size, tokens, `used_by`; capped at 2000) |
 | `GET /repos/:id/context/file?path=` | text of one discoverable doc (413 over 3 MiB) |
-| `GET /agents/:id/context` | ordered attached paths |
-| `PUT /agents/:id/context` | replace the list (no version bump) |
-| `GET /skills/:id/context` | ordered attached paths |
-| `PUT /skills/:id/context` | replace the list (no version bump) |
+| `GET /agents/:id/context?repo_id=` | ordered attached paths for that repo (`{ paths: [] }` if none) |
+| `PUT /agents/:id/context?repo_id=` | replace that repo's list (no version bump) |
+| `GET /skills/:id/context?repo_id=` | ordered attached paths for that repo (`{ paths: [] }` if none) |
+| `PUT /skills/:id/context?repo_id=` | replace that repo's list (no version bump) |
 
-Path-rule/duplicate violations are 400; a malformed body is 422. Needs
-migration `0015` (`pnpm db:migrate`).
+Attachments are per repository (tables `agent_repo_context`,
+`skill_repo_context`); runs read only the PR repo's lists. `repo_id` missing or
+malformed and a malformed body are 422; unknown or foreign agent/skill/repo is
+404 (checked before path validation); path-rule/duplicate violations are 400.
+Needs migration `0016` (`pnpm db:migrate`), which drops the old
+`context_paths` columns without copying data.
 
 ## Environment
 
@@ -117,7 +121,7 @@ migration `0015` (`pnpm db:migrate`).
 | `GITHUB_TOKEN` | — | optional; PAT with repo scope (`GITHUB_PAT` accepted as a fallback) |
 | `EMBEDDINGS_ENABLED` | `false` | memory/RAG embeddings (OpenAI); off → **zero** OpenAI calls |
 | `REPO_INTEL_ENABLED` | `true` | repo skeleton + callers in the prompt; `false` → ripgrep-only |
-| `DEVDIGEST_CLONE_DIR` | `./clones` | imported-repo checkouts (git-ignored) |
+| `DEVDIGEST_CLONE_DIR` | `~/.devdigest/workspace` (code default, `config.ts`); `.env.example` sets `./clones` | imported-repo checkouts |
 | `PROJECT_CONTEXT_GLOB` | `**/{specs,docs,insights}/**/*.md` | Project Context discovery glob; invalid values fall back to the default with a warning (see [docs/project-context.md](docs/project-context.md)) |
 | `LOG_LEVEL` | `info` (`silent` in test) | pino level |
 | `NODE_ENV` | `development` | `test` → silent logs + global rate-limit disabled |

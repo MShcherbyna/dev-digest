@@ -29,9 +29,9 @@ export function FileListPanel({ listing, repoName, selected, onSelect, onRefresh
   return (
     <aside style={s.left} aria-label={t("page.title")}>
       <div style={s.leftHead}>
-        <div>
+        <div style={s.leftHeadText}>
           <div style={s.caps}>{t("page.panelTitle")}</div>
-          <div className="mono" style={s.repoName}>
+          <div className="mono" style={s.repoName} title={repoName}>
             {repoName}
           </div>
         </div>

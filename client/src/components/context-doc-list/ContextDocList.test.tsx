@@ -169,21 +169,23 @@ describe("ContextDocList", () => {
     expect(screen.getByText("No documents match your filter.")).toBeInTheDocument();
   });
 
-  it("AC-20: without a repo or a clone it still lists and detaches attached paths and shows the hint", async () => {
-    // Catches: attached docs becoming undetachable when the repo is missing or not cloned.
-    const { unmount } = renderList({ repo: null, attached: ["specs/a.md", "specs/b.md"] });
+  it("AC-20: with no repo it shows only the hint, no rows and no toggles, even with attached paths", () => {
+    // Catches: another repo's attached paths leaking into a no-repo view as phantom rows.
+    renderList({ repo: null, attached: ["specs/a.md", "specs/b.md"] });
     expect(screen.getByText("Select a repository to browse its documents.")).toBeInTheDocument();
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+  });
+
+  it("Q1: an uncloned repo lists its attached paths as 'not found in <repo>' and they can still be detached", async () => {
+    // Catches: attached docs becoming undetachable when the active repo is not cloned.
+    state.listing = { data: { ...LISTING, cloned: false, files: [], total: 0 }, isLoading: false, isError: false };
+    renderList({ attached: ["specs/a.md", "specs/b.md"] });
+    expect(screen.getByText(/acme\/api is not cloned yet/)).toBeInTheDocument();
     expect(rowPaths()).toEqual(["specs/a.md", "specs/b.md"]);
-    expect(screen.queryByText("not found in acme/api")).not.toBeInTheDocument();
+    expect(screen.getAllByText("not found in acme/api")).toHaveLength(2);
     await userEvent.click(screen.getByRole("checkbox", { name: "Attach specs/b.md" }));
     expect(onChange).toHaveBeenLastCalledWith(["specs/a.md"]);
-    unmount();
-
-    state.listing = { data: { ...LISTING, cloned: false, files: [], total: 0 }, isLoading: false, isError: false };
-    renderList({ attached: ["specs/a.md"] });
-    expect(screen.getByText(/acme\/api is not cloned yet/)).toBeInTheDocument();
-    expect(rowPaths()).toEqual(["specs/a.md"]);
-    expect(screen.queryByText(/not found in/)).not.toBeInTheDocument();
   });
 
   it("AC-36: shows the 'first 2,000' notice while the listing is truncated", () => {

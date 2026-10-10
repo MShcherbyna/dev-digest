@@ -3,6 +3,19 @@ Spec ID: SPEC-2026-10-11-project-context
 Status: draft
 Supersedes: none
 
+> **Revision 2026-10-11 (per-repository attachments, user-confirmed).** Attachment
+> lists now belong to the pair (agent, repository) and (skill, repository) instead
+> of being repo-agnostic paths. The earlier per-agent/per-skill list (introduced
+> the same day, never released) is discarded with no data migration. The context
+> API takes a required `repo_id` query parameter. Run time reads only the lists of
+> the PR's repository. Both Context tabs show "N of M attached" and a "SERIALIZES
+> AS" box headed `## Project specifications`. The Project Context left panel header
+> shows the repository name, and rows show an area badge. Changed: Problem
+> (current state), Goals, Non-goals, US-2, US-3, new US-8, AC-7, AC-9, AC-12,
+> AC-13, AC-14, AC-17, AC-20, AC-21, AC-22, AC-23, AC-24, AC-28, AC-30, new AC-37
+> to AC-39, Edge cases, Inputs and provenance (decisions, design sources, inputs,
+> contracts, diagrams, failure table), Open questions. AC ids are unchanged.
+
 ## Problem and user
 
 Review agents only see the diff, the PR description, enabled skill bodies and
@@ -12,13 +25,14 @@ imports `db/` directly" lives in a markdown file in the repository, but the
 reviewer never reads it, so a PR that breaks it passes unnoticed.
 
 **User:** the DevDigest studio user (a developer or reviewer lead) who configures
-agents and skills for a connected repository.
+agents and skills for one or more connected repositories.
 
-**Want:** the user picks the relevant markdown documents from the repository and
-attaches them to an agent or a skill. From then on, every run of that agent
-carries the documents' text in its prompt. The user sees, before and after a run,
-how many tokens they cost. In the run trace the user can open and read the exact
-text that was sent.
+**Want:** the user picks the relevant markdown documents from a repository and
+attaches them to an agent or a skill for that repository. From then on, every run
+of that agent on a PR of that repository carries the documents' text in its
+prompt. The same agent can carry different documents in different repositories.
+The user sees, before and after a run, how many tokens they cost. In the run trace
+the user can open and read the exact text that was sent.
 
 This is the first, deliberately small step. Selection is manual. It shows quickly
 whether attached specs change reviewer behaviour.
@@ -44,6 +58,10 @@ whether attached specs change reviewer behaviour.
   read-only mirror of the default branch as of the last sync. A resync runs
   `git fetch` + `git reset --hard origin/<branch>`. The server never commits or
   pushes.
+- **Earlier same-day version (revision context):** a first implementation of this
+  spec stored one repo-agnostic ordered path list per agent and per skill. This
+  revision replaces that model with per-repository lists; nothing of the earlier
+  model was released.
 
 ## Goals / Non-goals
 
@@ -54,17 +72,19 @@ whether attached specs change reviewer behaviour.
   `**/{specs,docs,insights}/**/*.md`.
 - **Project Context page:** lists the documents and shows a rendered, read-only
   preview, "Used by N agents" and an index footer.
-- **Manual attachment:**
+- **Manual attachment, per repository:**
   - Agent editor, Context tab: an ordered list with checkbox, path, type badge,
-    filter, preview and a token total.
-  - Skill editor, Context tab: the same, as "Project context to use". Any agent
-    using the skill inherits these documents.
-- **Paths only:** attachments are stored as repository-relative paths, never as
-  document text.
-- **Run-time injection:** at the start of every run, the server reads the attached
-  documents from the PR's repository clone. It injects them as one untrusted
-  `## Project context` block, with delimiters and an injection guard. There is no
-  extra LLM call.
+    filter, preview and a token total, for the active repository.
+  - Skill editor, Context tab: the same, as "Project context to use", for the
+    active repository. Any agent using the skill inherits these documents on PRs
+    of that repository.
+  - The same agent or skill can have a different ordered list in each repository.
+- **Paths only:** attachments are stored as repository-relative paths, scoped to
+  one repository, never as document text.
+- **Run-time injection:** at the start of every run, the server reads the
+  documents attached for the PR's repository from that repository's clone. It
+  injects them as one untrusted `## Project context` block, with delimiters and an
+  injection guard. There is no extra LLM call.
 - **Trace transparency:** the trace shows which documents were read and their
   token estimates. It also shows which were skipped and why, and the full block
   text.
@@ -84,6 +104,14 @@ whether attached specs change reviewer behaviour.
     symlink and atomicity guarantees.
 
   Editing is a separate future feature.
+- **No data migration of the earlier lists (user-confirmed, revision).** The
+  repo-agnostic per-agent and per-skill lists from the earlier same-day version
+  are discarded, not copied into any repository. After the change every agent and
+  skill starts with an empty list in every repository. That earlier storage is
+  removed.
+- **No cross-repository lists:** there is no "all repositories" or default list
+  that applies to every repository, and no copying of a list from one repository
+  to another.
 - **Content-based selection:** automatic selection of documents from the PR's
   content (an "auto selector") is a separate feature.
 - **No coverage scoring:** no coverage score or ring (the "78 COVERAGE" ring in
@@ -117,11 +145,12 @@ whether attached specs change reviewer behaviour.
 - **US-1** — As a studio user, I want to browse and read every project markdown
   document the server can find in the active repository, so that I know what
   context is available.
-- **US-2** — As a studio user, I want to attach documents to an agent in a chosen
-  order and see their token cost, so that the agent reviews against my project's
-  rules without surprising prompt growth.
-- **US-3** — As a studio user, I want to attach documents to a skill, so that every
-  agent using that skill inherits them.
+- **US-2** — As a studio user, I want to attach documents of the active repository
+  to an agent in a chosen order and see their token cost, so that the agent reviews
+  that repository's PRs against its rules without surprising prompt growth.
+- **US-3** — As a studio user, I want to attach documents of the active repository
+  to a skill, so that every agent using that skill inherits them on that
+  repository's PRs.
 - **US-4** — As a studio user, I want attached documents injected into every run of
   the agent as untrusted reference data, so that the reviewer can use them without
   them being able to command the reviewer.
@@ -133,11 +162,16 @@ whether attached specs change reviewer behaviour.
   available.
 - **US-7** — As a studio user, I want to confirm that an attached document changes
   reviewer behaviour, so that I can trust the feature.
+- **US-8** — As a studio user who works with several repositories, I want each
+  repository to keep its own attachment list for the same agent or skill, so that
+  one repository's documents are never shown as attached, or sent to the model,
+  for another repository.
 
 ## Acceptance criteria (EARS)
 
 > **Size note:** this spec holds more than the usual ~15 ACs. That is by explicit
 > user decision: one spec, not split. The ACs are grouped by area for readability.
+> AC-37 to AC-39 were added by the 2026-10-11 revision; existing ids are unchanged.
 
 ### A. Discovery and configuration
 
@@ -206,16 +240,20 @@ whether attached specs change reviewer behaviour.
   entry is active.
 - **AC-7** — WHEN the Project Context page opens with an active, cloned repository,
   the studio (shall) show the left panel:
-  - a "PROJECT CONTEXT" header showing the configured glob;
-  - a refresh action;
-  - the document list sorted by path;
+  - a header with the "PROJECT CONTEXT" title, the active repository's name (not
+    the glob) and the refresh action;
+  - the document list sorted by path, each row showing the file name, its
+    directory and an area badge: the path's top-level folder, or `root` for a file
+    at the repository root;
   - the footer "Indexed: N files · last scanned <relative time>".
 
   The first document (shall) be selected by default. Per the mockup, the panel has
-  no add-file, add-folder or upload actions.
+  no add-file, add-folder or upload actions. For visual details the user's
+  screenshot of the left panel takes priority over this text.
 
-  Traces: US-1. Verify: e2e - list, footer
-  text and absence of the three actions.
+  Traces: US-1. Verify: e2e - header shows the repository name and refresh;
+  `specs/a.md` row shows badge `specs`, `server/docs/b.md` shows `server`; footer
+  text; absence of the three actions.
 - **AC-8** — WHEN the user selects a document in the list, the studio (shall) show
   on the right:
   - the file name;
@@ -226,12 +264,14 @@ whether attached specs change reviewer behaviour.
   Traces: US-1. Verify: e2e - selecting `public-api.md` renders its headings and
   lists; no Edit control exists.
 - **AC-9** — The "Used by N agents" count (shall) equal the number of distinct
-  agents in the workspace that attach the document directly. It also counts agents
-  that link a skill attaching it, where that skill is enabled both globally and for
-  the agent.
+  agents in the workspace that, within the selected repository, attach the
+  document directly in their list for that repository, or link a skill (enabled
+  both globally and for the agent) whose list for that repository attaches it.
+  Lists of other repositories (shall) not be counted.
 
-  Traces: US-1, US-3. Verify: integration - one direct agent plus one
-  agent via an enabled skill plus one via a disabled skill link gives 2.
+  Traces: US-1, US-3, US-8. Verify: integration - in repo A, one direct agent plus
+  one agent via an enabled skill plus one via a disabled skill link plus one agent
+  attaching the same path only in repo B gives 2.
 - **AC-10** — WHEN the user activates refresh, the studio (shall) re-request
   discovery. It then updates the list, the file count and "last scanned" without a
   full page reload.
@@ -262,26 +302,33 @@ whether attached specs change reviewer behaviour.
   - a "Filter documents…" input;
   - one row per document: drag handle, checkbox, file name, directory, type badge,
     Preview button;
+  - a "SERIALIZES AS" box (AC-22);
   - a footer with "≈ N tokens" and "Injected as an untrusted block
     (## Project context) into every run."
 
-  Traces: US-2. Verify: e2e - tab layout matches the mockup.
-- **AC-13** — The tab (shall) list the agent's attached paths first, in attachment
-  order, followed by the remaining discovered documents of the active repository
-  sorted by path.
-  - An attached path that is not discovered in the active repository (shall) be
-    shown among the attached rows, checked.
+  Traces: US-2. Verify: e2e - tab layout matches the screenshot.
+- **AC-13** — The tab (shall) list the agent's attached paths for the active
+  repository first, in attachment order, followed by the remaining discovered
+  documents of the active repository sorted by path.
+  - An attached path (of the active repository's list) that is not discovered in
+    the active repository's clone (shall) be shown among the attached rows,
+    checked.
   - It (shall) be marked "not found in <owner/name>" and can be detached.
+  - Paths attached to the same agent for any other repository (shall) not be
+    shown.
 
-  Traces: US-2, US-6. Verify: unit - order of rows and the not-found marker.
+  Traces: US-2, US-6, US-8. Verify: unit - order of rows, the not-found marker,
+  and a path attached only for repo B is absent while repo A is active.
 - **AC-14** — WHEN the user checks or unchecks a row, the studio (shall) persist
-  the agent's new ordered path list immediately, without a Save button.
+  the agent's new ordered path list for the active repository immediately, without
+  a Save button.
   - Checking appends the path at the end of the attached order.
   - The UI updates optimistically.
   - IF persisting fails, THEN the studio (shall) restore the previous state and
     show an error toast.
 
-  Traces: US-2. Verify: unit - optimistic toggle, rollback on a failed request.
+  Traces: US-2, US-8. Verify: unit - optimistic toggle sends the active repository
+  id with the full list; rollback on a failed request.
 - **AC-15** — WHEN the user drags an attached row to a new position, the studio
   (shall) persist the new order immediately, under the same optimistic and
   rollback rule as AC-14.
@@ -295,8 +342,9 @@ whether attached specs change reviewer behaviour.
   Traces: US-2. Verify: unit - keyboard move changes the order; accessible names
   are present.
 - **AC-17** — The tab's "≈ N tokens" (shall) equal the sum of token estimates of
-  the agent's directly attached documents that exist in the active repository and
-  are not too large. Documents inherited from skills are excluded.
+  the agent's directly attached documents for the active repository that exist in
+  that repository's clone and are not too large. Documents inherited from skills
+  are excluded.
   - A too-large row (shall) show its token estimate and a "too large" marker.
   - A not-found row (shall) show no token value.
 
@@ -312,52 +360,74 @@ whether attached specs change reviewer behaviour.
 
   Traces: US-2. Verify: unit - filtering by "api" shows only matching rows; drag
   and move controls are disabled.
-- **AC-20** — WHILE no active repository is selected or its clone is missing, the
-  tab (shall) still list the attached paths, so they can be detached and
-  reordered. It (shall) show a hint to select or clone a repository instead of the
-  unattached documents.
+- **AC-20** — WHILE no active repository is selected, or the active repository's
+  clone is missing, the tab (shall) show a hint to select or clone a repository and
+  (shall) list no attachments of any other repository.
+  - With no active repository, the tab (shall) show no rows and no toggles.
+  - With an active repository that is not cloned, the tab (shall) list only that
+    repository's own attached paths, marked "not found in <owner/name>", so they
+    can be detached and reordered (see Open questions, Q1).
 
-  Traces: US-2. Verify: unit - the attached rows are listed and the hint is shown.
+  Traces: US-2, US-8. Verify: unit - no repository: hint, zero rows; not-cloned
+  repository A with one attached path: hint plus that one row with the not-found
+  marker, and no row from repo B's list.
+- **AC-37** — WHEN the active repository changes while an agent or skill Context
+  tab is shown, the studio (shall) replace the rows, checked state, order, "N of M
+  attached" badge, token total and "SERIALIZES AS" box with the new repository's
+  list. No path checked for the previous repository (shall) remain checked or
+  listed as attached.
+
+  Traces: US-2, US-3, US-8. Verify: e2e - agent attaches `specs/a.md` in repo A;
+  switching to repo B (which also contains `specs/a.md`) shows it unchecked and
+  "0 of M attached"; switching back shows it checked.
 
 ### D. Skill editor — Context tab
 
 - **AC-21** — The skill editor (shall) show a "Context" tab between "Config" and
   "Preview" for an existing skill. It contains:
-  - the title "Project context to use" and an "N attached" badge;
+  - the title "Project context to use" and an "N of M attached" badge
+    (user-confirmed, same badge as the agent tab);
   - the hint "Any agent using this skill inherits these documents.";
   - the same filterable, orderable row list as the agent tab, with an eye icon as
     the preview action;
   - a "≈ N tokens" total (beyond the mockup);
-  - a "SERIALIZES AS" box.
+  - a "SERIALIZES AS" box (AC-22).
 
-  AC-13 to AC-20 apply to it equally.
+  The list is the skill's list for the active repository. AC-13 to AC-20 and AC-37
+  apply to it equally.
 
-  Traces: US-3. Verify: e2e - tab layout; toggle persists.
-- **AC-22** — The skill tab's "SERIALIZES AS" box (shall) show `## Project context`
-  followed by one `- <path>` line per attached path, in attachment order.
+  Traces: US-3, US-8. Verify: e2e - tab layout; toggle persists for the active
+  repository only.
+- **AC-22** — The agent tab and the skill tab (shall) each show a "SERIALIZES AS"
+  box containing the heading `## Project specifications` followed by one
+  `- <path>` line per path attached for the active repository, in attachment order
+  (screenshot decision).
 
-  Traces: US-3. Verify: unit - two attached paths render as the heading plus two
-  list lines.
+  Traces: US-2, US-3. Verify: unit - on both tabs, two attached paths render as the
+  heading `## Project specifications` plus two list lines in order.
 - **AC-23** — WHEN documents are attached to, detached from or reordered on an
-  agent or a skill, the server (shall) leave the agent's and the skill's version
-  numbers and version history unchanged.
+  agent or a skill, for any repository, the server (shall) leave the agent's and
+  the skill's version numbers and version history unchanged.
 
   Traces: US-2, US-3. Verify: integration - the version is equal before and after
-  `PUT …/context`.
+  `PUT …/context?repo_id=…`.
 
 ### E. Run-time assembly
 
-- **AC-24** — WHEN a review run of an agent starts, the server (shall) resolve the
-  document list in this order:
-  1. the agent's attached paths, in attachment order;
+- **AC-24** — WHEN a review run of an agent on a PR starts, the server (shall)
+  resolve the document list from the lists for that PR's repository only, in this
+  order:
+  1. the agent's attached paths for that repository, in attachment order;
   2. then, for each skill that reaches the agent's prompt (enabled globally and for
-     the agent), in skill prompt order, that skill's attached paths in attachment
-     order.
+     the agent), in skill prompt order, that skill's attached paths for that
+     repository in attachment order.
 
-  Duplicate paths are removed, keeping the first occurrence.
+  Duplicate paths are removed, keeping the first occurrence. Lists of other
+  repositories (shall) never be read.
 
-  Traces: US-3, US-4. Verify: integration - agent [a, b] plus skill [b, c] yields
-  a, b, c; a disabled skill's docs are absent.
+  Traces: US-3, US-4, US-8. Verify: integration - in repo A, agent [a, b] plus
+  skill [b, c] yields a, b, c; a disabled skill's docs are absent; agent list [x]
+  and skill list [y] for repo B do not appear in a repo A run.
 - **AC-25** — WHEN the document list is resolved, the server (shall) read each path
   from the current local clone of the PR's repository. No extra LLM call (shall) be
   made for project context.
@@ -382,32 +452,55 @@ whether attached specs change reviewer behaviour.
 
   Traces: US-4. Verify: unit - a doc containing `</untrusted>` stays inside one
   block.
-- **AC-28** — IF an attached path cannot be used, THEN the server (shall) skip it,
-  continue the run, and record the reason:
-  - `missing`: the file does not exist in the PR repository's clone, or that repo
-    has no clone;
+- **AC-28** — IF a path from the PR repository's lists cannot be used, THEN the
+  server (shall) skip it, continue the run, and record the reason:
+  - `missing`: the file does not exist in the PR repository's clone, or that
+    repository has no clone;
   - `too_large`: over 3 MB;
   - `invalid_path`: empty, absolute, contains a `..` segment, NUL, backslash, quote
     or control characters, does not end in `.md`, or resolves outside the clone;
   - `unreadable`: a read error, not valid UTF-8, or not a regular file;
   - `empty`: whitespace-only content.
 
-  Traces: US-6. Verify: integration - one attached path per reason gives a
-  successful run with five skipped entries.
+  Traces: US-6. Verify: integration - one attached path per reason in the PR
+  repository's agent list gives a successful run with five skipped entries.
 - **AC-29** — IF every attached path is skipped, or none is attached, THEN the
   server (shall) omit the `## Project context` section entirely, and
   `prompt_assembly.specs` (shall) be `null`.
 
   Traces: US-4, US-6. Verify: integration - the prompt has no `## Project context`
   heading.
-- **AC-30** — The server (shall) treat attachment paths as untrusted at every API
-  write:
-  - `PUT /agents/:id/context` and `PUT /skills/:id/context` (shall) reject with 400
-    a body containing an `invalid_path` path or duplicate paths;
-  - they (shall) reject with 404 an agent or skill outside the caller's workspace.
+- **AC-30** — The server (shall) treat attachment requests as untrusted on every
+  read and write of an attachment list:
+  - `GET` and `PUT` on `/agents/:id/context` and `/skills/:id/context` (shall)
+    require the `repo_id` query parameter; a request without a well-formed
+    `repo_id` (shall) be rejected as malformed (422, the server's convention for
+    schema violations) without reading or writing any list;
+  - they (shall) reject with 404 an agent, skill or `repo_id` that is unknown or
+    outside the caller's workspace;
+  - `PUT` (shall) reject with 400 a body containing an `invalid_path` path or
+    duplicate paths.
 
-  Traces: US-2, US-3, US-6. Verify: integration - `../../etc/passwd.md` → 400;
-  another workspace's agent → 404.
+  Traces: US-2, US-3, US-6, US-8. Verify: integration - `../../etc/passwd.md` →
+  400; another workspace's agent → 404; another workspace's or unknown `repo_id` →
+  404; missing `repo_id` → 422.
+- **AC-38** — The server (shall) keep one independent ordered path list per pair
+  (agent, repository) and per pair (skill, repository).
+  - `PUT …/context?repo_id=A` (shall) replace only the list for repository A and
+    leave the same agent's or skill's lists for other repositories unchanged.
+  - `GET …/context?repo_id=A` (shall) return `{ paths: [] }` when no list exists
+    for that pair.
+
+  Traces: US-2, US-3, US-8. Verify: integration - PUT [a] for repo A and [b] for
+  repo B on one agent; GET for A returns [a], for B returns [b], for a third
+  repository C returns [].
+- **AC-39** — WHEN an agent, a skill or a repository is deleted, the server
+  (shall) remove every attachment list belonging to it, for all repositories (for
+  an agent or skill) or for all agents and skills (for a repository).
+
+  Traces: US-2, US-3, US-8. Verify: integration - after deleting repo A, an
+  agent's list for repo B is intact and no list for repo A remains; after deleting
+  the agent, none of its lists remain.
 
 ### F. Run trace
 
@@ -450,9 +543,10 @@ whether attached specs change reviewer behaviour.
 ### G. Acceptance scenario
 
 - **AC-35** — WHEN a document stating the invariant "module `api/` does not import
-  `db/` directly" is attached to an agent, and that agent reviews a PR in which a
-  file under `api/` imports from `db/`, the reviewer's output (shall) contain a
-  finding on that import line whose rationale cites the document's path.
+  `db/` directly" is attached to an agent for a repository, and that agent reviews
+  a PR of that repository in which a file under `api/` imports from `db/`, the
+  reviewer's output (shall) contain a finding on that import line whose rationale
+  cites the document's path.
 
   Traces: US-7. Verify: manual - real model run on a fixture repo; the finding
   rationale contains the path, and the trace lists the doc under "Specs read".
@@ -460,12 +554,28 @@ whether attached specs change reviewer behaviour.
 ## Edge cases
 
 - **Document deleted after attaching (AC-13, AC-28):** it is shown as "not found in
-  <repo>" in the editors and skipped as `missing` at run time. The run completes.
-- **Agent runs on another repository (AC-24, AC-28):** attachments are
-  repo-agnostic paths. They are read from the PR's repository even when the editor
-  showed a different active repository. Paths absent there are `missing`.
+  <repo>" in the editors while that repository is active, and can be detached. At
+  run time on that repository's PRs it is skipped as `missing`. The run completes.
+- **Agent runs on a PR of a repository with no list (AC-24, AC-29, AC-38):** only
+  the lists for the PR's repository are read. If the agent and its reaching skills
+  have no list (or empty lists) for that repository, no `## Project context`
+  section is rendered, even when the same agent has lists for other repositories
+  and even when the editor last showed a different active repository. This
+  replaces the earlier "agent runs on another repository" rule (repo-agnostic
+  paths).
+- **Same path attached in two repositories (AC-13, AC-37, AC-38):** the two
+  attachments are independent. Detaching it in one repository does not change the
+  other; the editors show it checked only while the repository where it is
+  attached is active.
+- **Repository switched while a toggle is in flight (AC-14, AC-37):** the write
+  carries the repository that was active when the user toggled and is persisted
+  for that repository only. The newly active repository's view is not affected. A
+  failure still shows the error toast.
 - **Repository never cloned or clone deleted (AC-11, AC-20, AC-28):** the page and
-  tabs show the not-cloned state. The run skips every path as `missing`.
+  tabs show the not-cloned state; the tabs list only that repository's own
+  attached paths as not found. The run skips every path as `missing`.
+- **No active repository (AC-11, AC-20):** the page shows "Select a repository";
+  the tabs show the hint and no rows. No list of any repository is shown.
 - **Very large document (AC-5, AC-17, AC-28):**
   - above 3 MB: shown with a "too large" marker and a token estimate, skipped at
     run time;
@@ -478,11 +588,12 @@ whether attached specs change reviewer behaviour.
   never sent with replacement characters.
 - **Empty or whitespace-only document (AC-28, AC-29):** skipped as `empty`.
 - **Duplicates (AC-24, AC-30):**
-  - the same path on the agent and on a skill, or on two skills: included once, at
-    its first position, with `origin` set to the first attacher;
+  - the same path on the agent and on a skill, or on two skills, for the PR's
+    repository: included once, at its first position, with `origin` set to the
+    first attacher;
   - duplicate paths in one write: rejected with 400.
 - **Order (AC-15, AC-16, AC-24):** a reorder changes the position in the next run's
-  block. Agent documents always precede skill documents.
+  block on that repository. Agent documents always precede skill documents.
 - **Empty attachment list (AC-29):** no section, `specs: null`, and "Specs read"
   shows "none".
 - **Document content looks like instructions or prompt headings (AC-26, AC-27):**
@@ -502,12 +613,19 @@ whether attached specs change reviewer behaviour.
   depend on the discovery list (AC-25).
 - **Skill disabled globally or for an agent (AC-9, AC-24):** its documents are
   neither inherited nor counted in "Used by".
-- **Skill or agent deleted (AC-9):** its attachments disappear with it, and "Used
-  by" counts drop.
+- **Skill, agent or repository deleted (AC-9, AC-39):** a deleted agent or skill
+  loses its lists in every repository; a deleted repository loses every agent's
+  and skill's list for it. "Used by" counts drop accordingly. Lists for other
+  repositories are untouched.
+- **Upgrade from the earlier same-day version (Non-goals):** lists stored by the
+  earlier repo-agnostic version are discarded, not migrated. Every agent and skill
+  shows "0 of M attached" in every repository until the user re-attaches.
 - **Glob changed after attaching (AC-2, AC-13):** paths no longer discovered show
   as "not found". At run time, they are still read if they pass the AC-28 rules.
-- **Concurrent edits in two tabs (AC-14):** last write wins. The persisted list is
-  always a full ordered list, never a partial patch.
+- **Concurrent edits in two tabs (AC-14):** for the same (agent or skill,
+  repository) pair, last write wins. The persisted list is always a full ordered
+  list, never a partial patch. Writes for different repositories never overwrite
+  each other (AC-38).
 
 ## Non-functional requirements
 
@@ -518,8 +636,12 @@ whether attached specs change reviewer behaviour.
 - **LLM calls:** project context adds zero LLM calls per run (AC-25).
 - **Security — file access:** the document-content endpoint serves only files that
   pass the discovery rules (AC-1, AC-4) and the size limit. This means no route can
-  read arbitrary clone files such as `.env`. Every repo, agent and skill id is
-  checked against the caller's workspace (404 otherwise).
+  read arbitrary clone files such as `.env`. Every repo, agent and skill id,
+  including the `repo_id` query parameter of the context endpoints, is checked
+  against the caller's workspace (404 otherwise).
+- **Security — repository isolation:** a run on a PR of repository A reads zero
+  paths from lists of any other repository (AC-24), verified by the integration
+  test of AC-24.
 - **Security — rendering:** markdown preview does not render raw HTML and strips
   `javascript:` and other non-http(s) link targets. Verified by a unit test with
   `<script>` and `[x](javascript:alert(1))` content.
@@ -569,13 +691,40 @@ agent: "do as you recommend"):
 - documents inherited from skills are not shown on the agent Context tab; the
   trace shows the final merged list with `origin` (Non-goals).
 
+Revision decisions (user-confirmed, 2026-10-11, relayed by the coordinating
+agent; not to be re-asked):
+- attachment lists belong to (agent, repository) and (skill, repository); the
+  same agent or skill can have a different ordered list per repository; switching
+  the active repository shows only that repository's list (AC-13, AC-37, AC-38);
+- separate per-repository storage, removed together with its agent, skill or
+  repository (AC-39); the earlier per-agent/per-skill lists are discarded with no
+  data migration and their storage is removed (Non-goals);
+- `GET`/`PUT /agents/:id/context` and `/skills/:id/context` take a required
+  `repo_id` query parameter; unknown or foreign repository → 404; body and
+  response `{ paths }` unchanged; 400 for invalid or duplicate paths (AC-30);
+- run time resolves the agent's list for the PR's repository, then each reaching
+  skill's list for that repository, with the existing order and de-duplication;
+  other repositories' lists are never read (AC-24);
+- "Used by N agents" counts within the selected repository only (AC-9);
+- the Context tabs require an active repository; without one (or without a clone)
+  they show the hint and list nothing from other repositories (AC-20);
+- "N of M attached" on both the agent and the skill tab (AC-12, AC-21);
+- a "SERIALIZES AS" box headed `## Project specifications` on both tabs (AC-22,
+  screenshot decision);
+- the Project Context left panel header shows the repository name, not the glob;
+  rows show name, directory and an area badge; refresh stays in the header (AC-7,
+  screenshot decision).
+
 Requirements marked "beyond the mockup" were added at the user's direction to fill
 design gaps.
 
 ### Design sources
 
-User screenshots are the source of truth:
+User screenshots are the source of truth and take priority over this spec's text
+for every visual detail:
 - the Project Context page (N6);
+- the Project Context left panel (revision: repository name in the header, area
+  badge per row);
 - the Agent editor Context tab (Security Reviewer);
 - the Skill editor Context tab (pr-quality-rubric);
 - the run trace drawer;
@@ -590,8 +739,10 @@ The mockup's file names differ between screens (`rate-limiting.md` vs
 |---|---|---|
 | Document glob | server configuration (environment), default `**/{specs,docs,insights}/**/*.md` | trusted (operator) |
 | Document files and paths | local clone of the repository (default branch, last sync) | untrusted |
-| Attachment lists (ordered paths) | user via `PUT /agents/:id/context`, `PUT /skills/:id/context` | untrusted until validated (AC-30) |
-| Active repository | studio repo switcher | trusted id, workspace-checked |
+| Attachment lists (ordered paths, one per agent × repository and skill × repository) | user via `PUT /agents/:id/context?repo_id=…`, `PUT /skills/:id/context?repo_id=…` | untrusted until validated (AC-30) |
+| `repo_id` query parameter | studio, from the active repository | untrusted id, workspace-checked (AC-30) |
+| Active repository | studio repo switcher; scopes the page and both Context tabs | trusted id, workspace-checked |
+| PR's repository (run time) | the PR under review; selects which lists are read | server-derived |
 
 ### Contracts
 
@@ -600,16 +751,22 @@ Contract level only; exact schema names are left to the plan.
 - `GET /repos/:repoId/context` → `{ glob, scanned_at, truncated, total, files:
   [{ path, type: 'specs'|'docs'|'insights', size, tokens, too_large, used_by }] }`
   (`files` holds at most 2,000 entries sorted by path; `total` is the full match
-  count, AC-36).
+  count, AC-36; `used_by` counts within this repository only, AC-9).
   - 404 for an unknown or foreign repo.
   - A repo with no clone → `files: []` plus a `cloned: false` flag.
 - `GET /repos/:repoId/context/file?path=<path>` → `{ path, content, size, tokens }`.
   - 400 for an invalid path.
   - 404 when the file is not discoverable or missing.
   - 413 when it is too large.
-- `GET /agents/:id/context` / `PUT /agents/:id/context` with body
-  `{ paths: string[] }` (array order = prompt order) → `{ paths }`.
-- `GET /skills/:id/context` / `PUT /skills/:id/context`, same shape.
+- `GET /agents/:id/context?repo_id=<repoId>` / `PUT /agents/:id/context?repo_id=<repoId>`
+  with body `{ paths: string[] }` (array order = prompt order) → `{ paths }`: the
+  agent's list for that repository (AC-38).
+  - `repo_id` is required; missing or malformed → 422.
+  - 404 for an unknown or foreign agent or `repo_id`.
+  - 400 for an `invalid_path` path or duplicate paths (`PUT`).
+  - `GET` for a pair with no list → `{ paths: [] }`.
+- `GET /skills/:id/context?repo_id=<repoId>` / `PUT /skills/:id/context?repo_id=<repoId>`,
+  same shape and status codes.
 - Run trace: `specs_read: string[]` (included, prompt order). New optional
   `project_context_docs: [{ path, origin: 'agent'|'skill', skill?, status:
   'included'|'skipped', reason?: 'missing'|'too_large'|'invalid_path'|'unreadable'|
@@ -626,11 +783,12 @@ sequenceDiagram
   participant RC as Review engine
   participant LLM as LLM provider
   UI->>API: start review run (agent, PR)
-  API->>DB: load agent paths + enabled skills' paths
-  DB-->>API: ordered path lists
+  API->>API: PR's repository = R
+  API->>DB: load agent's list for R + enabled skills' lists for R
+  DB-->>API: ordered path lists (other repositories never read)
   API->>API: merge agent then skills, de-duplicate
   loop each path
-    API->>FS: read path (validated, inside clone, ≤ 3 MB)
+    API->>FS: read path from R's clone (validated, inside clone, ≤ 3 MB)
     alt usable
       FS-->>API: UTF-8 text
     else missing / too_large / invalid_path / unreadable / empty
@@ -650,20 +808,22 @@ sequenceDiagram
 | Boundary | Failure | Behaviour |
 |---|---|---|
 | UI → API discovery | network or 5xx | error state with Retry (AC-11) |
-| API → clone | no clone | `cloned: false` state (AC-11); at run time all paths `missing` (AC-28) |
+| UI → API list load (`GET …/context?repo_id`) | 404 unknown or foreign agent, skill or repository; network or 5xx | nothing is read; tab error state (see Open questions, Q2) |
+| UI → API attach (`PUT …/context?repo_id`) | 400, 404, 422, 5xx | nothing is written; optimistic rollback and toast (AC-14, AC-30) |
+| API → clone | no clone | `cloned: false` state (AC-11, AC-20); at run time all paths `missing` (AC-28) |
 | API → clone, per file | missing, too large, invalid, unreadable, empty | skip and record (AC-28) |
-| UI → API attach | 4xx/5xx | optimistic rollback and toast (AC-14) |
+| API → database, run time | no list for the PR's repository | treated as an empty list; no section (AC-29) |
 | Engine → LLM | provider error (for example context overflow) | run fails as today; trace keeps doc fields (AC-32) |
 
 ### Browse flow
 
 ```mermaid
 flowchart LR
-  page["Project Context page / Context tabs"] -- "GET /repos/:repoId/context" --> api["Server"]
-  api -- "walk glob, skip symlinks + excluded dirs" --> clone[("Repo clone")]
-  page -- "GET …/context/file?path" --> api
-  page -- "PUT /agents|skills/:id/context {paths}" --> api
-  api -- "ordered paths" --> db[("Database")]
+  page["Project Context page / Context tabs (active repository R)"] -- "GET /repos/R/context" --> api["Server"]
+  api -- "walk glob, skip symlinks + excluded dirs" --> clone[("R's clone")]
+  page -- "GET /repos/R/context/file?path" --> api
+  page -- "GET|PUT /agents|skills/:id/context?repo_id=R {paths}" --> api
+  api -- "ordered paths for (agent or skill, R)" --> db[("Database")]
 ```
 
 ### Research sources
@@ -678,6 +838,9 @@ flowchart LR
   update bumps the skill version.
 - **Client pre-staged parts:** the Project Context query and messages, and the
   existing trace drawer blocks and modal.
+- **Status codes (revision):** `server/INSIGHTS.md` (2026-10-11): path-rule and
+  duplicate violations are 400, while a malformed request shape is 422 from schema
+  validation; the missing `repo_id` rule in AC-30 follows that convention.
 
 ## Untrusted inputs
 
@@ -692,10 +855,14 @@ flowchart LR
 - **Document paths:**
   - from the clone (discovery) and from user writes (attach API);
   - validated against the AC-28 `invalid_path` rules at write and at read;
-  - realpath-confined to the clone;
+  - realpath-confined to the clone of the repository the list belongs to;
   - restricted so a path cannot break the delimiter label (no quotes or control
     characters);
   - rendered as text, never as HTML.
+- **`repo_id` query parameter:** client-supplied; required, shape-validated and
+  checked against the caller's workspace on every read and write (AC-30). It only
+  selects which list is read or written; it never selects which clone a run reads
+  (that is always the PR's repository, AC-24, AC-25).
 - **Server-provided values not trusted from the client:** used-by counts, token
   estimates and `too_large` flags are recomputed by the server.
 - **LLM output** (findings citing a document): treated as data. A cited path in a
@@ -706,9 +873,34 @@ flowchart LR
 
 ## Open questions
 
-No open user questions remain. The three former questions (per-run token budget,
-discovery cap, inherited documents on the agent tab) were resolved on 2026-10-11
-(see Inputs and provenance → Follow-up decisions; Non-goals; AC-36).
+The three former questions (per-run token budget, discovery cap, inherited
+documents on the agent tab) were resolved on 2026-10-11 (see Inputs and
+provenance → Follow-up decisions; Non-goals; AC-36). The revision leaves these
+open, each with a recommendation already reflected where noted:
+
+- **Q1** [NEEDS CLARIFICATION] With an active repository that is not cloned, should
+  the Context tabs list that repository's own attached paths (detachable,
+  "not found")? The decision says the tab shows the select/clone hint and lists
+  nothing from other repositories, but is silent on the repository's own list. -
+  Proposed: yes, list only the active repository's own attached paths, marked
+  "not found in <owner/name>", so stale attachments can be cleaned up (written so
+  in AC-20; revert to "hint only, no rows" if the user prefers).
+- **Q2** [NEEDS CLARIFICATION] What does a Context tab show when loading the list
+  for the active repository fails (404 or network/5xx)? Not covered by the
+  screenshots. - Proposed: an error message with a Retry action, mirroring the
+  page's discovery error state (AC-11); no rows and no toggles until it loads.
+- **Q3** [NEEDS CLARIFICATION] The "SERIALIZES AS" box shows the heading
+  `## Project specifications` (screenshot decision), while the actual prompt
+  section is `## Project context` (AC-26) and the agent tab's hint and footer say
+  `## Project context`. The box therefore does not literally match what is sent. -
+  Proposed: keep the box exactly as the screenshot (AC-22) and leave the prompt
+  heading unchanged; if the user wants them aligned, change the box text, not the
+  prompt heading, since the prompt heading and its position are a Non-goal to
+  change.
+- **Q4** [NEEDS CLARIFICATION] A long repository name in the Project Context left
+  panel header (AC-7) is not covered by the screenshot. - Proposed: truncate with an
+  ellipsis and expose the full `owner/name` as a tooltip and accessible name, like
+  long paths.
 
 - Notes for the implementation planner (not user questions):
   - the trace and agent/skill contracts live in the vendored shared contracts,
@@ -716,4 +908,13 @@ discovery cap, inherited documents on the agent tab) were resolved on 2026-10-11
   - the sidebar entry lives in the vendored UI nav, which has already been edited
     locally;
   - the server README states a different default clone directory than the code (a
-    docs mismatch to flag, not part of this feature).
+    docs mismatch to flag, not part of this feature);
+  - storage decision (user-confirmed): attachment lists move to separate
+    per-repository storage keyed by (agent, repository) and (skill, repository),
+    holding ordered paths and removed with its agent, skill or repository; the
+    earlier per-agent/per-skill path-list fields from the same-day version are
+    removed, with no data copied over;
+  - the context endpoints already exist from the earlier version; only their
+    `repo_id` scoping, status codes and storage change (AC-30, AC-38); a
+    repository switch must never show another repository's previously loaded list
+    (AC-37).

@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   listing: {} as { data?: unknown; isLoading?: boolean; isError?: boolean; error?: unknown },
   refetch: vi.fn(),
   notFound: false,
+  fullName: "acme/api",
   repos: [{ id: "r1" }] as { id: string }[],
   file: {} as Record<string, { data?: { content: string }; status?: number }>,
 }));
@@ -23,7 +24,7 @@ vi.mock("@/components/app-shell", () => ({
 }));
 vi.mock("@/lib/repo-context", () => ({
   useActiveRepo: () => ({
-    activeRepo: state.repos.length ? { id: "r1", full_name: "acme/api" } : null,
+    activeRepo: state.repos.length ? { id: "r1", full_name: state.fullName } : null,
     repos: state.repos,
     reposLoaded: true,
   }),
@@ -69,6 +70,7 @@ const LISTING: ContextListing = {
 beforeEach(() => {
   state.listing = { data: LISTING, isLoading: false, isError: false };
   state.notFound = false;
+  state.fullName = "acme/api";
   state.repos = [{ id: "r1" }];
   state.file = {
     "docs/a.md": { data: { content: "# Alpha heading\n\n- first\n- second" } },
@@ -169,6 +171,18 @@ describe("ProjectContextView", () => {
     renderWithIntl(<ProjectContextView />);
     expect(screen.getByText("Select a repository to browse its documents.")).toBeInTheDocument();
     expect(screen.queryByText("No repo selected")).not.toBeInTheDocument();
+  });
+
+  it("Q4: a long repo name is truncated on one line, with the full owner/name as tooltip and text content", () => {
+    // Catches: a long name wrapping over several lines (or being clipped with no way to read it):
+    // single-line ellipsis styles lost, or the tooltip / full text dropped.
+    const long = "very-long-organisation-name/an-extremely-long-repository-name-that-cannot-fit";
+    state.fullName = long;
+    renderWithIntl(<ProjectContextView />);
+    const list = screen.getByRole("complementary", { name: "Project Context" });
+    const name = within(list).getByText(long);
+    expect(name).toHaveAttribute("title", long);
+    expect(name).toHaveStyle({ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
   });
 
   it("AC-36: the footer counts the returned files and the notice shows while truncated", () => {

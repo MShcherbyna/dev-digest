@@ -55,8 +55,9 @@ indexes it (the **Indexed** badge) → **import PRs** from GitHub → open a PR 
 calls the LLM, validates every finding against the diff (the **grounding gate**
 drops hallucinated line references), and persists structured findings with a
 severity and score. Agents and skills can also have markdown docs from the
-repo clone attached (**Project Context**); they are added to the prompt as
-untrusted reference text and listed in the run trace
+repo clone attached, separately for each repository (**Project Context**); a
+run adds the PR repo's docs to the prompt as
+untrusted reference text and lists them in the run trace
 ([details](server/docs/project-context.md)). All local; the only outbound calls are to GitHub (PR data)
 and the LLM (via OpenRouter).
 

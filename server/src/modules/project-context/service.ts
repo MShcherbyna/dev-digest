@@ -90,7 +90,7 @@ export class ProjectContextService implements ProjectContextResolver {
     const { files, truncated, total } = capAndSort(found);
     const clonePath = repo.clonePath;
     const [usedBy, tokens] = await Promise.all([
-      store.usedByRows(workspaceId).then(countUsedBy),
+      store.usedByRows(workspaceId, repoId).then(countUsedBy),
       mapPool(files, READ_CONCURRENCY, async (f) => {
         if (f.size > MAX_DOC_BYTES) return tokensFor(f.size);
         const r = await docs.read(clonePath, f.path, MAX_DOC_BYTES);
@@ -147,31 +147,54 @@ export class ProjectContextService implements ProjectContextResolver {
     }
   }
 
-  async getAgentContext(workspaceId: string, agentId: string): Promise<ContextPaths> {
-    const paths = await this.deps.store.getAgentPaths(workspaceId, agentId);
-    if (!paths) throw new NotFoundError('Agent not found');
-    return { paths };
+  /** 404 unless the agent, then the repository, belong to the workspace (before any read/write). */
+  private async assertAgentRepo(workspaceId: string, agentId: string, repoId: string): Promise<void> {
+    const { store } = this.deps;
+    if (!(await store.agentExists(workspaceId, agentId))) throw new NotFoundError('Agent not found');
+    if (!(await store.getRepo(workspaceId, repoId))) throw new NotFoundError('Repository not found');
   }
 
-  /** Stores the whole ordered list (last write wins); never bumps versions (AC-23). */
-  async setAgentContext(workspaceId: string, agentId: string, body: ContextPaths): Promise<ContextPaths> {
+  private async assertSkillRepo(workspaceId: string, skillId: string, repoId: string): Promise<void> {
+    const { store } = this.deps;
+    if (!(await store.skillExists(workspaceId, skillId))) throw new NotFoundError('Skill not found');
+    if (!(await store.getRepo(workspaceId, repoId))) throw new NotFoundError('Repository not found');
+  }
+
+  async getAgentContext(workspaceId: string, agentId: string, repoId: string): Promise<ContextPaths> {
+    await this.assertAgentRepo(workspaceId, agentId, repoId);
+    return { paths: await this.deps.store.getAgentPaths(agentId, repoId) };
+  }
+
+  /**
+   * Stores the whole ordered list for this (agent, repo) pair (last write wins);
+   * never bumps versions (AC-23). 404 checks run before path validation so a
+   * foreign id never leaks validation details; nothing is written on any error.
+   */
+  async setAgentContext(
+    workspaceId: string,
+    agentId: string,
+    repoId: string,
+    body: ContextPaths,
+  ): Promise<ContextPaths> {
+    await this.assertAgentRepo(workspaceId, agentId, repoId);
     this.validatePaths(body.paths);
-    const paths = await this.deps.store.setAgentPaths(workspaceId, agentId, body.paths);
-    if (!paths) throw new NotFoundError('Agent not found');
-    return { paths };
+    return { paths: await this.deps.store.setAgentPaths(agentId, repoId, body.paths) };
   }
 
-  async getSkillContext(workspaceId: string, skillId: string): Promise<ContextPaths> {
-    const paths = await this.deps.store.getSkillPaths(workspaceId, skillId);
-    if (!paths) throw new NotFoundError('Skill not found');
-    return { paths };
+  async getSkillContext(workspaceId: string, skillId: string, repoId: string): Promise<ContextPaths> {
+    await this.assertSkillRepo(workspaceId, skillId, repoId);
+    return { paths: await this.deps.store.getSkillPaths(skillId, repoId) };
   }
 
-  async setSkillContext(workspaceId: string, skillId: string, body: ContextPaths): Promise<ContextPaths> {
+  async setSkillContext(
+    workspaceId: string,
+    skillId: string,
+    repoId: string,
+    body: ContextPaths,
+  ): Promise<ContextPaths> {
+    await this.assertSkillRepo(workspaceId, skillId, repoId);
     this.validatePaths(body.paths);
-    const paths = await this.deps.store.setSkillPaths(workspaceId, skillId, body.paths);
-    if (!paths) throw new NotFoundError('Skill not found');
-    return { paths };
+    return { paths: await this.deps.store.setSkillPaths(skillId, repoId, body.paths) };
   }
 
   /** Never throws for a bad document (AC-24/25/28): skips and records the reason. */
@@ -180,8 +203,12 @@ export class ProjectContextService implements ProjectContextResolver {
     log: (msg: string, data?: unknown) => void,
   ): Promise<ResolvedProjectContext> {
     const { store, docs } = this.deps;
-    const agentPaths = (await store.getAgentPaths(input.workspaceId, input.agentId)) ?? [];
-    const skillPaths = await store.skillPathsFor(input.skills.map((s) => s.id));
+    // Only the PR repository's lists are read (AC-24).
+    const agentPaths = await store.getAgentPaths(input.agentId, input.repoId);
+    const skillPaths = await store.skillPathsFor(
+      input.skills.map((s) => s.id),
+      input.repoId,
+    );
     const merged = mergeAttachments(
       agentPaths,
       input.skills.map((s) => ({ name: s.name, paths: skillPaths.get(s.id) ?? [] })),

@@ -40,16 +40,23 @@ export interface UsedByRow {
   paths: string[];
 }
 
-/** Persistence port. Writes touch only `context_paths` (no version bump, AC-23). */
+/**
+ * Persistence port. Writes touch only the per-(agent|skill, repo) list tables;
+ * no version bump (AC-23). Path getters return `[]` when the pair has no row.
+ */
 export interface ProjectContextStore {
   getRepo(workspaceId: string, repoId: string): Promise<RepoLocation | undefined>;
-  getAgentPaths(workspaceId: string, agentId: string): Promise<string[] | undefined>;
-  setAgentPaths(workspaceId: string, agentId: string, paths: string[]): Promise<string[] | undefined>;
-  getSkillPaths(workspaceId: string, skillId: string): Promise<string[] | undefined>;
-  setSkillPaths(workspaceId: string, skillId: string, paths: string[]): Promise<string[] | undefined>;
-  usedByRows(workspaceId: string): Promise<UsedByRow[]>;
-  /** Attached paths of the given skills (run path), keyed by skill id. */
-  skillPathsFor(skillIds: string[]): Promise<Map<string, string[]>>;
+  agentExists(workspaceId: string, agentId: string): Promise<boolean>;
+  skillExists(workspaceId: string, skillId: string): Promise<boolean>;
+  getAgentPaths(agentId: string, repoId: string): Promise<string[]>;
+  /** Whole-list replace (upsert). */
+  setAgentPaths(agentId: string, repoId: string, paths: string[]): Promise<string[]>;
+  getSkillPaths(skillId: string, repoId: string): Promise<string[]>;
+  setSkillPaths(skillId: string, repoId: string, paths: string[]): Promise<string[]>;
+  /** Rows for this repository's lists only (AC-9). */
+  usedByRows(workspaceId: string, repoId: string): Promise<UsedByRow[]>;
+  /** Attached paths of the given skills for one repo (run path), keyed by skill id. */
+  skillPathsFor(skillIds: string[], repoId: string): Promise<Map<string, string[]>>;
 }
 
 export interface ProjectContextLog {
@@ -59,6 +66,8 @@ export interface ProjectContextLog {
 export interface ResolveForRunInput {
   workspaceId: string;
   agentId: string;
+  /** The PR's repository; only its lists are read (AC-24). */
+  repoId: string;
   clonePath: string | null;
   /** Skills that reach the agent's prompt, in prompt order. */
   skills: { id: string; name: string }[];

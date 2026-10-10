@@ -233,13 +233,14 @@ export class ReviewRunExecutor {
       const skillsLine = skillsLogLine(skills);
       if (skillsLine) runLog.info(skillsLine, { skills: skills.map((s) => s.name) });
 
-      // Project context: agent docs then skill docs, read from the PR repo's clone.
+      // Project context: the PR repo's lists only (AC-24), agent docs then skill docs.
       // Fail-soft (US-6): a resolver crash never fails the run.
       try {
         pc = await this.container.projectContext.resolveForRun(
           {
             workspaceId,
             agentId: agent.id,
+            repoId: repo.id,
             clonePath: repo.clonePath,
             skills: selectPromptSkillRefs(links),
           },

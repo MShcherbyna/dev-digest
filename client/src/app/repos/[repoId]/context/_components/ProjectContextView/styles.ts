@@ -20,6 +20,7 @@ export const s = {
     padding: "16px 14px 12px",
     borderBottom: "1px solid var(--border)",
   } satisfies CSSProperties,
+  leftHeadText: { flex: 1, minWidth: 0 } satisfies CSSProperties,
   caps: {
     fontSize: 11,
     fontWeight: 600,
@@ -27,7 +28,14 @@ export const s = {
     textTransform: "uppercase",
     color: "var(--text-muted)",
   } satisfies CSSProperties,
-  repoName: { fontSize: 13, color: "var(--text-primary)", marginTop: 4, overflowWrap: "anywhere" } satisfies CSSProperties,
+  repoName: {
+    fontSize: 13,
+    color: "var(--text-primary)",
+    marginTop: 4,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
   list: {
     flex: 1,
     minHeight: 0,

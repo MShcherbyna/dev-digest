@@ -48,6 +48,12 @@ export type ContextListing = z.infer<typeof ContextListing>;
 
 export const ContextFileQuery = z.object({ path: z.string().max(1024) });
 
+/**
+ * Required `repo_id` of the attachment routes: missing or malformed → 422
+ * (shape). Unknown or foreign → 404 in the service (AC-30).
+ */
+export const ContextRepoQuery = z.object({ repo_id: z.string().uuid() });
+
 export const ContextFileContent = z.object({
   path: z.string(),
   content: z.string(),

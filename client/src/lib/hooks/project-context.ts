@@ -1,6 +1,7 @@
 /* hooks/project-context.ts — Project Context: the discovery list of a repo's
    markdown docs, single-file preview, and the ordered attachments of an agent
-   or a skill. Attachment writes are optimistic (new full list shown at once,
+   or a skill, one list per (agent|skill, repo). Every attachment call carries
+   `?repo_id=`. Attachment writes are optimistic (new full list shown at once,
    rolled back on error; the global mutation handler raises the error toast). */
 "use client";
 
@@ -28,52 +29,59 @@ export function useContextFile(repoId: string | null | undefined, path: string |
   });
 }
 
-export function useAgentContext(id: string | null | undefined) {
+export function useAgentContext(id: string | null | undefined, repoId: string | null | undefined) {
   return useQuery({
-    queryKey: queryKeys.agentContext(id),
-    queryFn: () => api.get<ContextPaths>(`/agents/${id}/context`),
-    enabled: !!id,
+    queryKey: queryKeys.agentContext(id, repoId),
+    queryFn: () => api.get<ContextPaths>(`/agents/${id}/context?repo_id=${encodeURIComponent(repoId ?? "")}`),
+    enabled: !!id && !!repoId,
   });
 }
 
-export function useSkillContext(id: string | null | undefined) {
+export function useSkillContext(id: string | null | undefined, repoId: string | null | undefined) {
   return useQuery({
-    queryKey: queryKeys.skillContext(id),
-    queryFn: () => api.get<ContextPaths>(`/skills/${id}/context`),
-    enabled: !!id,
+    queryKey: queryKeys.skillContext(id, repoId),
+    queryFn: () => api.get<ContextPaths>(`/skills/${id}/context?repo_id=${encodeURIComponent(repoId ?? "")}`),
+    enabled: !!id && !!repoId,
   });
 }
 
-/** Shared optimistic PUT of a whole ordered path list. */
-function useSetContextPaths(
-  url: string,
-  key: readonly unknown[],
-  repoId: string | null | undefined,
-) {
+interface SetContextVars {
+  repoId: string;
+  paths: string[];
+}
+
+/** Shared optimistic PUT of a whole ordered path list. URL and cache key come from the
+    mutation variables, never the hook closure: a toggle in flight during a repo switch
+    writes, rolls back and invalidates the repo that was active when it was made. */
+function useSetContextPaths(kind: "agents" | "skills", id: string) {
   const qc = useQueryClient();
+  const keyFor = (repoId: string) =>
+    kind === "agents" ? queryKeys.agentContext(id, repoId) : queryKeys.skillContext(id, repoId);
   return useMutation({
-    mutationFn: (paths: string[]) => api.put<ContextPaths>(url, { paths }),
-    onMutate: async (paths) => {
+    mutationFn: ({ repoId, paths }: SetContextVars) =>
+      api.put<ContextPaths>(`/${kind}/${id}/context?repo_id=${encodeURIComponent(repoId)}`, { paths }),
+    onMutate: async ({ repoId, paths }) => {
+      const key = keyFor(repoId);
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData<ContextPaths>(key);
       qc.setQueryData<ContextPaths>(key, { paths });
       return { previous };
     },
-    onError: (_err, _paths, ctx) => {
-      if (ctx?.previous) qc.setQueryData(key, ctx.previous);
+    onError: (_err, { repoId }, ctx) => {
+      if (ctx?.previous) qc.setQueryData(keyFor(repoId), ctx.previous);
     },
-    onSettled: () => {
-      void qc.invalidateQueries({ queryKey: key });
+    onSettled: (_data, _err, { repoId }) => {
+      void qc.invalidateQueries({ queryKey: keyFor(repoId) });
       // "used by" counts on the Project Context page depend on attachments.
-      if (repoId) void qc.invalidateQueries({ queryKey: queryKeys.context(repoId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.context(repoId) });
     },
   });
 }
 
-export function useSetAgentContext(id: string, repoId: string | null | undefined) {
-  return useSetContextPaths(`/agents/${id}/context`, queryKeys.agentContext(id), repoId);
+export function useSetAgentContext(id: string) {
+  return useSetContextPaths("agents", id);
 }
 
-export function useSetSkillContext(id: string, repoId: string | null | undefined) {
-  return useSetContextPaths(`/skills/${id}/context`, queryKeys.skillContext(id), repoId);
+export function useSetSkillContext(id: string) {
+  return useSetContextPaths("skills", id);
 }

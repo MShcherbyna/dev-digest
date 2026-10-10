@@ -9,16 +9,34 @@ Module: [`../src/modules/project-context/`](../src/modules/project-context/).
 ## What it is
 
 A reviewer agent (or a skill) can have an ordered list of repo-relative
-markdown paths attached. When a run starts, those documents are read from the
-reviewed repo's local clone and injected into the prompt as an untrusted
-`## Project context` section. The run trace records what was read and what was
-skipped, and why.
+markdown paths attached **per repository**: the same agent can carry a
+different list for each repo. When a run starts, the lists for the reviewed
+PR's repository are read from that repo's local clone and injected into the
+prompt as an untrusted `## Project context` section. The run trace records what
+was read and what was skipped, and why.
 
-Nothing is copied into the database except the paths: attachments are stored as
-a `jsonb` string array in `agents.context_paths` and `skills.context_paths`
-([`agents.ts`](../src/db/schema/agents.ts),
-[`skills.ts`](../src/db/schema/skills.ts)), added by migration
-[`0015_nostalgic_firelord.sql`](../src/db/migrations/0015_nostalgic_firelord.sql).
+Nothing is copied into the database except the paths. Attachments live in two
+tables, one row per (agent or skill, repo) pair, each holding the ordered list
+as a `jsonb` string array
+([`schema/project-context.ts`](../src/db/schema/project-context.ts)):
+
+| Table | Primary key | Foreign keys | Index |
+|---|---|---|---|
+| `agent_repo_context` (`agent_id`, `repo_id`, `paths`, `updated_at`) | `(agent_id, repo_id)` | `agents.id`, `repos.id`, both `ON DELETE CASCADE` | `agent_repo_context_repo_idx` on `repo_id` |
+| `skill_repo_context` (`skill_id`, `repo_id`, `paths`, `updated_at`) | `(skill_id, repo_id)` | `skills.id`, `repos.id`, both `ON DELETE CASCADE` | `skill_repo_context_repo_idx` on `repo_id` |
+
+Migration [`0016_living_slipstream.sql`](../src/db/migrations/0016_living_slipstream.sql)
+creates them and drops `agents.context_paths` and `skills.context_paths`
+(added by `0015`). **No data is copied**: lists attached under the old
+repo-agnostic model are gone and must be re-attached per repo. Deleting an
+agent, a skill or a repo removes its rows by cascade. The tables are outside
+the agent/skill version snapshots.
+
+The new tables have **no `workspace_id`** (like `agent_skills`), so the
+database does not scope them. The service contract is: run `assertAgentRepo` /
+`assertSkillRepo` ([`service.ts`](../src/modules/project-context/service.ts))
+before any read or write of a list; repository methods trust their ids.
+
 Document text is always read fresh from disk at run time (or browse time).
 
 ## Layers
@@ -26,8 +44,8 @@ Document text is always read fresh from disk at run time (or browse time).
 | File | Role |
 |---|---|
 | `routes.ts` | six endpoints, Zod `params`/`querystring`/`body` |
-| `service.ts` | `ProjectContextService`: discovery, file preview, attachment validation, `resolveForRun` |
-| `repository.ts` | `ProjectContextRepository` (Drizzle): repo location, `context_paths` reads/writes, "used by" rows |
+| `service.ts` | `ProjectContextService`: discovery, file preview, 404 guards, attachment validation, `resolveForRun` |
+| `repository.ts` | `ProjectContextRepository` (Drizzle): repo location, per-repo list reads/upserts, "used by" rows |
 | `ports.ts` | `RepoDocsSource` (fs port), `ProjectContextStore`, `ProjectContextResolver` |
 | `paths.ts` | `validateDocPath`, the single path-rule check |
 | `glob.ts` | hand-written glob compiler and `resolveGlob` |
@@ -60,9 +78,10 @@ most 2000 (`MAX_DISCOVERED`) with `truncated` and `total`
   `docs` (`docTypeOf`).
 - `tokens` is `ceil(chars/4)` of the content, or `ceil(size/4)` when the file
   is over the size limit or unreadable. Reads use a 16-way pool.
-- `used_by` is the number of distinct agents that use the path directly or
-  through an enabled skill link (globally enabled and enabled on the link;
-  `usedByRows`).
+- `used_by` is counted **per repository**: the number of distinct agents whose
+  list for this repo contains the path, directly or through an enabled skill
+  link (skill globally enabled and enabled on the link) using the skill's list
+  for this repo. Lists of other repos never count (`usedByRows`).
 - Repo not cloned (`clone_path` null) or clone dir missing: `cloned: false`,
   empty list.
 
@@ -78,27 +97,34 @@ flowchart TD
   svc["ProjectContextService<br/>service.ts"]
   walk["FsRepoDocsSource.walk<br/>fs.ts"]
   read["FsRepoDocsSource.read<br/>fs.ts"]
-  put["PUT /agents|skills/:id/context<br/>routes.ts"]
+  put["PUT /agents|skills/:id/context?repo_id=<br/>routes.ts"]
+  guard["assertAgentRepo / assertSkillRepo<br/>service.ts"]
   validate["validateDocPath + duplicates<br/>paths.ts"]
-  repo[("ProjectContextRepository<br/>agents/skills.context_paths")]
+  repo[("ProjectContextRepository<br/>agent_repo_context / skill_repo_context")]
   ui -->|"browse"| list
   list --> svc
   svc -->|"glob + path rules"| walk
-  svc -->|"tokens, used_by"| repo
+  svc -->|"tokens, used_by for this repo"| repo
   ui -->|"preview"| file
   file --> svc
   svc -->|"discoverable only"| read
-  ui -->|"attach / reorder / remove"| put
+  ui -->|"attach / reorder / remove for one repo"| put
   put --> svc
-  svc -->|"400 on violation"| validate
-  validate -->|"ok: whole list replaced"| repo
+  svc -->|"404 first"| guard
+  guard -->|"then 400 on violation"| validate
+  validate -->|"ok: upsert (id, repo_id) list"| repo
 ```
 
 ## Attachments
 
-`GET|PUT /agents/:id/context` and `GET|PUT /skills/:id/context` read and
-replace the whole ordered list (last write wins). The write touches only
-`context_paths`: no version bump and no `agent_versions`/`skill_versions` row
+`GET|PUT /agents/:id/context?repo_id=<uuid>` and
+`GET|PUT /skills/:id/context?repo_id=<uuid>` read and replace the whole
+ordered list for that (agent or skill, repo) pair (last write wins; an upsert
+on the composite key). `repo_id` is required
+(`ContextRepoQuery`, [`schemas.ts`](../src/modules/project-context/schemas.ts)).
+A `GET` for a pair that has no row returns `{ "paths": [] }`
+(`getAgentPaths` / `getSkillPaths`). The write touches only the per-repo row:
+no version bump and no `agent_versions`/`skill_versions` row
 ([`repository.ts`](../src/modules/project-context/repository.ts)
 `setAgentPaths`, `setSkillPaths`).
 
@@ -106,9 +132,9 @@ Status codes:
 
 | Case | Code | Where |
 |---|---|---|
+| `repo_id` missing or not a UUID; malformed body (not an array, item > 1024 chars, > 500 items) | 422 | Zod in `schemas.ts` |
+| unknown or foreign agent, skill or repo (checked **before** path validation, so nothing about the paths leaks and nothing is written); non-discoverable file | 404 | `service.ts` `assertAgentRepo`, `assertSkillRepo` |
 | path rule or duplicate violation (`details.invalid`, `details.duplicates`) | 400 | `service.ts` `validatePaths`, `BadRequestError` |
-| malformed body shape (not an array, item > 1024 chars, > 500 items) | 422 | Zod in `schemas.ts` |
-| unknown repo, agent, skill, or non-discoverable file | 404 | service |
 | preview of a doc over 3 MiB | 413 | `PayloadTooLargeError` |
 
 Path rules are deliberately in the service, not the Zod schema, so they are 400
@@ -142,9 +168,9 @@ sequenceDiagram
   participant RC as reviewer-core (prompt.ts)
   participant TR as saveRunTrace
 
-  RE->>PC: resolveForRun({agentId, clonePath, skills})
-  PC->>ST: getAgentPaths + skillPathsFor
-  ST-->>PC: agent paths, skill paths
+  RE->>PC: resolveForRun({agentId, repoId, clonePath, skills})
+  PC->>ST: getAgentPaths(agentId, repoId) + skillPathsFor(skillIds, repoId)
+  ST-->>PC: this repo's agent paths, skill paths
   Note over PC: mergeAttachments: agent first, then skills,<br/>de-duplicated keeping the first
   loop each merged path
     PC->>PC: validateDocPath (invalid_path)
@@ -161,6 +187,9 @@ sequenceDiagram
 
 Details:
 
+- Only the lists stored for the PR's repository (`repo.id`) are read; lists
+  attached for other repos are never consulted. A pair without a row simply
+  contributes no paths.
 - Merge order: agent paths, then each linked skill's paths in link order,
   de-duplicated keeping the first occurrence. Skills are those both globally
   enabled and enabled on the agent link (`selectPromptSkillRefs`). A skill
@@ -253,5 +282,10 @@ untrusted slot).
   context overflow would (the trace keeps the doc fields).
 - **Not verified end to end.** The browser e2e flow is not written, and the
   manual real-model scenario AC-35 has not been run.
-- **Apply the migration.** Migration `0015` adds `context_paths`; the server
-  does not migrate on boot, so run `pnpm db:migrate`.
+- **Delete race gives 500, not 404.** The 404 guards and the upsert are not in
+  one transaction. If the agent, skill or repo is deleted between
+  `assertAgentRepo`/`assertSkillRepo` and the upsert, the foreign key rejects
+  the insert and the request fails with 500 instead of 404.
+- **Apply the migration.** Migration `0016` creates the per-repo tables and
+  drops the old columns without copying data; the server does not migrate on
+  boot, so run `pnpm db:migrate`. Old attachments must be re-created.

@@ -10,8 +10,11 @@ import { ErrorState, Icon, Skeleton } from "@devdigest/ui";
 import { DocPreviewModal } from "@/components/doc-preview-modal";
 import { useProjectContext } from "@/lib/hooks/project-context";
 import { DocRowItem } from "./_components/DocRowItem";
+import type { ContextFileInfo } from "@/lib/types";
 import { buildRows, filterRows, move, toggle, tokenTotal } from "./helpers";
 import { s } from "./styles";
+
+const NO_FILES: ContextFileInfo[] = [];
 
 export interface ContextDocListProps {
   /** Active repository, or null when none is selected. */
@@ -20,10 +23,10 @@ export interface ContextDocListProps {
   onChange: (paths: string[]) => void;
   title: string;
   hint: React.ReactNode;
-  /** agent: "N of M attached" + labelled Preview button; skill: "N attached" + eye icon. */
+  /** Both variants show "N of M attached"; the variant only picks the labelled Preview button (agent) vs the eye icon (skill). */
   variant: "agent" | "skill";
   footerNote?: string;
-  /** Rendered under the list and token footer (e.g. the skill's SERIALIZES AS box). */
+  /** Rendered under the list and token footer (the SERIALIZES AS box on both tabs). */
   children?: React.ReactNode;
 }
 
@@ -35,8 +38,10 @@ export function ContextDocList({ repo, attached, onChange, title, hint, variant,
   const [previewPath, setPreviewPath] = React.useState<string | null>(null);
 
   const listing = q.data;
-  const known = listing?.cloned ? listing.files : undefined;
-  const rows = React.useMemo(() => buildRows(attached, known), [attached, known]);
+  // No repo: no rows (AC-20). Uncloned repo: no known files, so every attached
+  // path of that repo is a "not found" row that can still be detached.
+  const known = listing?.cloned ? listing.files : NO_FILES;
+  const rows = React.useMemo(() => (repo ? buildRows(attached, known) : []), [repo, attached, known]);
   const filtering = filter.trim() !== "";
   const visible = filterRows(rows, filter);
   const reorderable = !filtering;

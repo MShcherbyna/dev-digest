@@ -16,8 +16,12 @@ export const queryKeys = {
   context: (repoId: string | null | undefined) => ["context", repoId] as const,
   contextFile: (repoId: string | null | undefined, path: string | null | undefined) =>
     ["context", repoId, "file", path] as const,
-  agentContext: (id: string | null | undefined) => ["agent-context", id] as const,
-  skillContext: (id: string | null | undefined) => ["skill-context", id] as const,
+  // Per (agent|skill, repo): a repo switch is a different key, so a previous
+  // repo's list is never shown (AC-37).
+  agentContext: (id: string | null | undefined, repoId: string | null | undefined) =>
+    ["agent-context", id, repoId] as const,
+  skillContext: (id: string | null | undefined, repoId: string | null | undefined) =>
+    ["skill-context", id, repoId] as const,
   repoIntelState: (repoId: string | null | undefined) => ["repo-intel-state", repoId] as const,
 
   agents: () => ["agents"] as const,

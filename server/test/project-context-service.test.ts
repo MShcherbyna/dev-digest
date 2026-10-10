@@ -18,35 +18,66 @@ import { AppError } from '../src/platform/errors.js';
 const WS = 'ws-1';
 const REPO: RepoLocation = { id: 'repo-1', owner: 'acme', name: 'api', clonePath: '/clones/acme/api' };
 
+const REPO_B: RepoLocation = { id: 'repo-2', owner: 'acme', name: 'web', clonePath: '/clones/acme/web' };
+const key = (id: string, repoId: string) => `${id}|${repoId}`;
+
 class FakeStore implements ProjectContextStore {
+  /** Lists keyed by (id, repoId); known ids are tracked separately (agentExists/skillExists). */
+  agentIds = new Set<string>();
+  skillIds = new Set<string>();
   agents = new Map<string, string[]>();
   skills = new Map<string, string[]>();
-  used: UsedByRow[] = [];
-  constructor(public repo: RepoLocation | undefined = REPO) {}
+  /** Per-repo used-by rows. */
+  usedByRepo = new Map<string, UsedByRow[]>();
+  usedByCalls: string[] = [];
+  writes = 0;
+  repos: RepoLocation[];
+  constructor(repo: RepoLocation | undefined = REPO, extra: RepoLocation[] = []) {
+    this.repos = repo ? [repo, ...extra] : extra;
+  }
+  /** Seed an agent list (registers the agent). */
+  setA(id: string, repoId: string, paths: string[]) {
+    this.agentIds.add(id);
+    this.agents.set(key(id, repoId), paths);
+  }
+  setS(id: string, repoId: string, paths: string[]) {
+    this.skillIds.add(id);
+    this.skills.set(key(id, repoId), paths);
+  }
+  set used(rows: UsedByRow[]) {
+    this.usedByRepo.set(REPO.id, rows);
+  }
   async getRepo(ws: string, id: string) {
-    return ws === WS && this.repo?.id === id ? this.repo : undefined;
+    return ws === WS ? this.repos.find((r) => r.id === id) : undefined;
   }
-  async getAgentPaths(_ws: string, id: string) {
-    return this.agents.get(id);
+  async agentExists(ws: string, id: string) {
+    return ws === WS && this.agentIds.has(id);
   }
-  async setAgentPaths(_ws: string, id: string, paths: string[]) {
-    if (!this.agents.has(id)) return undefined;
-    this.agents.set(id, paths);
+  async skillExists(ws: string, id: string) {
+    return ws === WS && this.skillIds.has(id);
+  }
+  async getAgentPaths(id: string, repoId: string) {
+    return this.agents.get(key(id, repoId)) ?? [];
+  }
+  async setAgentPaths(id: string, repoId: string, paths: string[]) {
+    this.writes++;
+    this.agents.set(key(id, repoId), paths);
     return paths;
   }
-  async getSkillPaths(_ws: string, id: string) {
-    return this.skills.get(id);
+  async getSkillPaths(id: string, repoId: string) {
+    return this.skills.get(key(id, repoId)) ?? [];
   }
-  async setSkillPaths(_ws: string, id: string, paths: string[]) {
-    if (!this.skills.has(id)) return undefined;
-    this.skills.set(id, paths);
+  async setSkillPaths(id: string, repoId: string, paths: string[]) {
+    this.writes++;
+    this.skills.set(key(id, repoId), paths);
     return paths;
   }
-  async usedByRows() {
-    return this.used;
+  async usedByRows(_ws: string, repoId: string) {
+    this.usedByCalls.push(repoId);
+    return this.usedByRepo.get(repoId) ?? [];
   }
-  async skillPathsFor(ids: string[]) {
-    return new Map(ids.filter((i) => this.skills.has(i)).map((i) => [i, this.skills.get(i)!]));
+  async skillPathsFor(ids: string[], repoId: string) {
+    return new Map(ids.map((i) => [i, this.skills.get(key(i, repoId)) ?? []] as const));
   }
 }
 
@@ -106,6 +137,20 @@ describe('discover', () => {
       used_by: 1,
     });
     expect(r.files.find((f) => f.path === 'server/docs/b.md')!.used_by).toBe(0);
+  });
+
+  it('AC-9: discover asks the store for used-by rows of the requested repo only', async () => {
+    // Catches: used_by counted across all repos instead of the listed one.
+    const store = new FakeStore(REPO, [REPO_B]);
+    store.usedByRepo.set(REPO.id, [{ agentId: 'A1', paths: ['docs/a.md'] }]);
+    store.usedByRepo.set(REPO_B.id, [
+      { agentId: 'A1', paths: ['docs/a.md'] },
+      { agentId: 'A2', paths: ['docs/a.md'] },
+    ]);
+    const { svc } = make({ 'docs/a.md': 'x' }, { store });
+    expect((await svc.discover(WS, REPO.id)).files[0]!.used_by).toBe(1);
+    expect((await svc.discover(WS, REPO_B.id)).files[0]!.used_by).toBe(2);
+    expect(store.usedByCalls).toEqual([REPO.id, REPO_B.id]);
   });
 
   it('AC-36: 2,001 matches return 2,000 sorted entries, truncated, total 2001', async () => {
@@ -174,35 +219,75 @@ describe('readFile', () => {
   });
 });
 
-describe('attachment writes (AC-30)', () => {
-  it('rejects invalid and duplicate paths with 400 (details name them) and unknown ids with 404; stores the full ordered list', async () => {
+describe('attachment writes (AC-30/38)', () => {
+  const storeWith = () => {
+    const store = new FakeStore(REPO, [REPO_B]);
+    store.agentIds.add('ag');
+    store.skillIds.add('sk');
+    return store;
+  };
+
+  it('AC-38: lists are independent per repo; an unset repo reads as []', async () => {
+    // Catches: a list leaking across repos (the old single-list-per-agent behaviour).
+    const store = storeWith();
+    const repoC: RepoLocation = { id: 'repo-3', owner: 'acme', name: 'c', clonePath: null };
+    store.repos.push(repoC);
+    const { svc } = make({}, { store });
+    await svc.setAgentContext(WS, 'ag', REPO.id, { paths: ['docs/a.md'] });
+    await svc.setAgentContext(WS, 'ag', REPO_B.id, { paths: ['docs/b.md'] });
+    await svc.setSkillContext(WS, 'sk', REPO.id, { paths: ['docs/sa.md'] });
+    await svc.setSkillContext(WS, 'sk', REPO_B.id, { paths: ['docs/sb.md'] });
+    expect(await svc.getAgentContext(WS, 'ag', REPO.id)).toEqual({ paths: ['docs/a.md'] });
+    expect(await svc.getAgentContext(WS, 'ag', REPO_B.id)).toEqual({ paths: ['docs/b.md'] });
+    expect(await svc.getAgentContext(WS, 'ag', repoC.id)).toEqual({ paths: [] });
+    expect(await svc.getSkillContext(WS, 'sk', REPO.id)).toEqual({ paths: ['docs/sa.md'] });
+    expect(await svc.getSkillContext(WS, 'sk', REPO_B.id)).toEqual({ paths: ['docs/sb.md'] });
+    expect(await svc.getSkillContext(WS, 'sk', repoC.id)).toEqual({ paths: [] });
+  });
+
+  it('rejects invalid/duplicate paths with 400 (details name them), writes nothing, keeps the ordered list', async () => {
     // Catches: traversal paths persisted, duplicates accepted, wrong status.
-    const store = new FakeStore();
-    store.agents.set('ag', []);
-    store.skills.set('sk', []);
+    const store = storeWith();
     const { svc } = make({}, { store });
 
     for (const bad of [['../../etc/passwd.md'], ['docs/a.md', 'docs/a.md'], ['docs/a.txt']]) {
-      expect(await status(svc.setAgentContext(WS, 'ag', { paths: bad }))).toBe(400);
-      expect(await status(svc.setSkillContext(WS, 'sk', { paths: bad }))).toBe(400);
+      expect(await status(svc.setAgentContext(WS, 'ag', REPO.id, { paths: bad }))).toBe(400);
+      expect(await status(svc.setSkillContext(WS, 'sk', REPO.id, { paths: bad }))).toBe(400);
     }
+    let details: unknown;
     try {
-      await svc.setAgentContext(WS, 'ag', { paths: ['docs/a.md', 'docs/a.md', '/x.md'] });
+      await svc.setAgentContext(WS, 'ag', REPO.id, { paths: ['docs/a.md', 'docs/a.md', '/x.md'] });
     } catch (e) {
-      expect((e as AppError).details).toEqual({ invalid: ['/x.md'], duplicates: ['docs/a.md'] });
+      details = (e as AppError).details;
     }
-    expect(store.agents.get('ag')).toEqual([]);
+    expect(details).toEqual({ invalid: ['/x.md'], duplicates: ['docs/a.md'] });
+    expect(store.writes).toBe(0);
 
-    expect(await svc.setAgentContext(WS, 'ag', { paths: ['docs/b.md', 'docs/a.md'] })).toEqual({
+    expect(await svc.setAgentContext(WS, 'ag', REPO.id, { paths: ['docs/b.md', 'docs/a.md'] })).toEqual({
       paths: ['docs/b.md', 'docs/a.md'],
     });
-    expect(await svc.getAgentContext(WS, 'ag')).toEqual({ paths: ['docs/b.md', 'docs/a.md'] });
-    expect(await svc.setSkillContext(WS, 'sk', { paths: ['docs/c.md'] })).toEqual({ paths: ['docs/c.md'] });
+    expect(await svc.getAgentContext(WS, 'ag', REPO.id)).toEqual({ paths: ['docs/b.md', 'docs/a.md'] });
+  });
 
-    expect(await status(svc.setAgentContext(WS, 'ghost', { paths: [] }))).toBe(404);
-    expect(await status(svc.getAgentContext(WS, 'ghost'))).toBe(404);
-    expect(await status(svc.setSkillContext(WS, 'ghost', { paths: [] }))).toBe(404);
-    expect(await status(svc.getSkillContext(WS, 'ghost'))).toBe(404);
+  it('unknown/foreign agent, skill or repo -> 404 with nothing written; 404 wins over path validation', async () => {
+    // Catches: writing against a repo/agent of another workspace; validation details leaking for a foreign id.
+    const store = storeWith();
+    const { svc } = make({}, { store });
+    for (const repoId of ['ghost-repo', 'repo-of-other-ws']) {
+      expect(await status(svc.setAgentContext(WS, 'ag', repoId, { paths: [] }))).toBe(404);
+      expect(await status(svc.getAgentContext(WS, 'ag', repoId))).toBe(404);
+      expect(await status(svc.setSkillContext(WS, 'sk', repoId, { paths: [] }))).toBe(404);
+      expect(await status(svc.getSkillContext(WS, 'sk', repoId))).toBe(404);
+    }
+    expect(await status(svc.setAgentContext(WS, 'ghost', REPO.id, { paths: [] }))).toBe(404);
+    expect(await status(svc.getAgentContext(WS, 'ghost', REPO.id))).toBe(404);
+    expect(await status(svc.setSkillContext(WS, 'ghost', REPO.id, { paths: [] }))).toBe(404);
+    expect(await status(svc.getSkillContext(WS, 'ghost', REPO.id))).toBe(404);
+    expect(await status(svc.setAgentContext('other-ws', 'ag', REPO.id, { paths: [] }))).toBe(404);
+    // foreign agent / unknown repo combined with invalid paths -> 404, not 400
+    expect(await status(svc.setAgentContext(WS, 'ghost', REPO.id, { paths: ['../x.md'] }))).toBe(404);
+    expect(await status(svc.setSkillContext(WS, 'sk', 'ghost-repo', { paths: ['../x.md'] }))).toBe(404);
+    expect(store.writes).toBe(0);
   });
 });
 
@@ -210,6 +295,7 @@ describe('resolveForRun', () => {
   const input = (clonePath: string | null = REPO.clonePath) => ({
     workspaceId: WS,
     agentId: 'ag',
+    repoId: REPO.id,
     clonePath,
     skills: [
       { id: 's1', name: 'S1' },
@@ -220,9 +306,9 @@ describe('resolveForRun', () => {
   it('AC-24: agent [a,b] + skill [b,c] -> a,b,c with origins; later skill docs follow', async () => {
     // Catches: wrong order / lost origin / duplicate included twice.
     const store = new FakeStore();
-    store.agents.set('ag', ['docs/a.md', 'docs/b.md']);
-    store.skills.set('s1', ['docs/b.md', 'docs/c.md']);
-    store.skills.set('s2', ['docs/d.md']);
+    store.setA('ag', REPO.id, ['docs/a.md', 'docs/b.md']);
+    store.setS('s1', REPO.id, ['docs/b.md', 'docs/c.md']);
+    store.setS('s2', REPO.id, ['docs/d.md']);
     const { svc } = make({ 'docs/a.md': 'A', 'docs/b.md': 'B', 'docs/c.md': 'C', 'docs/d.md': 'D' }, { store });
     const logs: string[] = [];
     const r = await svc.resolveForRun(input(), (m) => logs.push(m));
@@ -240,7 +326,7 @@ describe('resolveForRun', () => {
   it('AC-28: classifies all five skip reasons, keeps going, and logs summary + one line per skip', async () => {
     // Catches: a bad doc failing the run, a misclassified reason, missing observability lines.
     const store = new FakeStore();
-    store.agents.set('ag', ['docs/ok.md', 'docs/missing.md', 'docs/big.md', '../x.md', 'docs/bin.md', 'docs/blank.md']);
+    store.setA('ag', REPO.id, ['docs/ok.md', 'docs/missing.md', 'docs/big.md', '../x.md', 'docs/bin.md', 'docs/blank.md']);
     const { svc } = make(
       {
         'docs/ok.md': 'fine',
@@ -274,15 +360,35 @@ describe('resolveForRun', () => {
   it('a repo with no clone skips every path as missing; nothing attached -> empty result and a zero-count log line', async () => {
     // Catches: a no-clone repo crashing the run; the per-run log line missing when nothing is attached.
     const store = new FakeStore();
-    store.agents.set('ag', ['docs/a.md']);
+    store.setA('ag', REPO.id, ['docs/a.md']);
     const { svc } = make({ 'docs/a.md': 'A' }, { store });
     const none = await svc.resolveForRun(input(null), () => undefined);
     expect(none.docs).toEqual([]);
     expect(none.entries).toEqual([{ path: 'docs/a.md', origin: 'agent', status: 'skipped', reason: 'missing' }]);
 
-    store.agents.set('ag', []);
+    store.setA('ag', REPO.id, []);
     const logs: string[] = [];
     expect(await svc.resolveForRun(input(), (m) => logs.push(m))).toEqual({ docs: [], entries: [] });
     expect(logs).toEqual(['project context: 0 included, 0 skipped']);
+  });
+
+  it('AC-24: only the PR repo lists are used; lists stored for another repo never reach the run', async () => {
+    // Catches: resolveForRun reading another repo's agent or skill list (cross-repo prompt leak).
+    const store = new FakeStore(REPO, [REPO_B]);
+    store.setA('ag', REPO.id, ['docs/a.md']);
+    store.setA('ag', REPO_B.id, ['docs/x.md']);
+    store.setS('s1', REPO.id, ['docs/c.md']);
+    store.setS('s1', REPO_B.id, ['docs/y.md']);
+    const { svc } = make({ 'docs/a.md': 'A', 'docs/c.md': 'C', 'docs/x.md': 'X', 'docs/y.md': 'Y' }, { store });
+    const r = await svc.resolveForRun(input(), () => undefined);
+    expect(r.docs.map((d) => d.path)).toEqual(['docs/a.md', 'docs/c.md']);
+    const b = await svc.resolveForRun({ ...input(), repoId: REPO_B.id }, () => undefined);
+    expect(b.docs.map((d) => d.path)).toEqual(['docs/x.md', 'docs/y.md']);
+
+    // an agent with lists only for repo B contributes nothing on repo A
+    const onlyB = new FakeStore(REPO, [REPO_B]);
+    onlyB.setA('ag', REPO_B.id, ['docs/x.md']);
+    const res = await make({ 'docs/x.md': 'X' }, { store: onlyB }).svc.resolveForRun(input(), () => undefined);
+    expect(res).toEqual({ docs: [], entries: [] });
   });
 });

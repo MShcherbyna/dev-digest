@@ -13,22 +13,30 @@ import { useActiveRepo } from "@/lib/repo-context";
 export function ContextTab({ skillId }: { skillId: string }) {
   const t = useTranslations("skills");
   const { activeRepo } = useActiveRepo();
-  const q = useSkillContext(skillId);
-  const save = useSetSkillContext(skillId, activeRepo?.id);
+  const repoId = activeRepo?.id ?? null;
+  const repo = activeRepo ? { id: activeRepo.id, name: activeRepo.full_name } : null;
+  const q = useSkillContext(skillId, repoId);
+  const save = useSetSkillContext(skillId);
 
-  if (q.isError) return <ErrorState body={t("context.loadError")} onRetry={() => void q.refetch()} />;
-  if (!q.data) return <Skeleton height={200} />;
+  // No active repo: the query is disabled, show the hint with no rows (AC-20).
+  const attached = repoId ? q.data?.paths : [];
+  if (repoId && q.isError) return <ErrorState body={t("context.loadError")} onRetry={() => void q.refetch()} />;
+  if (!attached) return <Skeleton height={200} />;
 
   return (
+    // key: a repo switch remounts the list so filter, drag and open preview reset (AC-37).
     <ContextDocList
-      repo={activeRepo ? { id: activeRepo.id, name: activeRepo.full_name } : null}
-      attached={q.data.paths}
-      onChange={(paths) => save.mutate(paths)}
+      key={repoId ?? "none"}
+      repo={repo}
+      attached={attached}
+      onChange={(paths) => {
+        if (repoId) save.mutate({ repoId, paths });
+      }}
       title={t("context.title")}
       hint={t("context.hint")}
       variant="skill"
     >
-      <SerializesAs paths={q.data.paths} />
+      <SerializesAs paths={attached} />
     </ContextDocList>
   );
 }

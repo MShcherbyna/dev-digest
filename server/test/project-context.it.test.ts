@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { mkdtemp, mkdir, writeFile, symlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -173,8 +173,24 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     });
     return res.json() as { id: string; version: number };
   }
-  const putCtx = (app: App, kind: 'agents' | 'skills', id: string, paths: string[]) =>
-    app.inject({ method: 'PUT', url: `/${kind}/${id}/context`, payload: { paths } });
+  const putCtx = (app: App, kind: 'agents' | 'skills', id: string, repoId: string, paths: string[]) =>
+    app.inject({ method: 'PUT', url: `/${kind}/${id}/context?repo_id=${repoId}`, payload: { paths } });
+  const getCtx = (app: App, kind: 'agents' | 'skills', id: string, repoId: string) =>
+    app.inject({ method: 'GET', url: `/${kind}/${id}/context?repo_id=${repoId}` });
+  const storedPaths = async (kind: 'agents' | 'skills', id: string, repoId: string) => {
+    const db = pg.handle.db;
+    const rows =
+      kind === 'agents'
+        ? await db
+            .select()
+            .from(t.agentRepoContext)
+            .where(and(eq(t.agentRepoContext.agentId, id), eq(t.agentRepoContext.repoId, repoId)))
+        : await db
+            .select()
+            .from(t.skillRepoContext)
+            .where(and(eq(t.skillRepoContext.skillId, id), eq(t.skillRepoContext.repoId, repoId)));
+    return rows.map((r) => r.paths);
+  };
 
   /** Run one review and return its stored trace. */
   async function runReview(app: App, prId: string, agentId: string, expectedRunStatus = 'done') {
@@ -204,10 +220,14 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     const both = await newAgent(app, 'Both'); // direct AND via skill: counts once
     const enabledSkill = await newSkill(app, 'Enabled skill');
     const disabledLinkSkill = await newSkill(app, 'Disabled-link skill');
-    await putCtx(app, 'agents', direct.id, ['specs/a.md']);
-    await putCtx(app, 'agents', both.id, ['specs/a.md']);
-    await putCtx(app, 'skills', enabledSkill.id, ['specs/a.md']);
-    await putCtx(app, 'skills', disabledLinkSkill.id, ['specs/a.md']);
+    const otherRepo = await newRepo(clone);
+    const onlyB = await newAgent(app, 'OnlyOtherRepo');
+    await putCtx(app, 'agents', direct.id, repo.id, ['specs/a.md']);
+    await putCtx(app, 'agents', both.id, repo.id, ['specs/a.md']);
+    await putCtx(app, 'skills', enabledSkill.id, repo.id, ['specs/a.md']);
+    await putCtx(app, 'skills', disabledLinkSkill.id, repo.id, ['specs/a.md']);
+    // AC-9: an agent attaching the same path only in ANOTHER repo must not count here
+    await putCtx(app, 'agents', onlyB.id, otherRepo.id, ['specs/a.md']);
     await app.inject({
       method: 'POST',
       url: `/agents/${viaSkill.id}/skills`,
@@ -251,6 +271,11 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
       tokens: Math.ceil(BIG / 4),
     });
     expect(byPath['server/docs/b.md'].used_by).toBe(0);
+    // the other repo sees only its own single attachment
+    const otherBody = (await app.inject({ method: 'GET', url: `/repos/${otherRepo.id}/context` })).json();
+    expect(
+      otherBody.files.find((f: { path: string }) => f.path === 'specs/a.md').used_by,
+    ).toBe(1);
 
     // unknown repo and a repo of another workspace -> 404
     expect((await app.inject({ method: 'GET', url: `/repos/${GHOST}/context` })).statusCode).toBe(404);
@@ -339,14 +364,15 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     const { app } = await makeApp();
     const agent = await newAgent(app, 'Versioned');
     const skill = await newSkill(app, 'Versioned skill');
+    const repo = await newRepo(clone);
 
-    const ok = await putCtx(app, 'agents', agent.id, ['specs/b.md', 'specs/a.md']);
+    const ok = await putCtx(app, 'agents', agent.id, repo.id, ['specs/b.md', 'specs/a.md']);
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toEqual({ paths: ['specs/b.md', 'specs/a.md'] });
-    expect((await app.inject({ method: 'GET', url: `/agents/${agent.id}/context` })).json()).toEqual({
+    expect((await getCtx(app, 'agents', agent.id, repo.id)).json()).toEqual({
       paths: ['specs/b.md', 'specs/a.md'],
     });
-    expect((await putCtx(app, 'skills', skill.id, ['docs/z.md'])).statusCode).toBe(200);
+    expect((await putCtx(app, 'skills', skill.id, repo.id, ['docs/z.md'])).statusCode).toBe(200);
 
     const after = (await app.inject({ method: 'GET', url: `/agents/${agent.id}` })).json();
     expect(after.version).toBe(agent.version);
@@ -362,19 +388,21 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
 
     for (const kind of ['agents', 'skills'] as const) {
       const id = kind === 'agents' ? agent.id : skill.id;
-      expect((await putCtx(app, kind, id, ['../../etc/passwd.md'])).statusCode).toBe(400);
-      expect((await putCtx(app, kind, id, ['specs/a.md', 'specs/a.md'])).statusCode).toBe(400);
-      expect((await putCtx(app, kind, id, ['/abs.md'])).statusCode).toBe(400);
-      expect((await putCtx(app, kind, GHOST, [])).statusCode).toBe(404);
-      expect((await app.inject({ method: 'GET', url: `/${kind}/${GHOST}/context` })).statusCode).toBe(404);
-      const badShape = await app.inject({ method: 'PUT', url: `/${kind}/${id}/context`, payload: { paths: 'x' } });
+      expect((await putCtx(app, kind, id, repo.id, ['../../etc/passwd.md'])).statusCode).toBe(400);
+      expect((await putCtx(app, kind, id, repo.id, ['specs/a.md', 'specs/a.md'])).statusCode).toBe(400);
+      expect((await putCtx(app, kind, id, repo.id, ['/abs.md'])).statusCode).toBe(400);
+      expect((await putCtx(app, kind, GHOST, repo.id, [])).statusCode).toBe(404);
+      expect((await getCtx(app, kind, GHOST, repo.id)).statusCode).toBe(404);
+      const badShape = await app.inject({
+        method: 'PUT',
+        url: `/${kind}/${id}/context?repo_id=${repo.id}`,
+        payload: { paths: 'x' },
+      });
       expect(badShape.statusCode).toBe(422);
     }
     // the rejected writes did not touch the stored list
-    expect((await app.inject({ method: 'GET', url: `/agents/${agent.id}/context` })).json().paths).toEqual([
-      'specs/b.md',
-      'specs/a.md',
-    ]);
+    expect((await getCtx(app, 'agents', agent.id, repo.id)).json().paths).toEqual(['specs/b.md', 'specs/a.md']);
+    expect(await storedPaths('skills', skill.id, repo.id)).toEqual([['docs/z.md']]);
 
     // an agent/skill of ANOTHER workspace is a 404 for this caller
     const [other] = await pg.handle.db.insert(t.workspaces).values({ name: 'other-ctx' }).returning();
@@ -386,10 +414,111 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
       .insert(t.skills)
       .values({ workspaceId: other!.id, name: 'F', description: 'd', type: 'rubric', source: 'manual', body: 'b' })
       .returning();
-    expect((await putCtx(app, 'agents', fa!.id, ['specs/a.md'])).statusCode).toBe(404);
-    expect((await putCtx(app, 'skills', fs!.id, ['specs/a.md'])).statusCode).toBe(404);
-    expect((await app.inject({ method: 'GET', url: `/agents/${fa!.id}/context` })).statusCode).toBe(404);
+    expect((await putCtx(app, 'agents', fa!.id, repo.id, ['specs/a.md'])).statusCode).toBe(404);
+    expect((await putCtx(app, 'skills', fs!.id, repo.id, ['specs/a.md'])).statusCode).toBe(404);
+    expect((await getCtx(app, 'agents', fa!.id, repo.id)).statusCode).toBe(404);
+    expect(await storedPaths('agents', fa!.id, repo.id)).toEqual([]);
     await app.close();
+  });
+
+  it('AC-30: repo_id is required and must be a uuid (422); unknown or foreign repo is 404 and writes nothing', async () => {
+    // Catches: a missing repo_id silently falling back to a global list; a foreign repo accepting writes.
+    const { app } = await makeApp();
+    const agent = await newAgent(app, 'NeedsRepo');
+    const skill = await newSkill(app, 'NeedsRepoSkill');
+    const repo = await newRepo(clone);
+    await putCtx(app, 'agents', agent.id, repo.id, ['specs/a.md']);
+    await putCtx(app, 'skills', skill.id, repo.id, ['specs/a.md']);
+
+    for (const kind of ['agents', 'skills'] as const) {
+      const id = kind === 'agents' ? agent.id : skill.id;
+      for (const qs of ['', '?repo_id=abc', '?repo_id=']) {
+        const g = await app.inject({ method: 'GET', url: `/${kind}/${id}/context${qs}` });
+        expect(g.statusCode, `GET ${kind}${qs}`).toBe(422);
+        const p = await app.inject({
+          method: 'PUT',
+          url: `/${kind}/${id}/context${qs}`,
+          payload: { paths: ['docs/x.md'] },
+        });
+        expect(p.statusCode, `PUT ${kind}${qs}`).toBe(422);
+      }
+      // unknown repo
+      expect((await getCtx(app, kind, id, GHOST)).statusCode).toBe(404);
+      expect((await putCtx(app, kind, id, GHOST, ['docs/x.md'])).statusCode).toBe(404);
+      // another workspace's repo
+      const [other] = await pg.handle.db.insert(t.workspaces).values({ name: `other-${kind}` }).returning();
+      const foreign = await newRepo(clone, other!.id);
+      expect((await getCtx(app, kind, id, foreign.id)).statusCode).toBe(404);
+      expect((await putCtx(app, kind, id, foreign.id, ['docs/x.md'])).statusCode).toBe(404);
+      expect(await storedPaths(kind, id, foreign.id)).toEqual([]);
+      expect(await storedPaths(kind, id, GHOST)).toEqual([]);
+      // the original list survived every rejected call
+      expect(await storedPaths(kind, id, repo.id)).toEqual([['specs/a.md']]);
+    }
+    await app.close();
+  });
+
+  it('AC-38/23: one agent and one skill keep independent lists per repo; unset repo reads []; no version bump', async () => {
+    // Catches: per-repo lists overwriting each other, or an attachment write bumping the version.
+    const { app } = await makeApp();
+    const repoA = await newRepo(clone);
+    const repoB = await newRepo(clone);
+    const repoC = await newRepo(clone);
+    const agent = await newAgent(app, 'MultiRepo');
+    const skill = await newSkill(app, 'MultiRepoSkill');
+    for (const kind of ['agents', 'skills'] as const) {
+      const id = kind === 'agents' ? agent.id : skill.id;
+      expect((await putCtx(app, kind, id, repoA.id, ['specs/a.md'])).statusCode).toBe(200);
+      expect((await putCtx(app, kind, id, repoB.id, ['docs/b.md'])).statusCode).toBe(200);
+      expect((await getCtx(app, kind, id, repoA.id)).json()).toEqual({ paths: ['specs/a.md'] });
+      expect((await getCtx(app, kind, id, repoB.id)).json()).toEqual({ paths: ['docs/b.md'] });
+      expect((await getCtx(app, kind, id, repoC.id)).json()).toEqual({ paths: [] });
+    }
+    expect((await app.inject({ method: 'GET', url: `/agents/${agent.id}` })).json().version).toBe(agent.version);
+    expect((await app.inject({ method: 'GET', url: `/skills/${skill.id}` })).json().version).toBe(skill.version);
+    expect(
+      await pg.handle.db.select().from(t.agentVersions).where(eq(t.agentVersions.agentId, agent.id)),
+    ).toHaveLength(1);
+    await app.close();
+  });
+
+  it('AC-39: deleting a repo, agent or skill removes its rows and keeps the others', async () => {
+    // Catches: orphaned list rows after a delete (missing/changed ON DELETE CASCADE).
+    const { app } = await makeApp();
+    const repoA = await newRepo(clone);
+    const repoB = await newRepo(clone);
+    const agent = await newAgent(app, 'Cascade');
+    const skill = await newSkill(app, 'CascadeSkill');
+    const keeper = await newAgent(app, 'Keeper');
+    for (const repo of [repoA, repoB]) {
+      await putCtx(app, 'agents', agent.id, repo.id, ['specs/a.md']);
+      await putCtx(app, 'skills', skill.id, repo.id, ['specs/a.md']);
+    }
+    await putCtx(app, 'agents', keeper.id, repoA.id, ['specs/a.md']);
+
+    expect((await app.inject({ method: 'DELETE', url: `/repos/${repoA.id}` })).statusCode).toBe(200);
+    expect(await storedPaths('agents', agent.id, repoA.id)).toEqual([]);
+    expect(await storedPaths('skills', skill.id, repoA.id)).toEqual([]);
+    expect(await storedPaths('agents', keeper.id, repoA.id)).toEqual([]);
+    expect(await storedPaths('agents', agent.id, repoB.id)).toEqual([['specs/a.md']]);
+    expect(await storedPaths('skills', skill.id, repoB.id)).toEqual([['specs/a.md']]);
+
+    expect((await app.inject({ method: 'DELETE', url: `/agents/${agent.id}` })).statusCode).toBe(200);
+    expect(await storedPaths('agents', agent.id, repoB.id)).toEqual([]);
+    expect(await storedPaths('skills', skill.id, repoB.id)).toEqual([['specs/a.md']]);
+    expect((await app.inject({ method: 'DELETE', url: `/skills/${skill.id}` })).statusCode).toBe(200);
+    expect(await storedPaths('skills', skill.id, repoB.id)).toEqual([]);
+    await app.close();
+  });
+
+  it('storage: the old agents.context_paths / skills.context_paths columns are gone', async () => {
+    // Catches: the migration leaving the legacy global list columns next to the per-repo tables.
+    const res = await pg.handle.db.execute(
+      sql`select table_name, column_name from information_schema.columns
+          where column_name = 'context_paths' and table_name in ('agents', 'skills')`,
+    );
+    const rows = (Array.isArray(res) ? res : (res as { rows: unknown[] }).rows) as unknown[];
+    expect(rows).toEqual([]);
   });
 
   // ------------------------------------------------------------------ run path
@@ -402,9 +531,13 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     const agent = await newAgent(withDocs.app, 'WithDocs');
     const live = await newSkill(withDocs.app, 'Live skill');
     const dead = await newSkill(withDocs.app, 'Dead skill');
-    await putCtx(withDocs.app, 'agents', agent.id, ['specs/a.md', 'server/docs/b.md']);
-    await putCtx(withDocs.app, 'skills', live.id, ['server/docs/b.md', '.devdigest/specs/c.md']);
-    await putCtx(withDocs.app, 'skills', dead.id, ['adr/0001.md']);
+    await putCtx(withDocs.app, 'agents', agent.id, repo.id, ['specs/a.md', 'server/docs/b.md']);
+    await putCtx(withDocs.app, 'skills', live.id, repo.id, ['server/docs/b.md', '.devdigest/specs/c.md']);
+    await putCtx(withDocs.app, 'skills', dead.id, repo.id, ['adr/0001.md']);
+    // AC-24: lists stored for ANOTHER repo (agent [x], skill [y]) must not reach this PR's run
+    const otherRepo = await newRepo(clone);
+    await putCtx(withDocs.app, 'agents', agent.id, otherRepo.id, ['docs/blank.md', 'adr/0001.md']);
+    await putCtx(withDocs.app, 'skills', live.id, otherRepo.id, ['INSIGHTS.md']);
     await withDocs.app.inject({
       method: 'POST',
       url: `/agents/${agent.id}/skills`,
@@ -423,6 +556,10 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     expect(ib).toBeLessThan(ic);
     expect(user.match(/### server\/docs\/b\.md/g)).toHaveLength(1);
     expect(user).not.toContain('adr one');
+    expect(user).not.toContain('docs/blank.md');
+    expect(user).not.toContain('INSIGHTS.md');
+    expect(JSON.stringify(trace.project_context_docs)).not.toContain('adr/0001.md');
+    expect(trace.specs_read).not.toContain('INSIGHTS.md');
     expect(user).toContain('<untrusted source="specs/a.md">\n# A\nalpha rule\n</untrusted>');
     expect(user).toContain('cite its path in the rationale');
 
@@ -461,19 +598,18 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     const pr = await newPr(repo.id);
     const agent = await newAgent(app, 'Skippy');
     // invalid_path cannot come through the API (400), so it is stored directly, as a legacy/hand-edited row.
-    await pg.handle.db
-      .update(t.agents)
-      .set({
-        contextPaths: [
-          'docs/gone.md', // missing
-          'docs/huge.md', // too_large
-          '../outside/secret.md', // invalid_path
-          'docs/bad.md', // unreadable (not UTF-8)
-          'docs/blank.md', // empty
-          'docs/evil.md', // symlink out of the clone: never read
-        ],
-      })
-      .where(eq(t.agents.id, agent.id));
+    await pg.handle.db.insert(t.agentRepoContext).values({
+      agentId: agent.id,
+      repoId: repo.id,
+      paths: [
+        'docs/gone.md', // missing
+        'docs/huge.md', // too_large
+        '../outside/secret.md', // invalid_path
+        'docs/bad.md', // unreadable (not UTF-8)
+        'docs/blank.md', // empty
+        'docs/evil.md', // symlink out of the clone: never read
+      ],
+    });
 
     const trace = await runReview(app, pr.id, agent.id);
     expect(trace.project_context_docs.map((e: { path: string; status: string; reason: string }) => [e.path, e.status, e.reason])).toEqual([
@@ -502,9 +638,21 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     expect(reviewPrompts(llm)[1]).not.toContain('## Project context');
 
     // a repo with no clone: every path is skipped as missing, run still succeeds
-    const pr3 = await newPr((await newRepo(null)).id);
+    // AC-24: an agent whose only list is for repo B gets no section on a repo A PR
+    const repoB = await newRepo(clone);
+    const onlyB = await newAgent(app, 'OnlyB');
+    await putCtx(app, 'agents', onlyB.id, repoB.id, ['specs/a.md']);
+    const prA = await newPr((await newRepo(clone)).id);
+    const onlyBTrace = await runReview(app, prA.id, onlyB.id);
+    expect(onlyBTrace.project_context_docs).toBeUndefined();
+    expect(onlyBTrace.specs_read).toEqual([]);
+    expect(onlyBTrace.prompt_assembly.specs).toBeNull();
+    expect(reviewPrompts(llm)[2]).not.toContain('## Project context');
+
+    const noCloneRepo = await newRepo(null);
+    const pr3 = await newPr(noCloneRepo.id);
     const noClone = await newAgent(app, 'NoClone');
-    await putCtx(app, 'agents', noClone.id, ['specs/a.md']);
+    await putCtx(app, 'agents', noClone.id, noCloneRepo.id, ['specs/a.md']);
     const t3 = await runReview(app, pr3.id, noClone.id);
     expect(t3.project_context_docs).toEqual([
       { path: 'specs/a.md', origin: 'agent', status: 'skipped', reason: 'missing' },
@@ -519,7 +667,7 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     const repo = await newRepo(clone);
     const pr = await newPr(repo.id);
     const agent = await newAgent(app, 'Doomed');
-    await putCtx(app, 'agents', agent.id, ['specs/a.md', 'docs/gone.md']);
+    await putCtx(app, 'agents', agent.id, repo.id, ['specs/a.md', 'docs/gone.md']);
 
     const trace = await runReview(app, pr.id, agent.id, 'failed');
     expect(trace.specs_read).toEqual(['specs/a.md']);
