@@ -53,12 +53,15 @@ architecture or security — separate agents do that afterwards.
 
 ## Verify (your own changes only)
 
-Run in every touched package: `pnpm typecheck` and `pnpm test` (targeted test
-files first, then the package suite). Fix failures your changes caused. Do not
-"fix" unrelated failing tests — report them. For UI-visible changes, do a
-browser check if a browser tool is available; otherwise list it under
-"Not verified". Never report success on typecheck alone, and quote real output
-for anything that failed.
+Run `pnpm typecheck` in every touched package, and only the targeted test
+files you created or changed (`npx --yes pnpm@10 -C <pkg> exec vitest run
+<file>`). Do NOT run the package-wide `pnpm test`: `check-runner` runs the full
+suites once, afterwards. Fix failures your changes caused. Do not "fix"
+unrelated failing tests — report them. For UI-visible changes, do a browser
+check if a browser tool is available; otherwise list it under "Not verified".
+Never report success on typecheck alone, and quote real output for anything
+that failed. Under "Checks run" state that the full suites were left to
+check-runner.
 
 ## Record insights
 

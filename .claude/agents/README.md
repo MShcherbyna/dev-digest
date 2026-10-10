@@ -12,8 +12,8 @@ live in each agent's own `.md` file; don't copy them here.
 | [implementer](implementer.md) | Executes an approved plan in `client/` and `server/`, verifies its own changes, records INSIGHTS | sonnet / medium / 60 | Read, Grep, Glob, Edit, Write, Bash, Skill | Agent |
 | [researcher](researcher.md) | Read-only research of the repo or external sources; reports findings with evidence | sonnet / default / default | all except Write, Edit | Write, Edit |
 | [test-writer](test-writer.md) | Writes UI and backend tests with the matching project skills; reports which regression each test catches | sonnet / medium / 50 | Read, Grep, Glob, Edit, Write, Bash, Skill | Agent, NotebookEdit |
-| [architecture-reviewer](architecture-reviewer.md) | Read-only check of architectural boundaries; findings with `file:line` evidence and a "cannot verify" list | opus / high / 30 | Read, Grep, Glob, Bash (guarded) | Write, Edit, NotebookEdit, Agent |
-| [plan-verifier](plan-verifier.md) | Audits finished code against every plan/spec/requirement item (PASS / FAIL / PARTIAL / NOT VERIFIABLE / BLOCKED) | opus / high / 40 | Read, Grep, Glob, Bash (guarded) | Write, Edit, NotebookEdit, Agent |
+| [architecture-reviewer](architecture-reviewer.md) | Read-only check of architectural boundaries; findings with `file:line` evidence and a "cannot verify" list | sonnet / medium / 30 | Read, Grep, Glob, Bash (guarded), Skill | Write, Edit, NotebookEdit, Agent |
+| [plan-verifier](plan-verifier.md) | Audits finished code against every plan/spec/requirement item (PASS / FAIL / PARTIAL / NOT VERIFIABLE / BLOCKED) | sonnet / medium / 40 | Read, Grep, Glob, Bash (guarded) | Write, Edit, NotebookEdit, Agent |
 | [doc-writer](doc-writer.md) | Turns plans, reports or code into docs with Mermaid diagrams, placed in the right `docs/` / README section | sonnet / medium / 30 | Read, Grep, Glob, Edit, Write (guarded) | Bash, NotebookEdit, Agent |
 | [plan-translator](plan-translator.md) | Translates an approved `_en` plan into `docs/plans/<feature>_uk.md` once, in a single pass | haiku / low / 10 | Read, Write (guarded) | Bash, Edit, NotebookEdit, Agent |
 | [check-runner](check-runner.md) | Runs typecheck / lint / tests for the touched packages once and returns a short pass/fail table | haiku / low / 15 | Read, Grep, Glob, Bash (guarded, `verify` mode) | Write, Edit, NotebookEdit, Agent |
@@ -48,6 +48,15 @@ Architecture review is done by architecture-reviewer, but its verdict is
 advisory: the `pr-self-review` skill remains the gate. Security review is
 still **not** done by these agents; the implementation-planner flags what to scrutinise, the
 implementer lists it under "Handoff to review".
+
+## Orchestration
+
+Spec (`spec-creator`) and plan (`implementation-planner`) are run manually.
+The `/run-plan <plan-path>` skill ([../skills/run-plan/SKILL.md](../skills/run-plan/SKILL.md))
+then runs implementer -> check-runner -> architecture-reviewer + plan-verifier
+and a fix loop of max 3 iterations, tracked in `.claude/sdd-runs/<feature>.md`.
+test-writer is currently outside the flow (token saving); run it by hand.
+plan-verifier has three modes: full, plan-vs-spec, narrow.
 
 ## Per-agent card
 
@@ -85,7 +94,7 @@ implementer lists it under "Handoff to review".
 ### architecture-reviewer
 - **Inputs:** the "Handoff to review" file list, or the uncommitted diff.
 - **Output:** an *Architecture Review* (verdict CLEAN / CONCERNS / VIOLATIONS, findings table with rule id, `file:line`, quoted evidence, pre-existing issues, cannot verify).
-- **Preloaded skills:** onion-architecture, react-frontend-architecture.
+- **Skills (on demand, by touched package):** onion-architecture for `server/`/`reviewer-core/`, react-frontend-architecture for `client/`; not preloaded.
 - **Permissions:** no Write/Edit; Bash only through [../hooks/readonly-bash-guard.sh](../hooks/readonly-bash-guard.sh) in `git` mode (read-only git commands).
 
 ### plan-verifier
