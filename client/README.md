@@ -25,6 +25,7 @@ Routes (`src/app/**/page.tsx`) and the API surface each leans on (via
 flowchart TD
   ROOT["/"] -->|"useRepos → GET /repos"| PULLS["/repos/:repoId/pulls<br/>PR list"]
   ONB["/onboarding<br/>add repo"] -->|"POST /repos"| API[("Fastify API")]
+  TOUR["/repos/:repoId/onboarding<br/>Onboarding Tour"]
   PULLS --> PR["/pulls/:number<br/>review detail<br/>(overview · diff · findings)"]
 
   AGENTS["/agents"] --> AGENT["/agents/:id<br/>editor (config)"]
@@ -32,6 +33,7 @@ flowchart TD
 
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state"| API
   PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments<br/>POST /pulls/:id/review · /findings/:id/(accept|dismiss)"| API
+  TOUR -->|"GET · POST /repos/:id/onboarding"| API
   AGENTS -->|"/agents · /agents/:id"| API
   SETTINGS -->|"/settings · /providers"| API
 ```

@@ -39,7 +39,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
           },
         }),
         mutationCache: new MutationCache({
-          onError: (err) => notify.error(errorMessage(err)),
+          onError: (err, _vars, _ctx, mutation) => {
+            // A view that renders its own error UI opts out via `meta.silentError`.
+            if (mutation.meta?.silentError === true) return;
+            notify.error(errorMessage(err));
+          },
         }),
       })
   );

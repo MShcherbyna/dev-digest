@@ -109,6 +109,26 @@ malformed and a malformed body are 422; unknown or foreign agent/skill/repo is
 Needs migration `0016` (`pnpm db:migrate`), which drops the old
 `context_paths` columns without copying data.
 
+### Onboarding Tour endpoints
+
+One structured LLM call (the "Onboarding Tour" feature model) builds a
+per-repository tour: architecture summary + diagram, critical paths, run
+commands, reading path, first tasks. Every path is checked against the clone and
+every run command against the declared scripts / compose services; exactly one
+tour per repository is stored (table `onboarding`, no migration).
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /repos/:id/onboarding` | `{ cloned, generating, index: { status, last_indexed_sha, files_indexed }, stale, tour }` (`tour` is `null` before the first generation) |
+| `POST /repos/:id/onboarding` | generate and replace the tour; 200 `{ tour }` |
+
+Errors use the usual `{ error: { code, message, details } }` envelope: 404
+`not_found` (unknown or foreign repo), 409 `generation_in_progress`, 409
+`not_cloned`, 500 `missing_api_key`, 502 `provider_error` (also when the
+deadline passes), 502 `invalid_output`. One generation per repository at a time
+(in-process lock); a closed connection does not cancel it. `ONBOARDING_TIMEOUT_MS`
+(default `120000`) is the deadline.
+
 ## Environment
 
 `server/.env` (copied from `.env.example`):
@@ -123,6 +143,7 @@ Needs migration `0016` (`pnpm db:migrate`), which drops the old
 | `REPO_INTEL_ENABLED` | `true` | repo skeleton + callers in the prompt; `false` → ripgrep-only |
 | `DEVDIGEST_CLONE_DIR` | `~/.devdigest/workspace` (code default, `config.ts`); `.env.example` sets `./clones` | imported-repo checkouts |
 | `PROJECT_CONTEXT_GLOB` | `**/{specs,docs,insights}/**/*.md` | Project Context discovery glob; invalid values fall back to the default with a warning (see [docs/project-context.md](docs/project-context.md)) |
+| `ONBOARDING_TIMEOUT_MS` | `120000` | deadline of one onboarding tour generation; on expiry the POST fails with 502 `provider_error` and nothing is stored |
 | `LOG_LEVEL` | `info` (`silent` in test) | pino level |
 | `NODE_ENV` | `development` | `test` → silent logs + global rate-limit disabled |
 

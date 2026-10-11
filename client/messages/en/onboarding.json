@@ -1,17 +1,61 @@
 {
   "title": "Onboarding Tour",
-  "sections": "Sections",
-  "sectionCount": "{count} sections",
+  "noRepo": "Select a repository",
+  "header": {
+    "prefix": "Onboarding for",
+    "subtitle": "Generated from index of {count} files · last refreshed {time}"
+  },
   "regenerate": "Regenerate",
   "regenerating": "Regenerating…",
-  "unknownError": "Unknown error",
+  "shareLink": "Share link",
+  "linkCopied": "Link copied",
+  "copied": "Copied",
+  "copyFailed": "Couldn’t copy to clipboard",
+  "onThisPage": "ON THIS PAGE",
+  "sections": {
+    "architecture": "Architecture overview",
+    "critical-paths": "Critical paths",
+    "run-locally": "How to run locally",
+    "reading-path": "Guided reading path",
+    "first-tasks": "First tasks"
+  },
+  "open": "Open",
+  "openAria": "Open {path}",
+  "copyAria": "Copy command: {command}",
+  "expandAria": "Expand {section}",
+  "collapseAria": "Collapse {section}",
+  "complexity": {
+    "low": "Low complexity",
+    "medium": "Medium complexity",
+    "high": "High complexity"
+  },
+  "diagramAria": "Architecture diagram: {nodes}",
+  "emptyIndex": "Not enough index data — resync and regenerate",
+  "emptyCommands": "No run commands found in package.json, docker-compose, .env.example or README",
+  "notices": {
+    "partial": "This tour was generated from a partial index, so some sections may be incomplete.",
+    "stale": "Index updated since this tour was generated",
+    "notCloned": "This repository has no local clone, so the tour can’t be regenerated."
+  },
+  "notCloned": {
+    "title": "Repository not cloned",
+    "body": "Clone {repo} locally before generating an onboarding tour."
+  },
   "generate": {
     "title": "Generate onboarding tour",
-    "body": "DevDigest indexes the repo and specs, then writes a 5-section guided tour: overview, architecture, key modules, getting started, and conventions & gotchas.",
+    "body": "DevDigest indexes the repo and writes a guided tour: architecture, critical paths, how to run, a reading order, and first tasks. Takes 30–60s and ~5,000 tokens.",
     "cta": "Generate onboarding tour",
     "generating": "Generating…"
   },
+  "error": {
+    "title": "Couldn’t generate the onboarding tour",
+    "body": "The tour could not be generated. Try again.",
+    "reason": "Reason: {cause}",
+    "missingKeyBody": "No API key is configured for the selected provider. Add one in",
+    "apiKeysLink": "Settings → API Keys"
+  },
   "loadError": {
-    "title": "Couldn’t load the onboarding tour"
+    "title": "Couldn’t load the onboarding tour",
+    "body": "Something went wrong while loading the tour."
   }
 }

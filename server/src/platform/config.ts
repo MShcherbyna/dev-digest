@@ -32,6 +32,8 @@ const EnvSchema = z.object({
   // Project Context discovery glob. Validated in modules/project-context (invalid
   // or empty → default + one warning), so it stays a raw string here.
   PROJECT_CONTEXT_GLOB: z.string().optional(),
+  // Onboarding tour generation deadline in ms (default 120000).
+  ONBOARDING_TIMEOUT_MS: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // `.env` (and .env.example) ship `LOG_LEVEL=` empty; an empty string is not a
   // valid enum member, so coerce '' → undefined to fall through to the default.
@@ -64,6 +66,8 @@ export type AppConfig = {
   repoIntelEnabled: boolean;
   /** Raw PROJECT_CONTEXT_GLOB (unvalidated); undefined when unset. */
   projectContextGlob: string | undefined;
+  /** Deadline of one onboarding tour generation, in ms. */
+  onboardingTimeoutMs: number;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -83,5 +87,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     embeddingsEnabled: parsed.EMBEDDINGS_ENABLED === 'true',
     repoIntelEnabled: parsed.REPO_INTEL_ENABLED !== 'false',
     projectContextGlob: parsed.PROJECT_CONTEXT_GLOB,
+    onboardingTimeoutMs: Number(parsed.ONBOARDING_TIMEOUT_MS) || 120_000,
   };
 }

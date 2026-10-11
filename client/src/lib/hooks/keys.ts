@@ -22,6 +22,7 @@ export const queryKeys = {
     ["agent-context", id, repoId] as const,
   skillContext: (id: string | null | undefined, repoId: string | null | undefined) =>
     ["skill-context", id, repoId] as const,
+  onboarding: (repoId: string | null | undefined) => ["onboarding", repoId] as const,
   repoIntelState: (repoId: string | null | undefined) => ["repo-intel-state", repoId] as const,
 
   agents: () => ["agents"] as const,
