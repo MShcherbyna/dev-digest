@@ -1,0 +1,24 @@
+{
+  "name": "PR Brief Review focus opens the cited file in Files changed",
+  "description": "From PR #482 Overview, confirm the seeded PR Brief 'Review focus' card renders, click the webhooks.ts:61 entry and confirm it deep-links to the Files changed tab (tab=diff, file=src/api/public/webhooks.ts) with the seeded finding visible on that file. Read-only seeded data (pr_brief row + pr_files patches from server/src/db/seed.ts; no model call, Regenerate is never clicked). Focus-on-header and Back-button assertions are left to unit tests (DiffTab/FileCard, PrBriefBlock): agent-browser's eval/back are not verified in this package. Assumes a freshly-seeded DB where acme/payments-api (PR #482) is the first repo — existing dev DBs seeded before PR Brief lack the patches (see e2e/README.md); run via the hermetic stack.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/"], "label": "load the app root" },
+    { "cmd": ["wait", "--url", "/pulls"], "label": "land on the PR list" },
+    { "cmd": ["find", "text", "Add rate limiting to public API endpoints", "click"], "label": "open the PR row" },
+    { "cmd": ["wait", "--url", "/pulls/482"], "label": "navigate to the PR detail route" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "PR detail data settles" },
+    { "cmd": ["wait", "--text", "Review focus"], "label": "Review focus card renders from the seeded brief" },
+    { "cmd": ["wait", "--text", "src/api/public/webhooks.ts:61"], "label": "seeded focus item is listed" },
+    {
+      "cmd": [
+        "find", "role", "button", "click", "--name",
+        "src/api/public/webhooks.ts:61 — request callback_url forwards the account token to a caller-controlled URL"
+      ],
+      "label": "click the webhooks.ts:61 focus item"
+    },
+    { "cmd": ["wait", "--url", "tab=diff"], "label": "Files changed tab is active in the URL" },
+    { "cmd": ["wait", "--url", "file=src%2Fapi%2Fpublic%2Fwebhooks.ts"], "label": "target file is in the URL" },
+    { "cmd": ["wait", "--url", "line=61"], "label": "cited line is in the URL" },
+    { "cmd": ["wait", "--text", "Lethal trifecta: untrusted input reaches exfil path"], "label": "seeded finding on the target file is visible" }
+  ]
+}

@@ -80,6 +80,30 @@ describe("SmartDiffGroups", () => {
     expect(screen.getByText("pnpm-lock.yaml")).toBeInTheDocument();
   });
 
+  // Catches: AC-26 - a target inside the collapsed Boilerplate group must open THAT group (and
+  // outline its file), without also expanding the other default-collapsed group (Docs).
+  it("a target file in a default-collapsed group opens only that group and marks the file selected", () => {
+    renderWithIntl(
+      <SmartDiffGroups groups={GROUPS} reviewed target={{ path: "pnpm-lock.yaml", line: null }} />,
+    );
+    expect(screen.getByRole("button", { name: /Boilerplate/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /Docs/ })).toHaveAttribute("aria-expanded", "false");
+    const header = screen.getByText("pnpm-lock.yaml").parentElement!.parentElement!;
+    expect(header).toHaveAttribute("tabindex", "-1");
+    expect(header).toHaveFocus();
+    // other files are not selected
+    expect(screen.getByText("src/core.ts").parentElement!.parentElement!).not.toHaveAttribute("tabindex");
+  });
+
+  // Catches: a target in an already-open group collapsing/toggling defaults (docs must stay closed).
+  it("a target in an open group leaves the default collapsed groups collapsed", () => {
+    renderWithIntl(<SmartDiffGroups groups={GROUPS} reviewed target={{ path: "src/core.ts", line: 2 }} />);
+    expect(screen.getByRole("button", { name: /Core logic/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /Docs/ })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: /Boilerplate/ })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("src/core.ts").parentElement!.parentElement!).toHaveFocus();
+  });
+
   it("before any review shows a 'Not reviewed yet' empty state instead of zero counters", () => {
     renderWithIntl(<SmartDiffGroups groups={GROUPS} reviewed={false} />);
     expect(screen.getAllByText("Not reviewed yet")).toHaveLength(5);

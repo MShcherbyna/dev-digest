@@ -4,3 +4,4 @@ export { DiffViewer } from "./DiffViewer";
 export { FileCard } from "./FileCard";
 export type { DiffCommentApi } from "./comments";
 export type { DiffFindingsApi } from "./findings";
+export type { DiffTarget } from "./target";

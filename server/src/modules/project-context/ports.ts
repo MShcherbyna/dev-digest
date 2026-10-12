@@ -85,3 +85,22 @@ export interface ProjectContextResolver {
     log: (msg: string, data?: unknown) => void,
   ): Promise<ResolvedProjectContext>;
 }
+
+export interface ResolveForBriefInput {
+  workspaceId: string;
+  repoId: string;
+  clonePath: string | null;
+  /** Total estimated tokens the documents may cost, overhead included. */
+  budgetTokens: number;
+  /** Fixed estimated cost of each included document's delimiters. */
+  perDocOverheadTokens: number;
+  /** A cut document must keep at least this many tokens, else it is skipped. */
+  minDocTokens: number;
+}
+
+/** Read model the PR Brief depends on: every doc attached to any agent/skill of the repo. */
+export interface BriefDocsResolver {
+  resolveForBrief(
+    input: ResolveForBriefInput,
+  ): Promise<{ docs: { path: string; content: string }[]; paths: string[] }>;
+}

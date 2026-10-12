@@ -2,8 +2,7 @@
 
 import React from "react";
 import { SectionLabel } from "@devdigest/ui";
-import { IntentCard } from "../IntentCard";
-import { BlastRadiusCard } from "../BlastRadiusCard";
+import { PrBriefBlock } from "../PrBriefBlock";
 import { s } from "./styles";
 
 interface OverviewTabProps {
@@ -12,15 +11,30 @@ interface OverviewTabProps {
   repoId: string | null | undefined;
   repoFullName: string | null;
   headSha: string;
+  /** Paths of the PR's changed files — a brief link may only open one of these. */
+  diffPaths: string[];
+  onOpenFile: (path: string, line: number | null) => void;
 }
 
-export function OverviewTab({ prId, prBody, repoId, repoFullName, headSha }: OverviewTabProps) {
+export function OverviewTab({
+  prId,
+  prBody,
+  repoId,
+  repoFullName,
+  headSha,
+  diffPaths,
+  onOpenFile,
+}: OverviewTabProps) {
   return (
     <>
-      <div style={s.briefGrid}>
-        <IntentCard prId={prId} />
-        <BlastRadiusCard prId={prId} repoId={repoId} repoFullName={repoFullName} headSha={headSha} />
-      </div>
+      <PrBriefBlock
+        prId={prId}
+        repoId={repoId}
+        repoFullName={repoFullName}
+        headSha={headSha}
+        diffPaths={diffPaths}
+        onOpenFile={onOpenFile}
+      />
       {prBody && (
         <section>
           <SectionLabel icon="MessageSquare">Description</SectionLabel>

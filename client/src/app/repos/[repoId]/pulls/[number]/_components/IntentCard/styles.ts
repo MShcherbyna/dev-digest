@@ -68,6 +68,7 @@ export const s = {
     fontSize: 12.5,
     color: "var(--text-secondary)",
   } satisfies CSSProperties,
+  riskSlot: { borderTop: "1px solid var(--border)", paddingTop: 16 } satisfies CSSProperties,
   muted: { fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.45 } satisfies CSSProperties,
   skeletons: { display: "flex", flexDirection: "column", gap: 10 } satisfies CSSProperties,
 } as const;

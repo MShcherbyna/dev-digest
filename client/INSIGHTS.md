@@ -14,6 +14,14 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-12** — `@devdigest/ui` `ErrorState` hard-codes the English "Retry"
+  label (`src/vendor/ui/primitives/ErrorState.tsx`), so it cannot satisfy a
+  "every label from `messages/`" rule. The PR Brief's inline failure line is
+  therefore its own `PrBriefBlock/_components/BriefError` (Button + `panel.retry`).
+  Related: `DiffTab` now calls `useTranslations("brief")` eagerly, so its
+  tests must provide the `brief` namespace (else an `IntlError` is logged, the
+  test still passes).
+
 - **2026-10-02** — Resync completion is the index state's `updatedAt`
   advancing, not `POST /repos/:id/resync` returning (it is 202 and returns
   before reindexing) and not `lastIndexedSha` (unchanged when a failed index is
@@ -64,6 +72,22 @@ read by the `engineering-insights` skill.
   `ConventionCard/constants.ts`): the design shows 90% neutral and 80% amber.
 
 ## Tool & Library Notes
+
+- **2026-10-12** — Testing code that calls the module-level `notify.*`
+  (`src/lib/toast.tsx`, e.g. `DiffTab`'s "File not in this PR's diff" mount
+  effect) under `renderWithIntl`: `ToastProvider` registers its pusher in an
+  effect, and child effects run BEFORE the parent's, so a component that
+  toasts on its first commit toasts into the void (the test finds no text).
+  Mount it one commit late (`useEffect(() => setLate(true), [])` harness), as
+  the app does. Also, the `rerender` returned by `renderWithIntl` drops the
+  providers (RTL only re-wraps with the `wrapper` option) — drive re-renders
+  with a state-holding harness instead.
+
+- **2026-10-12** — `vitest run <path>` treats its argument as a regex filter,
+  so a path with the Next dynamic-route brackets (`pulls/[number]/...`)
+  silently matches nothing or the wrong files (it ran just
+  `diff-viewer/findings.test.ts`). Filter by base name instead:
+  `npx --yes pnpm@10 exec vitest run VerdictBanner DiffTab SmartDiffGroups`.
 
 - **2026-09-19** — ESLint (flat config, `eslint.config.mjs`, `pnpm lint`) was
   added; before that `client/` had none, yet the code carried

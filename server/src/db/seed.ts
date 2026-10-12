@@ -9,6 +9,7 @@ import {
   TEST_QUALITY_REVIEWER_PROMPT,
 } from './seed-prompts.js';
 import { TEST_QUALITY_SKILLS } from './seed-skills.js';
+import { PR_482_FILES, buildSeedBrief } from './seed-pr-brief.js';
 
 /** Default provider/model for the built-in reviewer agents. */
 const DEFAULT_PROVIDER = 'openrouter' as const;
@@ -20,7 +21,7 @@ const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
  *
  * Seeds: default workspace + system user + membership, default settings,
  * demo repo (acme/payments-api), PR #482 with files/commits, a sample review
- * with a few findings, and the three built-in agents (General + Security +
+ * with three findings, a stored PR Brief, and the three built-in agents (General + Security +
  * Performance), all on the default openrouter/deepseek-v4-flash provider+model.
  *
  * Course lessons populate the other tables (skills, conventions, memory, eval,
@@ -192,13 +193,9 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
       })
       .returning();
 
-    // pr_files (subset)
-    await db.insert(t.prFiles).values([
-      { prId: pr!.id, path: 'src/middleware/ratelimit.ts', additions: 84, deletions: 0 },
-      { prId: pr!.id, path: 'src/api/public/webhooks.ts', additions: 31, deletions: 6 },
-      { prId: pr!.id, path: 'src/config.ts', additions: 4, deletions: 0 },
-      { prId: pr!.id, path: 'src/api/users.ts', additions: 7, deletions: 2 },
-    ]);
+    // pr_files: 9 rows (= filesCount) so the seeded PR Brief's files_total matches;
+    // the first five carry patches (see seed-pr-brief.ts)
+    await db.insert(t.prFiles).values(PR_482_FILES.map((f) => ({ prId: pr!.id, ...f })));
 
     // pr_commits
     await db.insert(t.prCommits).values({
@@ -248,8 +245,29 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
         suggestion: 'Use a single IN query and group in memory.',
         confidence: 0.86,
       },
+      {
+        reviewId: review!.id,
+        file: 'src/api/public/webhooks.ts',
+        startLine: 61,
+        endLine: 74,
+        severity: 'CRITICAL',
+        category: 'security',
+        title: 'Lethal trifecta: untrusted input reaches exfil path',
+        rationale:
+          "The webhook handler reads attacker-controllable `req.body.callback_url` (untrusted input), loads the account's API token from the DB (private data), and issues an outbound `fetch()` to that URL (exfil path). All three legs of the lethal trifecta are present in one request flow.",
+        suggestion:
+          'Allow-list `callback_url` against pre-registered endpoints, or strip credentials before any outbound request derived from request input.',
+        confidence: 0.79,
+      },
     ]);
   }
+
+  // ---- stored PR Brief for PR #482 (own idempotent insert; only the row is
+  // added when the PR already exists — its pr_files patches are not backfilled) ----
+  await db
+    .insert(t.prBrief)
+    .values({ prId: pr!.id, json: buildSeedBrief() })
+    .onConflictDoNothing();
 
   // ---- built-in agents (the three starter presets) ----
   // Prompt bodies live in ./seed-prompts.ts (mirrored in docs/agent-prompts/*.md).
