@@ -35,7 +35,7 @@ export const s = {
     color: "var(--text-primary)",
     margin: 0,
   } satisfies CSSProperties,
-  columns: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 } satisfies CSSProperties,
+  columns: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 20 } satisfies CSSProperties,
   colTitle: (color: string): CSSProperties => ({
     display: "flex",
     alignItems: "center",

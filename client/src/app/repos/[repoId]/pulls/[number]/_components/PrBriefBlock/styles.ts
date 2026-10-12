@@ -5,7 +5,9 @@ export const s = {
   stack: { display: "flex", flexDirection: "column", gap: 20 } satisfies CSSProperties,
   grid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    // minmax(0, …): plain 1fr has an automatic minimum, so long unbreakable file paths in the
+    // Risk areas would widen the column past the container.
+    gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
     gap: 20,
     alignItems: "stretch",
   } satisfies CSSProperties,
