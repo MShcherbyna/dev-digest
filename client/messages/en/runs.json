@@ -34,7 +34,16 @@
       "memoryPulled": "Memory pulled",
       "specsRead": "Specs read",
       "items": "{count, plural, one {# item} other {# items}}",
-      "none": "none"
+      "none": "none",
+      "specChip": "{path} · ~{tokens} tok",
+      "skipped": "skipped:",
+      "skipReason": {
+        "missing": "file not found",
+        "too_large": "too large",
+        "invalid_path": "invalid path",
+        "unreadable": "unreadable",
+        "empty": "empty"
+      }
     },
     "stat": {
       "duration": "DURATION",
@@ -47,7 +56,7 @@
       "skills": "Skills (dynamic)",
       "memory": "Memory (dynamic)",
       "repoMap": "Repo skeleton — repo-intel (dynamic)",
-      "specs": "Project context (dynamic)",
+      "specs": "Project context — attached specs (untrusted)",
       "callers": "Callers of changed symbols — repo-intel (dynamic)",
       "user": "User / diff (dynamic)",
       "tokens": "~{count} tok",
@@ -69,7 +78,7 @@
     "running": "running",
     "completed": "completed",
     "copyRawOutput": "Copy raw output",
-  "copied": "Copied!",
+    "copied": "Copied!",
     "tracePending": "Trace is written when the run completes — see the Live log tab.",
     "loadingTrace": "Loading trace…",
     "noTrace": "No trace available yet."

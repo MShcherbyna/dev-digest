@@ -27,3 +27,6 @@ test-results/
 # pr-self-review runtime output (waivers.json is committed)
 .claude/pr-self-review/last-report.json
 .claude/pr-self-review/skips.log
+
+# SDD orchestrator run state
+.claude/sdd-runs/

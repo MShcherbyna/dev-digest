@@ -61,7 +61,8 @@
       "skills": "Skills",
       "evals": "Evals",
       "stats": "Stats",
-      "ci": "CI"
+      "ci": "CI",
+      "context": "Context"
     }
   },
   "config": {
@@ -156,5 +157,11 @@
   },
   "mount": {
     "body": "Mount point for {owner}. The Agent Editor shell + tab routing are wired by A2 — {owner} renders this tab."
+  },
+  "context": {
+    "title": "Project context",
+    "orderHint": "Order matters — earlier docs appear earlier in the assembled <code>## Project context</code> block. Toggle to attach.",
+    "footerNote": "Injected as an untrusted block (## Project context) into every run.",
+    "loadError": "Could not load attached documents."
   }
 }

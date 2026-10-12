@@ -51,7 +51,7 @@ lex_rel = lex[len(os.path.normpath(proj)) + 1:] if lex.startswith(os.path.normpa
 
 protected = re.compile(r"(/vendor/shared/|client/src/vendor/ui/|server/src/db/migrations/|pnpm-lock\.yaml)")
 denied = [
-    (re.compile(r"^docs/plans/"), "docs/plans/ is owned by the planner agent"),
+    (re.compile(r"^docs/plans/"), "docs/plans/ is owned by the implementation-planner agent"),
     (re.compile(r"(^|/)INSIGHTS\.md$"), "INSIGHTS.md is not written by doc-writer (suggest promotions in the report)"),
     (re.compile(r"(^|/)CLAUDE\.md$"), "CLAUDE.md is agent instructions"),
     (re.compile(r"(^|/)AGENTS\.md$"), "AGENTS.md is the CLAUDE.md symlink target (agent instructions); propose Read-when links in the report instead"),

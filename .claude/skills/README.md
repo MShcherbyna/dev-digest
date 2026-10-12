@@ -18,6 +18,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [zod](zod/SKILL.md) | Full-stack | Zod schema validation, parsing, error handling, type inference |
 | [typescript-expert](typescript-expert/SKILL.md) | Full-stack | Type-level programming, performance, tooling, migrations |
 | [security](security/SKILL.md) | Full-stack | OWASP Top 10:2025, auth, injection, uploads, secrets |
+| [workflow-retro](workflow-retro/SKILL.md) | Workflow | Post-mortem of a multi-agent session: tokens, agent order, duplication, recommendations (manual, report in docs/retros/) |
 | [mermaid-diagram](mermaid-diagram/SKILL.md) | Shared | Mermaid diagrams in markdown (flowcharts, sequence, ERD, …) |
 | [engineering-insights](engineering-insights/SKILL.md) | Shared | Reads/records module-local INSIGHTS.md at task start/end |
 | [pr-self-review](pr-self-review/SKILL.md) | Shared | Pre-PR review of `main...HEAD`: routes files to UI/backend skills, deterministic checks, BLOCKED on critical |

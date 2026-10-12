@@ -1,14 +1,11 @@
 ---
 name: architecture-reviewer
 description: "Use proactively after the implementer or test-writer finishes, or before opening a PR, to check architectural boundaries of the changed code: server onion layering (routes → service → repository, ports, no infra imports in service/ports/domain, repositories return mapped types), module isolation, client feature boundaries and the server/client ('use client') split, reviewer-core purity, and do-not-touch paths. Read-only: returns findings with file:line evidence and quoted code, plus a 'cannot verify' list; never edits files."
-model: opus
-effort: high
+model: sonnet
+effort: medium
 maxTurns: 30
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, Skill
 disallowedTools: Write, Edit, NotebookEdit, Agent
-skills:
-  - onion-architecture
-  - react-frontend-architecture
 hooks:
   PreToolUse:
     - matcher: "Bash"
@@ -44,7 +41,16 @@ modules only.
    source files only for context it lacks (a "TRUNCATED" marker means open the
    file); do not re-run `git diff` for what it already holds.
 
-If neither is available and the diff is empty, say so and stop.
+The caller must pass the file list or a bundle path. Do not fall back to
+`git diff <base>` on a long branch without saying so: if neither is given,
+derive the list once, state in "Scope" that you derived it and how many files
+it holds, and stop to ask if it exceeds 40 files. If the diff is empty, say so
+and stop.
+
+Load skills by touched package, via the `Skill` tool, not all by default:
+`server/**` or `reviewer-core/**` changed -> `onion-architecture`;
+`client/**` changed -> `react-frontend-architecture`. Skip the one whose
+package is untouched.
 
 ## Pass 1: deterministic (Grep on the working tree)
 
@@ -75,7 +81,7 @@ hit count of every pattern in "Checks run", including zero.
 ## Pass 2: intent-level (judgment)
 
 Only on changed hunks. Apply the onion-architecture "Review checklist" 1-10 and
-the react-frontend-architecture "Review checklist" 1-7 (both preloaded). For
+the react-frontend-architecture "Review checklist" 1-7 (whichever you loaded). For
 RSC boundary questions read
 `.claude/skills/next-best-practices/rsc-boundaries.md` with `Read`.
 

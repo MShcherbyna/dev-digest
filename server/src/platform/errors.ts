@@ -39,3 +39,15 @@ export class ConfigError extends AppError {
     super('config_error', message, 500, details);
   }
 }
+
+export class BadRequestError extends AppError {
+  constructor(message = 'Bad request', details?: unknown) {
+    super('bad_request', message, 400, details);
+  }
+}
+
+export class PayloadTooLargeError extends AppError {
+  constructor(message = 'Payload too large', details?: unknown) {
+    super('payload_too_large', message, 413, details);
+  }
+}

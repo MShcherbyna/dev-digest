@@ -34,6 +34,8 @@ import type {
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from './git/diff-parser.js';
 import type { PriorPrHit, PriorPrQuery, PriorPrSource } from '../modules/blast/ports.js';
+import type { DocFile, DocRead, RepoDocsSource } from '../modules/project-context/ports.js';
+import type { FileRead, FsKind, RepoFile, RepoFiles } from '../modules/onboarding/ports.js';
 
 /**
  * Deterministic MOCK adapters for tests/dev — NO real network. Each mirrors the
@@ -352,5 +354,104 @@ export class MockSecretsProvider implements SecretsProvider {
   constructor(private secrets: Partial<Record<string, string>> = {}) {}
   async get(key: SecretKey): Promise<string | undefined> {
     return this.secrets[key as string];
+  }
+}
+
+// ---------- Mock repo docs (project-context) ----------
+/** Files keyed by repo-relative path: text, `{ size }` (too large), or 'unreadable'. */
+export type MockRepoDocsFiles = Record<string, string | { size: number } | 'unreadable'>;
+
+export class MockRepoDocsSource implements RepoDocsSource {
+  /** `root` is ignored; null `files` simulates a missing clone directory. */
+  constructor(private files: MockRepoDocsFiles | null = {}) {}
+
+  async walk(
+    _root: string,
+    excluded: ReadonlySet<string>,
+    accept: (relPath: string) => boolean,
+  ): Promise<DocFile[] | null> {
+    if (!this.files) return null;
+    return Object.entries(this.files)
+      .filter(([p]) => !p.split('/').slice(0, -1).some((s) => excluded.has(s)) && accept(p))
+      .map(([path, v]) => ({
+        path,
+        size:
+          v === 'unreadable' ? 0 : typeof v === 'string' ? Buffer.byteLength(v, 'utf8') : v.size,
+      }));
+  }
+
+  async read(_root: string, relPath: string, maxBytes: number): Promise<DocRead> {
+    const v = this.files?.[relPath];
+    if (v === undefined) return { kind: 'missing' };
+    if (v === 'unreadable') return { kind: 'unreadable' };
+    if (typeof v !== 'string') return v.size > maxBytes ? { kind: 'too_large' } : { kind: 'unreadable' };
+    return Buffer.byteLength(v, 'utf8') > maxBytes ? { kind: 'too_large' } : { kind: 'ok', content: v };
+  }
+}
+
+/** In-memory clone tree for onboarding tests. A string is file content, `'dir'` a directory, `'symlink'` a refused path. */
+export type MockRepoTree = Record<string, string | 'dir' | 'symlink'>;
+
+export class MockRepoFiles implements RepoFiles {
+  /** Every `read()` call, so tests can assert which files were (not) read. */
+  public reads: string[] = [];
+
+  /** `root` is ignored; a null tree simulates a missing clone directory. */
+  constructor(private tree: MockRepoTree | null = {}) {}
+
+  async isDirectory(): Promise<boolean> {
+    return this.tree !== null;
+  }
+
+  async kind(_root: string, relPath: string): Promise<FsKind> {
+    if (!this.tree) return 'invalid';
+    const rel = relPath.endsWith('/') ? relPath.slice(0, -1) : relPath;
+    if (rel === '' || rel.split('/').some((s) => s === '' || s === '.' || s === '..')) return 'invalid';
+    const v = this.tree[rel];
+    if (v === 'symlink') return 'invalid';
+    if (v === 'dir') return 'directory';
+    if (v !== undefined) return 'file';
+    return Object.keys(this.tree).some((k) => k.startsWith(`${rel}/`)) ? 'directory' : 'missing';
+  }
+
+  async walk(
+    _root: string,
+    excluded: ReadonlySet<string>,
+    accept: (relPath: string) => boolean,
+  ): Promise<RepoFile[] | null> {
+    if (!this.tree) return null;
+    return Object.entries(this.tree)
+      .filter(([, v]) => v !== 'dir' && v !== 'symlink')
+      .filter(([p]) => !p.split('/').slice(0, -1).some((s) => excluded.has(s)) && accept(p))
+      .map(([path, v]) => ({ path, size: Buffer.byteLength(v, 'utf8') }));
+  }
+
+  async read(_root: string, relPath: string, maxBytes: number): Promise<FileRead> {
+    this.reads.push(relPath);
+    const v = this.tree?.[relPath];
+    if (v === undefined || v === 'dir') return { kind: 'missing' };
+    if (v === 'symlink') return { kind: 'unreadable' };
+    return Buffer.byteLength(v, 'utf8') > maxBytes ? { kind: 'too_large' } : { kind: 'ok', content: v };
+  }
+
+  async listShallow(
+    _root: string,
+    depth: number,
+    max: number,
+    excluded: ReadonlySet<string>,
+  ): Promise<string[]> {
+    if (!this.tree) return [];
+    const out = new Set<string>();
+    for (const [p, v] of Object.entries(this.tree)) {
+      if (v === 'symlink') continue;
+      const segs = p.split('/');
+      if (segs.some((s) => excluded.has(s))) continue;
+      for (let i = 1; i <= Math.min(segs.length, depth); i++) {
+        const isLeaf = i === segs.length;
+        const rel = segs.slice(0, i).join('/');
+        out.add(isLeaf && v !== 'dir' ? rel : `${rel}/`);
+      }
+    }
+    return [...out].sort().slice(0, max);
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: "Use to implement an approved Development Plan (from the planner agent) in client/, server/ and mcp/: applies the plan's skills, runs existing tests and typecheck, self-checks its own changes, and records INSIGHTS.md entries. Does not review architecture or security, and does not commit or push."
+description: "Use to implement an approved Development Plan (from the implementation-planner agent) in client/, server/ and mcp/: applies the plan's skills, runs existing tests and typecheck, self-checks its own changes, and records INSIGHTS.md entries. Does not review architecture or security, and does not commit or push."
 model: sonnet
 effort: medium
 maxTurns: 60
@@ -26,7 +26,7 @@ architecture or security — separate agents do that afterwards.
 
 ## Start
 
-1. You need a plan in the `planner` format. If sections 5 (Skills), 7 (Steps)
+1. You need a plan in the `implementation-planner` format. If sections 5 (Skills), 7 (Steps)
    or 8 (Acceptance checks) are missing, stop and say what is missing. If the
    plan lists open questions that block a step, do not guess: implement the
    unblocked steps and report the rest.
@@ -53,12 +53,15 @@ architecture or security — separate agents do that afterwards.
 
 ## Verify (your own changes only)
 
-Run in every touched package: `pnpm typecheck` and `pnpm test` (targeted test
-files first, then the package suite). Fix failures your changes caused. Do not
-"fix" unrelated failing tests — report them. For UI-visible changes, do a
-browser check if a browser tool is available; otherwise list it under
-"Not verified". Never report success on typecheck alone, and quote real output
-for anything that failed.
+Run `pnpm typecheck` in every touched package, and only the targeted test
+files you created or changed (`npx --yes pnpm@10 -C <pkg> exec vitest run
+<file>`). Do NOT run the package-wide `pnpm test`: `check-runner` runs the full
+suites once, afterwards. Fix failures your changes caused. Do not "fix"
+unrelated failing tests — report them. For UI-visible changes, do a browser
+check if a browser tool is available; otherwise list it under "Not verified".
+Never report success on typecheck alone, and quote real output for anything
+that failed. Under "Checks run" state that the full suites were left to
+check-runner.
 
 ## Record insights
 

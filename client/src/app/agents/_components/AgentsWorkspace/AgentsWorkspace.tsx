@@ -10,11 +10,13 @@ import { AppShell } from "@/components/app-shell";
 import { AgentCard } from "../AgentCard";
 import { CreateAgentModal } from "../AgentsListView/_components/CreateAgentModal";
 import { AgentEditor } from "../../[id]/_components/AgentEditor";
+import { TABS } from "../../[id]/_components/AgentEditor/constants";
 import { useAgents, useAgent, useAgentSkillCounts, useUpdateAgent } from "@/lib/hooks/agents";
 import { ApiError } from "@/lib/api";
 import { AGENTS_SELECT_ROUTE } from "./constants";
 
-const VALID_TABS = ["config", "skills", "evals", "stats"];
+// Derived from the editor's own tab list so a new tab can never be silently dropped (it fell back to Config).
+const VALID_TABS = TABS.map((tb) => tb.key);
 
 export function AgentsWorkspace({ id }: { id?: string }) {
   const t = useTranslations("agents");

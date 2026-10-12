@@ -93,6 +93,80 @@ export async function seed(db: Db): Promise<{ workspaceId: string; userId: strin
   }
   const repoId = repo!.id;
 
+  // ---- demo onboarding tour (fixture; the repo has no clone, so Regenerate stays disabled) ----
+  await db
+    .insert(t.onboarding)
+    .values({
+      repoId,
+      generatedAt: new Date(),
+      json: {
+        repo_id: repoId,
+        generated_at: new Date().toISOString(),
+        commit_sha: 'a1b2c3d',
+        files_indexed: 12450,
+        partial_index: false,
+        architecture: {
+          summary:
+            'payments-api is a Node HTTP service. `src/server.ts` boots the app, applies the shared middleware and mounts the routers under `src/api/*`.\n\nPublic endpoints sit behind rate limiting and webhook signature checks; every handler talks to Postgres through the `db` layer, with Redis used for rate-limit counters and caching.',
+          diagram: {
+            nodes: [
+              { id: 'client', label: 'client', kind: 'external' },
+              { id: 'server', label: 'server.ts', kind: 'entry' },
+              { id: 'middleware', label: 'middleware', kind: 'middleware' },
+              { id: 'api', label: 'api/public/*', kind: 'service' },
+              { id: 'redis', label: 'redis', kind: 'storage' },
+              { id: 'postgres', label: 'postgres', kind: 'storage' },
+            ],
+            edges: [
+              { from: 'client', to: 'server' },
+              { from: 'server', to: 'middleware' },
+              { from: 'middleware', to: 'api' },
+              { from: 'middleware', to: 'redis' },
+              { from: 'api', to: 'postgres' },
+            ],
+          },
+        },
+        critical_paths: [
+          { path: 'src/server.ts', description: 'App bootstrap and router mounting' },
+          { path: 'src/middleware/ratelimit.ts', description: 'Token-bucket limiter for public routes' },
+          { path: 'src/api/public/webhooks.ts', description: 'Stripe webhook intake and signature check' },
+          { path: 'src/config.ts', description: 'Environment-driven configuration' },
+        ],
+        run_locally: [
+          { command: 'cp .env.example .env # add OPENAI + STRIPE keys' },
+          { command: 'docker compose up -d postgres redis' },
+          { command: 'pnpm install' },
+          { command: 'pnpm dev # http://localhost:3000' },
+        ],
+        reading_path: [
+          { path: 'src/server.ts', reason: 'Start here: how the app is wired' },
+          { path: 'src/middleware/ratelimit.ts', reason: 'The newest cross-cutting piece' },
+          { path: 'src/api/public/webhooks.ts', reason: 'The most security-sensitive handler' },
+        ],
+        first_tasks: [
+          {
+            title: 'Add a /health readiness probe',
+            path: 'src/api/public/health.ts',
+            path_kind: 'new_file',
+            complexity: 'low',
+          },
+          {
+            title: 'Backfill tests for the rate limiter',
+            path: 'test/ratelimit.test.ts',
+            path_kind: 'new_file',
+            complexity: 'medium',
+          },
+          {
+            title: 'Document the webhook signature flow',
+            path: 'specs/',
+            path_kind: 'directory',
+            complexity: 'low',
+          },
+        ],
+      },
+    })
+    .onConflictDoNothing();
+
   // ---- PR #482 (rate limiting) ----
   let [pr] = await db
     .select()

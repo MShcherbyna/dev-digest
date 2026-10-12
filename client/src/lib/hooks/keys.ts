@@ -12,7 +12,17 @@ export const queryKeys = {
   repos: () => ["repos"] as const,
   pulls: (repoId: string | null | undefined) => ["pulls", repoId] as const,
   pull: (prId: string | number | null | undefined) => ["pull", prId] as const,
+  /** Prefix of the discovery list AND every file preview of one repo. */
   context: (repoId: string | null | undefined) => ["context", repoId] as const,
+  contextFile: (repoId: string | null | undefined, path: string | null | undefined) =>
+    ["context", repoId, "file", path] as const,
+  // Per (agent|skill, repo): a repo switch is a different key, so a previous
+  // repo's list is never shown (AC-37).
+  agentContext: (id: string | null | undefined, repoId: string | null | undefined) =>
+    ["agent-context", id, repoId] as const,
+  skillContext: (id: string | null | undefined, repoId: string | null | undefined) =>
+    ["skill-context", id, repoId] as const,
+  onboarding: (repoId: string | null | undefined) => ["onboarding", repoId] as const,
   repoIntelState: (repoId: string | null | undefined) => ["repo-intel-state", repoId] as const,
 
   agents: () => ["agents"] as const,

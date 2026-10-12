@@ -2,6 +2,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import type { Db } from '../../../db/client.js';
 import * as t from '../../../db/schema.js';
 import type { RunSummary, RunTrace } from '@devdigest/shared';
+import type { RunTraceWithContext } from '../../project-context/schemas.js';
 
 // ---- in-flight / history --------------------------------------------------
 
@@ -177,7 +178,7 @@ export async function completeAgentRun(
 }
 
 /** Persist the WHOLE run log as ONE document. PK = runId → agent_runs. */
-export async function saveRunTrace(db: Db, runId: string, trace: RunTrace): Promise<void> {
+export async function saveRunTrace(db: Db, runId: string, trace: RunTraceWithContext): Promise<void> {
   await db
     .insert(t.runTraces)
     .values({ runId, trace })

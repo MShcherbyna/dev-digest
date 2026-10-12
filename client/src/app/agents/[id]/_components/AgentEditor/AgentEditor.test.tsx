@@ -1,10 +1,22 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@/test/user";
 import { NextIntlClientProvider } from "next-intl";
 import type { Agent } from "@devdigest/shared";
 import messages from "../../../../../../messages/en/agents.json";
+import contextMessages from "../../../../../../messages/en/context.json";
 import { ToastProvider } from "@/lib/toast";
+
+const apiGet = vi.hoisted(() => vi.fn());
+// The Context tab runs its REAL hooks; only the HTTP boundary and the active repo are mocked.
+vi.mock("@/lib/api", async (orig) => ({
+  ...(await orig<typeof import("@/lib/api")>()),
+  api: { get: apiGet, put: vi.fn() },
+}));
+vi.mock("@/lib/repo-context", () => ({
+  useActiveRepo: () => ({ activeRepo: { id: "r1", full_name: "acme/api" } }),
+}));
 
 // Mock the data hooks so the editor renders without a network/query client.
 vi.mock("@/lib/hooks/agents", () => ({
@@ -56,6 +68,27 @@ describe("A2 Agent Editor (smoke)", () => {
     expect(onTab).toHaveBeenCalledWith("evals");
     await userEvent.click(screen.getByRole("button", { name: "Stats" }));
     expect(onTab).toHaveBeenCalledWith("stats");
+  });
+
+  it("tab=context renders the Project context tab and requests the agent's list for the active repo", async () => {
+    // Catches: the Context tab unreachable / unwired from the editor, or the container not passing the active repo (AC-37).
+    apiGet.mockReset().mockImplementation(async (url: string) => {
+      if (url === "/agents/ag1/context?repo_id=r1") return { paths: [] };
+      if (url === "/repos/r1/context") return { glob: "g", scanned_at: "2026-10-11T10:00:00Z", cloned: true, truncated: false, total: 0, files: [] };
+      throw new Error(`unexpected GET ${url}`);
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <NextIntlClientProvider locale="en" messages={{ agents: messages, context: contextMessages }}>
+        <ToastProvider>
+          <QueryClientProvider client={qc}>
+            <AgentEditor agent={AGENT} tab="context" onTab={() => {}} />
+          </QueryClientProvider>
+        </ToastProvider>
+      </NextIntlClientProvider>,
+    );
+    expect(await screen.findByRole("heading", { name: "Project context" })).toBeInTheDocument();
+    expect(apiGet).toHaveBeenCalledWith("/agents/ag1/context?repo_id=r1");
   });
 
   it("renders the Evals placeholder", () => {

@@ -1,0 +1,25 @@
+{
+  "name": "Onboarding Tour renders the seeded tour for acme/payments-api",
+  "description": "Opens the repo shell, clicks the Onboarding Tour sidebar item and confirms the seeded tour renders (header, index subtitle, ON THIS PAGE nav with the five sections, Regenerate, Share link), survives a full reload, and that the First tasks anchor scrolls its target into view. Read-only: never clicks Regenerate, so no LLM call or API key is needed. aria-current checks (AC-27/AC-35) are left to the component unit test: no verified agent-browser attribute query.",
+  "steps": [
+    { "cmd": ["open", "{BASE}/"], "label": "load the app root" },
+    { "cmd": ["wait", "--url", "/pulls"], "label": "root redirects to a repo's PRs" },
+    { "cmd": ["find", "text", "Onboarding Tour", "click"], "label": "click the Onboarding Tour sidebar item" },
+    { "cmd": ["wait", "--url", "/onboarding"], "label": "onboarding tour route reached" },
+    { "cmd": ["wait", "--text", "Onboarding for"], "label": "tour header renders" },
+    { "cmd": ["wait", "--text", "payments-api"], "label": "header names the seeded repo" },
+    { "cmd": ["wait", "--text", "Generated from index of 12,450 files"], "label": "index subtitle renders" },
+    { "cmd": ["wait", "--text", "ON THIS PAGE"], "label": "ON THIS PAGE nav renders" },
+    { "cmd": ["wait", "--text", "Architecture overview"], "label": "section: Architecture overview" },
+    { "cmd": ["wait", "--text", "Critical paths"], "label": "section: Critical paths" },
+    { "cmd": ["wait", "--text", "How to run locally"], "label": "section: How to run locally" },
+    { "cmd": ["wait", "--text", "Guided reading path"], "label": "section: Guided reading path" },
+    { "cmd": ["wait", "--text", "First tasks"], "label": "section: First tasks" },
+    { "cmd": ["wait", "--text", "Regenerate"], "label": "Regenerate button renders" },
+    { "cmd": ["wait", "--text", "Share link"], "label": "Share link button renders" },
+    { "cmd": ["reload"], "label": "fresh full-page load of the current URL (AC-14)" },
+    { "cmd": ["wait", "--text", "Onboarding for"], "label": "tour renders after a fresh load" },
+    { "cmd": ["find", "text", "First tasks", "click"], "label": "click the First tasks ON THIS PAGE entry" },
+    { "cmd": ["wait", "--text", "Add a /health readiness probe"], "label": "first task is visible after the anchor jump" }
+  ]
+}

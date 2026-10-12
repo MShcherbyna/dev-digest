@@ -1,24 +1,45 @@
 {
   "title": "Project Context",
-  "chunks": "{count} chunks",
-  "reindex": "Re-index",
-  "indexing": "Indexing…",
-  "resync": "Resync",
-  "resyncing": "Resyncing…",
-  "indexStatus": "Index status: {status}",
-  "loadError": "Couldn’t load specs",
-  "kb": "{kb}kb",
-  "empty": {
-    "title": "No spec files yet",
-    "body": "Drop your PRDs, tech specs, and acceptance criteria under .devdigest/specs/. Every agent and the PR brief read them as grounding context."
+  "page": {
+    "title": "Project Context",
+    "panelTitle": "Project context",
+    "refresh": "Refresh",
+    "preview": "Preview",
+    "usedBy": "{count, plural, one {Used by # agent} other {Used by # agents}}",
+    "indexed": "Indexed: {count, plural, one {# file} other {# files}}",
+    "lastScanned": "last scanned {when}",
+    "errorTitle": "Couldn’t load project context",
+    "errorBody": "The document list could not be loaded.",
+    "notClonedTitle": "Repository not cloned",
+    "notClonedBody": "{repo} has no local clone yet, so there are no documents to list. Clone it first.",
+    "emptyTitle": "No documents found",
+    "emptyBody": "No markdown files match {glob} in this repository."
   },
-  "mode": {
-    "preview": "preview",
-    "edit": "edit"
+  "preview": {
+    "tooLarge": "This document is too large to preview.",
+    "notFound": "This document was not found in the repository.",
+    "errorTitle": "Couldn’t load document",
+    "errorBody": "The document could not be loaded."
   },
-  "editor": {
-    "loadError": "Couldn’t load spec",
-    "save": "Save",
-    "saving": "Saving…"
+  "serializesAs": "Serializes as",
+  "list": {
+    "filterPlaceholder": "Filter documents…",
+    "countOf": "{attached} of {total} attached",
+    "noRepo": "Select a repository to browse its documents.",
+    "notCloned": "{repo} is not cloned yet. Clone it to browse documents; attached paths are shown below.",
+    "empty": "No markdown files match {glob}.",
+    "noMatch": "No documents match your filter.",
+    "truncated": "Showing the first 2,000 of {total} documents.",
+    "tooLarge": "too large",
+    "notFound": "not found in {repo}",
+    "tokens": "≈ {count} tokens",
+    "dragHandle": "Drag to reorder {path}",
+    "attach": "Attach {path}",
+    "moveUp": "Move {path} up",
+    "moveDown": "Move {path} down",
+    "preview": "Preview {path}",
+    "previewLabel": "Preview",
+    "errorTitle": "Couldn’t load documents",
+    "errorBody": "The repository’s documents could not be listed."
   }
 }
