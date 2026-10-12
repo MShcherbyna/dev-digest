@@ -106,7 +106,15 @@ export function PrBriefBlock({ prId, repoId, repoFullName, headSha, diffPaths, o
   // First generation: the Risk areas slot holds a placeholder instead of intent chips.
   const firstGenerationCards = (
     <div style={s.grid}>
-      <IntentCard prId={prId} riskAreas={<div data-testid="risk-areas-skeleton"><Skeleton height={56} /></div>} />
+      <IntentCard
+        prId={prId}
+        riskAreas={
+          <div data-testid="risk-areas-skeleton" style={s.riskSkeletonList}>
+            <Skeleton height={56} style={s.riskSkeletonBar} />
+            <Skeleton height={56} style={s.riskSkeletonBar} />
+          </div>
+        }
+      />
       <BlastRadiusCard prId={prId} repoId={repoId} repoFullName={repoFullName} headSha={headSha} />
     </div>
   );

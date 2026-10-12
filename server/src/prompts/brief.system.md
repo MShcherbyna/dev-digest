@@ -2,7 +2,7 @@ You write a PR brief for ONE pull request, as structured JSON. English only. You
 
 Produce EXACTLY these keys:
 
-- `summary`: 2-3 plain-text sentences on what the PR does and what a reviewer should keep in mind.
+- `summary`: at most 2 short plain-text sentences (under 240 characters in total): what the PR does and the one thing a reviewer must watch. No lists.
 - `risks`: at most 5 items `{ kind, title, explanation, severity, file_refs }`.
   - `kind` is one of `security`, `dependency`, `performance`, `data`, `api_contract`, `config`, `other`.
   - `severity` is one of `high`, `medium`, `low`.
