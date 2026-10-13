@@ -75,6 +75,12 @@ export class RepoService {
         // already succeeded, so we don't fail the job for an index-followup
         // miss. The user can hit POST /repos/:id/reindex to retry.
       }
+      // Project Context index follow-up. Never throws, and must never fail the clone.
+      try {
+        await this.container.projectContext.requestReindexAfterClone(workspaceId, repoId);
+      } catch {
+        // index follow-up never fails the clone
+      }
     }
   }
 

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { estimateTokens } from '@devdigest/reviewer-core';
 import { DOC_TYPES, MAX_DISCOVERED, type DocType } from './constants.js';
 
@@ -78,4 +79,31 @@ export function duplicatesOf(paths: string[]): string[] {
 /** Does any path segment (dirs) sit under an excluded directory? */
 export function underExcludedDir(path: string, excluded: ReadonlySet<string>): boolean {
   return path.split('/').slice(0, -1).some((seg) => excluded.has(seg));
+}
+
+/** Lowercase hex SHA-256 of a string (UTF-8) or raw bytes. */
+export function sha256Hex(data: Uint8Array | string): string {
+  return createHash('sha256').update(data).digest('hex');
+}
+
+export function isBlank(s: string): boolean {
+  return s.trim().length === 0;
+}
+
+/** Run `fn` over `items` with at most `limit` in flight, preserving order. */
+export async function mapPool<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
 }

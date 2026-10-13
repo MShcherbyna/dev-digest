@@ -16,6 +16,12 @@ Supersedes: none
 > to AC-39, Edge cases, Inputs and provenance (decisions, design sources, inputs,
 > contracts, diagrams, failure table), Open questions. AC ids are unchanged.
 
+> **Amended 2026-10-13 by [SPEC-2026-10-13-project-context-index](2026-10-13-project-context-index.md).**
+> The "No chunking" non-goal, the header action and footer of AC-7, AC-10, the
+> state list of AC-11, where the AC-36 cap applies, the `GET /repos/:repoId/context`
+> contract and the discovery performance NFR are replaced or extended there (see
+> its "Amendments" table). Run-time reading (AC-24 to AC-29) is unchanged.
+
 ## Problem and user
 
 Review agents only see the diff, the PR description, enabled skill bodies and

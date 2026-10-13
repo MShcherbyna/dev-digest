@@ -8,7 +8,10 @@
 import { queryKeys } from "./keys";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
-import type { ContextFileContent, ContextListing, ContextPaths } from "../types";
+import type { ContextFileContent, ContextListing, ContextPaths, ReindexAccepted } from "../types";
+
+export const REINDEX_POLL_MS = 2000;
+export const REINDEX_WAIT_MAX_MS = 150_000;
 
 export function useProjectContext(repoId: string | null | undefined) {
   return useQuery({
@@ -16,6 +19,19 @@ export function useProjectContext(repoId: string | null | undefined) {
     queryFn: () => api.get<ContextListing>(`/repos/${repoId}/context`),
     enabled: !!repoId,
     retry: false,
+    // Poll while any trigger (button, clone, refresh) has the index building.
+    refetchInterval: (query) => (query.state.data?.index.status === "indexing" ? REINDEX_POLL_MS : false),
+  });
+}
+
+/** Start a re-index (202). Errors reach the global MutationCache toast. */
+export function useReindexProjectContext() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (repoId: string) => api.post<ReindexAccepted>(`/repos/${repoId}/context/reindex`),
+    onSettled: (_data, _err, repoId) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.context(repoId) });
+    },
   });
 }
 

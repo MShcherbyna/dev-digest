@@ -1,9 +1,20 @@
 import type { ProjectDoc } from '@devdigest/reviewer-core';
-import type { ProjectContextDocEntry } from './types.js';
+import type {
+  FailureReason,
+  IndexBuild,
+  IndexStateRecord,
+  ManifestEntry,
+  ProjectContextDocEntry,
+} from './types.js';
 
 /** Result of reading one document from a clone. */
 export type DocRead =
   | { kind: 'ok'; content: string }
+  | { kind: 'missing' | 'too_large' | 'invalid_path' | 'unreadable' };
+
+/** Result of reading one document's raw bytes (no decoding). */
+export type RawRead =
+  | { kind: 'ok'; bytes: Uint8Array }
   | { kind: 'missing' | 'too_large' | 'invalid_path' | 'unreadable' };
 
 export interface DocFile {
@@ -25,6 +36,43 @@ export interface RepoDocsSource {
     accept: (relPath: string) => boolean,
   ): Promise<DocFile[] | null>;
   read(root: string, relPath: string, maxBytes: number): Promise<DocRead>;
+  /** Same fail-closed rules as `read`, but returns the bytes undecoded (for hashing). */
+  readRaw(root: string, relPath: string, maxBytes: number): Promise<RawRead>;
+  /** Is `root` an existing directory? False on any error. */
+  isDirectory(root: string): Promise<boolean>;
+}
+
+/** HEAD sha of a repository's clone. */
+export interface CloneHead {
+  currentHead(owner: string, name: string): Promise<string>;
+}
+
+/** Background job queue; structurally satisfied by `JobRunner`. */
+export interface IndexJobs {
+  register(kind: string, handler: (payload: unknown) => Promise<void>): void;
+  enqueue(
+    workspaceId: string,
+    kind: string,
+    payload: unknown,
+  ): Promise<{ id: string; done: Promise<void> }>;
+}
+
+/** Persistence of the Project Context index (state row + manifest + chunks). */
+export interface ContextIndexStore {
+  /** One consistent snapshot of the state row and the manifest (ordered by path). */
+  readListing(repoId: string): Promise<{ state: IndexStateRecord | undefined; files: ManifestEntry[] }>;
+  /**
+   * Replace the whole index atomically. `assertNotCancelled` runs as the last
+   * statement of the transaction: if it throws, everything rolls back.
+   */
+  replaceIndex(
+    repoId: string,
+    build: IndexBuild,
+    indexedAt: Date,
+    assertNotCancelled: () => void,
+  ): Promise<void>;
+  /** Mark the last attempt failed; keeps counts, sha and `indexed_at` of the previous index. */
+  recordFailure(repoId: string, failedAt: Date, reason: FailureReason): Promise<void>;
 }
 
 export interface RepoLocation {
@@ -60,7 +108,8 @@ export interface ProjectContextStore {
 }
 
 export interface ProjectContextLog {
-  warn(msg: string): void;
+  warn(msg: string, data?: Record<string, unknown>): void;
+  info(msg: string, data?: Record<string, unknown>): void;
 }
 
 export interface ResolveForRunInput {

@@ -49,7 +49,8 @@ const file = (path: string, type: "specs" | "docs" | "insights", tokens: number,
 
 const LISTING: ContextListing = {
   glob: "**/{specs,docs,insights}/**/*.md",
-  scanned_at: "2026-10-11T10:00:00Z",
+  stale: false,
+  index: { status: "ready", indexed_at: "2026-10-11T10:00:00Z", indexed_sha: "abc", files: 3, chunks: 12 },
   cloned: true,
   truncated: false,
   total: 5,

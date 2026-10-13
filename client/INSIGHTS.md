@@ -73,6 +73,14 @@ read by the `engineering-insights` skill.
 
 ## Tool & Library Notes
 
+- **2026-10-13** — Testing TanStack polling (`refetchInterval`) / give-up timers:
+  mock `@/lib/api` (not the hooks), use `vi.useFakeTimers({ now })` and drive
+  with `act(async () => vi.advanceTimersByTimeAsync(ms))` then sync `getBy*`
+  (RTL `findBy`/`waitFor` do not detect vitest fake timers). `renderWithIntl`'s
+  `ToastProvider` is itself `role="status"`, so `getByRole("status")` is
+  ambiguous: locate a live region via `getByText(..)` + `closest('[role="status"]')`.
+  Example: `ProjectContextView/ProjectContextView.test.tsx`.
+
 - **2026-10-12** — Testing code that calls the module-level `notify.*`
   (`src/lib/toast.tsx`, e.g. `DiffTab`'s "File not in this PR's diff" mount
   effect) under `renderWithIntl`: `ToastProvider` registers its pusher in an

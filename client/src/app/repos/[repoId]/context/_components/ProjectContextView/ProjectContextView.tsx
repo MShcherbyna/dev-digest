@@ -5,7 +5,7 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { EmptyState, ErrorState, Skeleton } from "@devdigest/ui";
+import { Button, EmptyState, ErrorState, Skeleton } from "@devdigest/ui";
 import { AppShell } from "@/components/app-shell";
 import { RepoNotFound } from "@/components/repo-not-found";
 import { useProjectContext } from "@/lib/hooks/project-context";
@@ -13,7 +13,8 @@ import { useActiveRepo, useRepoNotFound } from "@/lib/repo-context";
 import { ApiError } from "@/lib/api";
 import { FileListPanel } from "./_components/FileListPanel";
 import { PreviewPanel } from "./_components/PreviewPanel";
-import { resolveSelected, sortFiles } from "./helpers";
+import { listBodyState, resolveSelected, sortFiles } from "./helpers";
+import { useReindexFlow } from "./use-reindex-flow";
 import { s } from "./styles";
 
 export function ProjectContextView() {
@@ -21,7 +22,8 @@ export function ProjectContextView() {
   const { repoId } = useParams<{ repoId: string }>();
   const { activeRepo, repos, reposLoaded } = useActiveRepo();
   const repoNotFound = useRepoNotFound(repoId);
-  const { data: listing, isLoading, isError, error, refetch } = useProjectContext(repoId);
+  const { data: listing, isLoading, error, refetch } = useProjectContext(repoId);
+  const flow = useReindexFlow(repoId, listing);
   const [selected, setSelected] = React.useState<string | null>(null);
 
   const repoName = activeRepo?.full_name ?? repoId;
@@ -45,7 +47,7 @@ export function ProjectContextView() {
         </div>
       </div>
     );
-  } else if (isError || !listing) {
+  } else if (!listing) {
     body = (
       <ErrorState
         title={t("page.errorTitle")}
@@ -53,17 +55,45 @@ export function ProjectContextView() {
         onRetry={() => void refetch()}
       />
     );
-  } else if (!listing.cloned) {
-    body = <EmptyState icon="Folder" title={t("page.notClonedTitle")} body={t("page.notClonedBody", { repo: repoName })} />;
-  } else if (listing.files.length === 0) {
-    body = <EmptyState icon="Folder" title={t("page.emptyTitle")} body={t("page.emptyBody", { glob: listing.glob })} />;
   } else {
+    const state = listBodyState(listing);
+    let listBody: React.ReactNode;
+    if (state === "notCloned") {
+      listBody = <EmptyState icon="Folder" title={t("page.notClonedTitle")} body={t("page.notClonedBody", { repo: repoName })} />;
+    } else if (state === "notIndexed") {
+      listBody = (
+        <EmptyState
+          icon="Folder"
+          title={t("page.notIndexed")}
+          body={
+            <>
+              <div>{t("page.notIndexedBody")}</div>
+              <div style={{ marginTop: 12 }}>
+                <Button kind="secondary" disabled={flow.running} onClick={flow.start}>
+                  {t("page.reindex")}
+                </Button>
+              </div>
+            </>
+          }
+        />
+      );
+    } else if (state === "empty") {
+      listBody = <EmptyState icon="Folder" title={t("page.emptyTitle")} body={t("page.emptyBody", { glob: listing.glob })} />;
+    }
     const files = sortFiles(listing.files);
     const current = resolveSelected(files, selected);
-    const file = files.find((f) => f.path === current);
+    const file = state === "files" ? files.find((f) => f.path === current) : undefined;
     body = (
       <div style={s.layout}>
-        <FileListPanel listing={listing} repoName={repoName} selected={current} onSelect={setSelected} onRefresh={() => void refetch()} />
+        <FileListPanel
+          listing={listing}
+          repoName={repoName}
+          selected={current}
+          onSelect={setSelected}
+          reindex={{ running: flow.running, onClick: flow.start }}
+        >
+          {listBody}
+        </FileListPanel>
         {file && <PreviewPanel key={file.path} repoId={repoId} file={file} />}
       </div>
     );

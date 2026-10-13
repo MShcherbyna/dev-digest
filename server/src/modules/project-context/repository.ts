@@ -1,9 +1,27 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
-import type { ProjectContextStore, RepoLocation, UsedByRow } from './ports.js';
+import { INSERT_BATCH } from './constants.js';
+import type {
+  ContextIndexStore,
+  ProjectContextStore,
+  RepoLocation,
+  UsedByRow,
+} from './ports.js';
+import type {
+  FailureReason,
+  IndexBuild,
+  IndexStateRecord,
+  ManifestEntry,
+} from './types.js';
 
-export class ProjectContextRepository implements ProjectContextStore {
+function batches<T>(rows: T[]): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < rows.length; i += INSERT_BATCH) out.push(rows.slice(i, i + INSERT_BATCH));
+  return out;
+}
+
+export class ProjectContextRepository implements ProjectContextStore, ContextIndexStore {
   constructor(private db: Db) {}
 
   async getRepo(workspaceId: string, repoId: string): Promise<RepoLocation | undefined> {
@@ -116,5 +134,126 @@ export class ProjectContextRepository implements ProjectContextStore {
         and(inArray(t.skillRepoContext.skillId, skillIds), eq(t.skillRepoContext.repoId, repoId)),
       );
     return new Map(rows.map((r) => [r.id, r.paths]));
+  }
+
+  async readListing(
+    repoId: string,
+  ): Promise<{ state: IndexStateRecord | undefined; files: ManifestEntry[] }> {
+    // One snapshot across both statements, so a concurrent swap can't mix old and new.
+    return this.db.transaction(
+      async (tx) => {
+        const [state] = await tx
+          .select()
+          .from(t.contextIndexState)
+          .where(eq(t.contextIndexState.repoId, repoId));
+        const rows = await tx
+          .select()
+          .from(t.contextFiles)
+          .where(eq(t.contextFiles.repoId, repoId))
+          .orderBy(asc(t.contextFiles.path));
+        return {
+          state: state && {
+            status: state.status,
+            indexedAt: state.indexedAt,
+            indexedSha: state.indexedSha,
+            glob: state.glob,
+            files: state.files,
+            chunks: state.chunks,
+            truncated: state.truncated,
+            total: state.total,
+            failedAt: state.failedAt,
+            failureReason: state.failureReason,
+          },
+          files: rows.map((r) => ({
+            path: r.path,
+            type: r.type as ManifestEntry['type'],
+            size: r.size,
+            tokens: r.tokens,
+            contentHash: r.contentHash,
+            tooLarge: r.tooLarge,
+            unreadable: r.unreadable,
+            empty: r.empty,
+          })),
+        };
+      },
+      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    );
+  }
+
+  async replaceIndex(
+    repoId: string,
+    build: IndexBuild,
+    indexedAt: Date,
+    assertNotCancelled: () => void,
+  ): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      // Chunks go with their files (ON DELETE CASCADE).
+      await tx.delete(t.contextFiles).where(eq(t.contextFiles.repoId, repoId));
+
+      const idByPath = new Map<string, string>();
+      for (const batch of batches(build.files)) {
+        const inserted = await tx
+          .insert(t.contextFiles)
+          .values(
+            batch.map((f) => ({
+              repoId,
+              path: f.path,
+              type: f.type,
+              size: f.size,
+              tokens: f.tokens,
+              contentHash: f.contentHash,
+              tooLarge: f.tooLarge,
+              unreadable: f.unreadable,
+              empty: f.empty,
+            })),
+          )
+          .returning({ id: t.contextFiles.id, path: t.contextFiles.path });
+        for (const r of inserted) idByPath.set(r.path, r.id);
+      }
+
+      const chunkRows = build.files.flatMap((f) =>
+        f.chunks.map((c) => ({
+          fileId: idByPath.get(f.path)!,
+          repoId,
+          ordinal: c.ordinal,
+          breadcrumb: c.breadcrumb,
+          startOffset: c.startOffset,
+          endOffset: c.endOffset,
+          tokens: c.tokens,
+          text: c.text,
+          contentHash: c.contentHash,
+        })),
+      );
+      for (const batch of batches(chunkRows)) await tx.insert(t.contextChunks).values(batch);
+
+      const values = {
+        status: 'ready' as const,
+        indexedAt,
+        indexedSha: build.indexedSha,
+        glob: build.glob,
+        files: build.files.length,
+        chunks: chunkRows.length,
+        truncated: build.truncated,
+        total: build.total,
+        failedAt: null,
+        failureReason: null,
+        updatedAt: new Date(),
+      };
+      await tx
+        .insert(t.contextIndexState)
+        .values({ repoId, ...values })
+        .onConflictDoUpdate({ target: t.contextIndexState.repoId, set: values });
+
+      // Last statement: a build abandoned by the job timeout rolls back.
+      assertNotCancelled();
+    });
+  }
+
+  async recordFailure(repoId: string, failedAt: Date, reason: FailureReason): Promise<void> {
+    const set = { status: 'failed' as const, failedAt, failureReason: reason, updatedAt: new Date() };
+    await this.db
+      .insert(t.contextIndexState)
+      .values({ repoId, ...set })
+      .onConflictDoUpdate({ target: t.contextIndexState.repoId, set });
   }
 }

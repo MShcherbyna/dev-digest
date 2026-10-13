@@ -3,17 +3,26 @@
   "page": {
     "title": "Project Context",
     "panelTitle": "Project context",
-    "refresh": "Refresh",
     "preview": "Preview",
     "usedBy": "{count, plural, one {Used by # agent} other {Used by # agents}}",
-    "indexed": "Indexed: {count, plural, one {# file} other {# files}}",
-    "lastScanned": "last scanned {when}",
+    "indexed": "Indexed: {files, plural, one {# file} other {# files}} · {chunks, plural, one {# chunk} other {# chunks}}",
+    "last": "last {when}",
+    "outOfDate": " · out of date",
+    "notIndexed": "Not indexed yet",
+    "notIndexedBody": "Build the index to list this repository's documents.",
+    "reindex": "Re-index",
+    "reindexing": "Re-indexing…",
+    "cloneFirst": "Clone the repository first",
     "errorTitle": "Couldn’t load project context",
     "errorBody": "The document list could not be loaded.",
     "notClonedTitle": "Repository not cloned",
     "notClonedBody": "{repo} has no local clone yet, so there are no documents to list. Clone it first.",
     "emptyTitle": "No documents found",
     "emptyBody": "No markdown files match {glob} in this repository."
+  },
+  "reindex": {
+    "failed": "Re-index failed. The previous index is kept.",
+    "timeout": "Re-index is taking too long. The previous index is kept."
   },
   "preview": {
     "tooLarge": "This document is too large to preview.",

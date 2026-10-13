@@ -2,6 +2,7 @@ import { ProjectContextService } from '../../src/modules/project-context/service
 import { resolveGlob } from '../../src/modules/project-context/glob.js';
 import type { ProjectContextStore, UsedByRow } from '../../src/modules/project-context/ports.js';
 import { MockRepoDocsSource, type MockRepoDocsFiles } from '../../src/adapters/mocks.js';
+import { FakeHead, FakeIndexStore, FakeJobs } from './context-index.js';
 import type { Db } from '../../src/db/client.js';
 import * as t from '../../src/db/schema.js';
 import type { RepoIntel } from '../../src/modules/repo-intel/index.js';
@@ -18,11 +19,15 @@ export function makeDocsService(files: MockRepoDocsFiles | null, rowsByRepo: Rec
       return rowsByRepo[repoId] ?? [];
     },
   } as unknown as ProjectContextStore;
+  // `resolveForBrief` reads the clone only; the index deps are inert fakes it never touches (AC-12).
   const service = new ProjectContextService({
     store,
     docs: new MockRepoDocsSource(files),
     glob: resolveGlob(undefined),
-    log: { warn: () => undefined },
+    log: { warn: () => undefined, info: () => undefined },
+    index: new FakeIndexStore(),
+    head: new FakeHead(),
+    jobs: new FakeJobs(),
   });
   return { service, calls };
 }

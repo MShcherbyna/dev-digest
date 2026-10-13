@@ -1,4 +1,4 @@
-import type { ContextFileInfo } from "@/lib/types";
+import type { ContextFileInfo, ContextListing } from "@/lib/types";
 
 /** Files sorted by path (plain code-unit order, same as the server). */
 export function sortFiles(files: ContextFileInfo[]): ContextFileInfo[] {
@@ -11,17 +11,13 @@ export function resolveSelected(files: ContextFileInfo[], selected: string | nul
   return files[0]?.path ?? null;
 }
 
-/** Locale-aware "5m ago" style label; falls back to the raw string for an unparsable date. */
-export function relativeTime(iso: string, now: number = Date.now()): string {
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return iso;
-  const sec = Math.round((then - now) / 1000);
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-  const abs = Math.abs(sec);
-  if (abs < 60) return rtf.format(sec, "second");
-  if (abs < 3600) return rtf.format(Math.round(sec / 60), "minute");
-  if (abs < 86400) return rtf.format(Math.round(sec / 3600), "hour");
-  return rtf.format(Math.round(sec / 86400), "day");
+/** What the list area shows: the not-cloned check wins over every index state. */
+export type ListBodyState = "notCloned" | "notIndexed" | "empty" | "files";
+
+export function listBodyState(listing: ContextListing): ListBodyState {
+  if (!listing.cloned) return "notCloned";
+  if (listing.files.length === 0) return listing.index.indexed_at === null ? "notIndexed" : "empty";
+  return "files";
 }
 
 /** File name of a repo-relative path. */

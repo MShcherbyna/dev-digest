@@ -78,7 +78,7 @@ flowchart TB
     repoIntel["repo-intel<br/>/repos/:id/index-state · /resync"]
   end
   subgraph Context["Project Context"]
-    projectContext["project-context<br/>/repos/:id/context · /repos/:id/context/file<br/>/agents/:id/context · /skills/:id/context"]
+    projectContext["project-context<br/>/repos/:id/context · /repos/:id/context/reindex · /repos/:id/context/file<br/>/agents/:id/context · /skills/:id/context"]
   end
   subgraph Platform["Platform"]
     settings["settings<br/>/settings · /providers"]
@@ -95,7 +95,8 @@ into the review prompt. Internals, security rules and trace fields:
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /repos/:id/context` | discovered docs in the clone (type, size, tokens, `used_by`; capped at 2000) |
+| `GET /repos/:id/context` | docs served from the persisted index (type, size, tokens, `used_by`; capped at 2000) plus `index` (status, counts, sha) and `stale` |
+| `POST /repos/:id/context/reindex` | queue a full re-index job: 202 `{ status, job_id }`; 404 unknown repo; 409 `not_cloned`; 503 `job_unavailable` |
 | `GET /repos/:id/context/file?path=` | text of one discoverable doc (413 over 3 MiB) |
 | `GET /agents/:id/context?repo_id=` | ordered attached paths for that repo (`{ paths: [] }` if none) |
 | `PUT /agents/:id/context?repo_id=` | replace that repo's list (no version bump) |

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { startPg, dockerAvailable, type PgFixture } from './helpers/pg.js';
 import { waitForPrRuns } from './helpers/runs.js';
+import { HeadGit } from './helpers/context-index.js';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/platform/config.js';
 import { seed } from '../src/db/seed.js';
@@ -99,14 +100,16 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
   });
 
   /** Every LLM provider and the GitHub port are overridden (server INSIGHTS 2026-09-24). */
-  async function makeApp(opts: { openai?: MockLLMProvider; env?: Record<string, string> } = {}) {
+  async function makeApp(
+    opts: { openai?: MockLLMProvider; env?: Record<string, string>; git?: MockGitClient } = {},
+  ) {
     const openai = opts.openai ?? new MockLLMProvider('openai', { structured: REVIEW });
     const app = await buildApp({
       config: loadConfig({ ...process.env, NODE_ENV: 'test', ...opts.env } as NodeJS.ProcessEnv),
       db: pg.handle.db,
       overrides: {
         embedder: new MockEmbedder(),
-        git: new MockGitClient({ diff: DIFF }),
+        git: opts.git ?? new MockGitClient({ diff: DIFF }),
         github: new MockGitHubClient(),
         llm: {
           openai,
@@ -157,6 +160,13 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
   }
 
   type App = Awaited<ReturnType<typeof makeApp>>['app'];
+  /** The listing is served from the index now: queue a re-index and wait for the job (spec 2026-10-13). */
+  async function reindex(app: App, repoId: string) {
+    const res = await app.inject({ method: 'POST', url: `/repos/${repoId}/context/reindex` });
+    expect(res.statusCode).toBe(202);
+    await app.container.jobs.onIdle();
+    return res.json() as { status: string; job_id: string };
+  }
   async function newAgent(app: App, name: string) {
     const res = await app.inject({
       method: 'POST',
@@ -244,10 +254,13 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
       payload: { links: [{ skill_id: disabledLinkSkill.id, enabled: false }] },
     });
 
+    await reindex(app, repo.id);
+    await reindex(app, otherRepo.id);
     const res = await app.inject({ method: 'GET', url: `/repos/${repo.id}/context` });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.cloned).toBe(true);
+    expect(body.index.status).toBe('ready');
     expect(body.glob).toBe('**/{specs,docs,insights}/**/*.md');
     expect(body.files.map((f: { path: string }) => f.path)).toEqual([
       '.devdigest/specs/c.md',
@@ -297,12 +310,14 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     // Catches: the env glob being ignored, or a bad value breaking discovery.
     const repo = await newRepo(clone);
     const adr = await makeApp({ env: { PROJECT_CONTEXT_GLOB: '**/adr/**/*.md' } });
+    await reindex(adr.app, repo.id);
     const r = (await adr.app.inject({ method: 'GET', url: `/repos/${repo.id}/context` })).json();
     expect(r.glob).toBe('**/adr/**/*.md');
     expect(r.files.map((f: { path: string }) => f.path)).toEqual(['adr/0001.md']);
     await adr.app.close();
 
     const bad = await makeApp({ env: { PROJECT_CONTEXT_GLOB: 'docs/[ab].md' } });
+    await reindex(bad.app, repo.id);
     const r2 = (await bad.app.inject({ method: 'GET', url: `/repos/${repo.id}/context` })).json();
     expect(r2.glob).toBe('**/{specs,docs,insights}/**/*.md');
     expect(r2.files.length).toBeGreaterThan(1);
@@ -319,6 +334,7 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     }
     const { app } = await makeApp();
     const repo = await newRepo(big);
+    await reindex(app, repo.id);
     const body = (await app.inject({ method: 'GET', url: `/repos/${repo.id}/context` })).json();
     expect(body.files).toHaveLength(2000);
     expect(body.truncated).toBe(true);
@@ -588,6 +604,67 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     expect(llmWithout.calls.length).toBe(llmWith.calls.length);
     await withDocs.app.close();
     await without.app.close();
+  });
+
+  it('index AC-12: a run reads attached docs from the clone on disk whether the index is missing, stale (path not in the manifest) or failed; the trace is the pre-feature one and the index is untouched', async () => {
+    // Catches: the run path (or Brief) starting to consult the index, which would drop docs added
+    // after the last re-index or break every run of a repository that was never indexed.
+    const c12 = join(base, 'ac12');
+    await put(c12, 'specs/a.md', '# A\nalpha rule');
+    const git = new HeadGit({ diff: DIFF });
+    const llm = new MockLLMProvider('openai', { structured: REVIEW });
+    const { app } = await makeApp({ openai: llm, git });
+    const aTokens = Math.ceil('# A\nalpha rule'.length / 4);
+
+    async function runAttached(repoId: string, paths: string[]) {
+      const pr = await newPr(repoId);
+      const agent = await newAgent(app, `Idx-${repoId.slice(0, 8)}`);
+      expect((await putCtx(app, 'agents', agent.id, repoId, paths)).statusCode).toBe(200);
+      return runReview(app, pr.id, agent.id);
+    }
+
+    // 1. never indexed
+    const none = await newRepo(c12);
+    const t1 = await runAttached(none.id, ['specs/a.md']);
+    expect(t1.specs_read).toEqual(['specs/a.md']);
+    expect(t1.project_context_docs).toEqual([
+      { path: 'specs/a.md', origin: 'agent', status: 'included', tokens: aTokens },
+    ]);
+    expect(
+      await pg.handle.db.select().from(t.contextIndexState).where(eq(t.contextIndexState.repoId, none.id)),
+    ).toHaveLength(0);
+
+    // 2. stale index whose manifest lacks the attached path
+    const stale = await newRepo(c12);
+    expect((await app.inject({ method: 'POST', url: `/repos/${stale.id}/context/reindex` })).statusCode).toBe(202);
+    await app.container.jobs.onIdle();
+    await put(c12, 'specs/late.md', 'late rule');
+    git.head = 'head-moved';
+    const listing = (await app.inject({ method: 'GET', url: `/repos/${stale.id}/context` })).json();
+    expect(listing.stale).toBe(true);
+    expect(listing.files.map((f: { path: string }) => f.path)).not.toContain('specs/late.md');
+    const stateBefore = (
+      await pg.handle.db.select().from(t.contextIndexState).where(eq(t.contextIndexState.repoId, stale.id))
+    )[0];
+    const t2 = await runAttached(stale.id, ['specs/a.md', 'specs/late.md']);
+    expect(t2.specs_read).toEqual(['specs/a.md', 'specs/late.md']);
+    expect(t2.project_context_docs).toEqual([
+      { path: 'specs/a.md', origin: 'agent', status: 'included', tokens: aTokens },
+      { path: 'specs/late.md', origin: 'agent', status: 'included', tokens: Math.ceil('late rule'.length / 4) },
+    ]);
+    expect(reviewPrompts(llm).some((u) => u.includes('<untrusted source="specs/late.md">\nlate rule\n</untrusted>'))).toBe(true);
+    expect(
+      (await pg.handle.db.select().from(t.contextIndexState).where(eq(t.contextIndexState.repoId, stale.id)))[0],
+    ).toEqual(stateBefore);
+
+    // 3. last re-index failed
+    const failed = await newRepo(c12);
+    await pg.handle.db
+      .insert(t.contextIndexState)
+      .values({ repoId: failed.id, status: 'failed', failedAt: new Date(), failureReason: 'internal_error' });
+    const t3 = await runAttached(failed.id, ['specs/late.md']);
+    expect(t3.specs_read).toEqual(['specs/late.md']);
+    await app.close();
   });
 
   it('AC-28/29/31: five skip reasons in one successful run; every doc skipped -> no section, specs null', async () => {

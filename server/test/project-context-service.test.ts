@@ -1,6 +1,7 @@
 /**
- * ProjectContextService with in-memory fake ports (store + MockRepoDocsSource).
- * Covers discovery (AC-1/3/5/9/36), the file endpoint rules, attachment writes
+ * ProjectContextService with in-memory fake ports (store + MockRepoDocsSource
+ * + fake index/head/jobs). Covers the listing served from the index (old
+ * AC-1/3/5/9/36, after a re-index), the file endpoint rules, attachment writes
  * (AC-30) and run-time resolution (AC-24/28, observability log lines).
  */
 import { describe, it, expect } from 'vitest';
@@ -14,6 +15,7 @@ import type {
 } from '../src/modules/project-context/ports.js';
 import { MockRepoDocsSource, type MockRepoDocsFiles } from '../src/adapters/mocks.js';
 import { AppError } from '../src/platform/errors.js';
+import { FakeHead, FakeIndexStore, FakeJobs } from './helpers/context-index.js';
 
 const WS = 'ws-1';
 const REPO: RepoLocation = { id: 'repo-1', owner: 'acme', name: 'api', clonePath: '/clones/acme/api' };
@@ -84,13 +86,24 @@ class FakeStore implements ProjectContextStore {
 function make(files: MockRepoDocsFiles | null, opts: { store?: FakeStore; glob?: string } = {}) {
   const store = opts.store ?? new FakeStore();
   const warns: string[] = [];
+  const jobs = new FakeJobs();
   const svc = new ProjectContextService({
     store,
     docs: new MockRepoDocsSource(files),
     glob: resolveGlob(opts.glob),
-    log: { warn: (m) => warns.push(m) },
+    log: { warn: (m) => warns.push(m), info: () => undefined },
+    index: new FakeIndexStore(),
+    head: new FakeHead(),
+    jobs,
   });
-  return { svc, store, warns };
+  svc.registerIndexJobHandler();
+  /** Build the index the way the product does (queue + run the job), then list. */
+  const discoverIndexed = async (repoId = REPO.id) => {
+    await svc.requestReindex(WS, repoId);
+    await jobs.runNext();
+    return svc.discover(WS, repoId);
+  };
+  return { svc, store, warns, jobs, discoverIndexed };
 }
 
 async function status(p: Promise<unknown>): Promise<number | undefined> {
@@ -105,7 +118,7 @@ async function status(p: Promise<unknown>): Promise<number | undefined> {
 describe('discover', () => {
   it('AC-1/5/9: lists only matching, non-excluded docs sorted by path with type, tokens, too_large, used_by', async () => {
     // Catches: excluded dirs / INSIGHTS.md leaking in, wrong type or token rule, used_by not folded in.
-    const { svc, store } = make({
+    const { discoverIndexed, store } = make({
       'specs/a.md': 'aaaaaaaa', // 8 chars -> 2 tokens
       'server/docs/b.md': 'bbbb',
       '.devdigest/specs/c.md': 'c',
@@ -117,7 +130,7 @@ describe('discover', () => {
       { agentId: 'A1', paths: ['specs/a.md'] },
       { agentId: 'A2', paths: ['specs/a.md', 'docs/huge.md'] },
     ];
-    const r = await svc.discover(WS, REPO.id);
+    const r = await discoverIndexed();
     expect(r.cloned).toBe(true);
     expect(r.truncated).toBe(false);
     expect(r.total).toBe(4);
@@ -147,9 +160,9 @@ describe('discover', () => {
       { agentId: 'A1', paths: ['docs/a.md'] },
       { agentId: 'A2', paths: ['docs/a.md'] },
     ]);
-    const { svc } = make({ 'docs/a.md': 'x' }, { store });
-    expect((await svc.discover(WS, REPO.id)).files[0]!.used_by).toBe(1);
-    expect((await svc.discover(WS, REPO_B.id)).files[0]!.used_by).toBe(2);
+    const { discoverIndexed } = make({ 'docs/a.md': 'x' }, { store });
+    expect((await discoverIndexed(REPO.id)).files[0]!.used_by).toBe(1);
+    expect((await discoverIndexed(REPO_B.id)).files[0]!.used_by).toBe(2);
     expect(store.usedByCalls).toEqual([REPO.id, REPO_B.id]);
   });
 
@@ -157,7 +170,7 @@ describe('discover', () => {
     // Catches: unbounded response / missing truncated flag.
     const files: MockRepoDocsFiles = {};
     for (let i = 0; i < 2001; i++) files[`docs/f${String(i).padStart(4, '0')}.md`] = 'x';
-    const r = await make(files).svc.discover(WS, REPO.id);
+    const r = await make(files).discoverIndexed();
     expect(r.files).toHaveLength(2000);
     expect(r.truncated).toBe(true);
     expect(r.total).toBe(2001);
@@ -166,30 +179,37 @@ describe('discover', () => {
 
   it('drops paths with quote/control characters so they can never become a prompt label', async () => {
     // Catches: a hostile file name breaking the `<untrusted source="...">` label.
-    const r = await make({ 'docs/a"b.md': 'x', 'docs/ok.md': 'x' }).svc.discover(WS, REPO.id);
+    const r = await make({ 'docs/a"b.md': 'x', 'docs/ok.md': 'x' }).discoverIndexed();
     expect(r.files.map((f) => f.path)).toEqual(['docs/ok.md']);
   });
 
-  it('no clone or missing clone dir -> cloned:false and no files; foreign repo -> 404', async () => {
+  it('no clone -> cloned:false, no files, index none; foreign repo -> 404', async () => {
     // Catches: an error/500 instead of the "not cloned yet" state; cross-workspace leak.
     const noClone = new FakeStore({ ...REPO, clonePath: null });
     expect(await make({ 'docs/a.md': 'x' }, { store: noClone }).svc.discover(WS, REPO.id)).toMatchObject({
       cloned: false,
       files: [],
       total: 0,
+      stale: false,
+      index: { status: 'none', indexed_at: null, files: 0, chunks: 0 },
     });
-    expect(await make(null).svc.discover(WS, REPO.id)).toMatchObject({ cloned: false, files: [] });
     expect(await status(make({}).svc.discover('other-ws', REPO.id))).toBe(404);
+  });
+
+  it('a cloned but never-indexed repo lists nothing (the listing does not scan the clone) and is not stale', async () => {
+    // Catches: GET silently falling back to a live scan, which would hide "Not indexed yet".
+    const r = await make({ 'docs/a.md': 'x' }).svc.discover(WS, REPO.id);
+    expect(r).toMatchObject({ cloned: true, files: [], stale: false, index: { status: 'none' } });
   });
 
   it('AC-2/3: a custom glob is used; an invalid one falls back to default and warns once, naming the value', async () => {
     const files = { 'adr/0001.md': 'x', 'docs/a.md': 'x' };
-    const custom = await make(files, { glob: '**/adr/**/*.md' }).svc.discover(WS, REPO.id);
+    const custom = await make(files, { glob: '**/adr/**/*.md' }).discoverIndexed();
     expect(custom.glob).toBe('**/adr/**/*.md');
     expect(custom.files.map((f) => f.path)).toEqual(['adr/0001.md']);
 
     const bad = make(files, { glob: 'docs/[ab].md' });
-    const r = await bad.svc.discover(WS, REPO.id);
+    const r = await bad.discoverIndexed();
     await bad.svc.discover(WS, REPO.id);
     expect(r.files.map((f) => f.path)).toEqual(['docs/a.md']);
     expect(bad.warns).toHaveLength(1);
