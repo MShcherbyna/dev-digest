@@ -49,15 +49,36 @@ export function FileCard({
   file,
   commenting,
   findings,
+  selected,
+  targetLine,
 }: {
   file: PrFile;
   commenting?: DiffCommentApi;
   findings?: DiffFindingsApi;
+  /** The file a PR Brief link points at: starts open, outlined, scrolled to and focused. */
+  selected?: boolean;
+  /** Head-side line to scroll to inside a selected file (header when absent / not rendered). */
+  targetLine?: number | null;
 }) {
   const t = useTranslations("shell");
   const [open, setOpen] = React.useState(
-    (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
+    !!selected || (file.additions ?? 0) + (file.deletions ?? 0) <= AUTO_EXPAND_MAX_LINES
   );
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const headerRef = React.useRef<HTMLDivElement>(null);
+
+  // DOM sync only: bring the target into view and move focus to the header, once
+  // on mount (a new target remounts the card via a key upstream).
+  React.useEffect(() => {
+    if (!selected) return;
+    const lineEl =
+      targetLine != null
+        ? cardRef.current?.querySelector<HTMLElement>(`[data-new-line="${targetLine}"]`)
+        : null;
+    (lineEl ?? headerRef.current)?.scrollIntoView?.({ block: "center" });
+    headerRef.current?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only by design
+  }, []);
   const lines = React.useMemo(() => parsePatch(file.patch), [file.patch]);
 
   const renderedKeys = React.useMemo(() => {
@@ -86,8 +107,13 @@ export function FileCard({
   const hasFindings = (findings?.linesByPath.get(file.path)?.length ?? 0) > 0;
 
   return (
-    <div style={s.fileCard}>
-      <div onClick={() => setOpen((o) => !o)} style={s.fileHeader}>
+    <div ref={cardRef} style={selected ? { ...s.fileCard, ...s.fileCardSelected } : s.fileCard}>
+      <div
+        ref={headerRef}
+        tabIndex={selected ? -1 : undefined}
+        onClick={() => setOpen((o) => !o)}
+        style={s.fileHeader}
+      >
         <Icon.ChevronRight size={13} style={chevronFor(open)} />
         <Icon.FileText size={14} style={s.fileIcon} />
         <span style={s.filePathWrap}>

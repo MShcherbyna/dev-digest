@@ -1,4 +1,5 @@
 /** Pure helpers for the DiffTab (no React). */
+import type { DiffTarget } from "@/components/diff-viewer";
 import type { FindingRecord, PrFile, ReviewRecord, SmartDiffResponse, SmartDiffRole } from "@devdigest/shared";
 
 export interface ViewGroup {
@@ -74,4 +75,16 @@ export function buildViewGroups(files: PrFile[], sd: SmartDiffResponse): ViewGro
       return { role, files: groupFiles, findingFiles };
     })
     .filter((g) => g.files.length > 0);
+}
+
+/**
+ * The deep-link target if its path is a file of the current diff, else null
+ * (an unknown path must never reach the viewer — it only raises the toast).
+ */
+export function resolveDiffTarget(
+  target: DiffTarget | null | undefined,
+  files: readonly PrFile[],
+): DiffTarget | null {
+  if (!target) return null;
+  return files.some((f) => f.path === target.path) ? target : null;
 }

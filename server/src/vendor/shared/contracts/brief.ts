@@ -112,11 +112,21 @@ export const SmartDiff = z.object({
 });
 export type SmartDiff = z.infer<typeof SmartDiff>;
 
+// ---- Review focus (PR Brief: where to start reading) ----
+export const ReviewFocusItem = z.object({
+  file: z.string(),
+  line: z.number().int().min(1),
+  reason: z.string(),
+});
+export type ReviewFocusItem = z.infer<typeof ReviewFocusItem>;
+
 // ---- Composed PR Brief (pr_brief.json) ----
 export const PrBrief = z.object({
-  intent: Intent,
-  blast: BlastRadius,
+  intent: Intent.nullable(),
+  blast: BlastRadius.nullable(),
   risks: Risks,
   history: PrHistory,
+  summary: z.string(),
+  review_focus: z.array(ReviewFocusItem),
 });
 export type PrBrief = z.infer<typeof PrBrief>;

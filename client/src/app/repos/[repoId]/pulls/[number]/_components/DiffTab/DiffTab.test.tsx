@@ -1,9 +1,8 @@
-import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
-import { NextIntlClientProvider } from "next-intl";
+import React from "react";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { screen, cleanup, fireEvent } from "@testing-library/react";
 import type { FindingRecord, PrFile, ReviewRecord, SmartDiffResponse } from "@devdigest/shared";
-import prReview from "../../../../../../../../messages/en/prReview.json";
-import shell from "../../../../../../../../messages/en/shell.json";
+import { renderWithIntl } from "@/test/render-intl";
 
 const mutate = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/hooks/reviews", () => ({
@@ -76,15 +75,109 @@ const REVIEWS: ReviewRecord[] = [
 afterEach(() => {
   cleanup();
   mutate.mockReset();
+  scroll.mockReset();
 });
 
-function renderWithIntl(ui: React.ReactElement) {
-  return render(
-    <NextIntlClientProvider locale="en" messages={{ prReview, shell }}>
-      {ui}
-    </NextIntlClientProvider>,
-  );
+// Docs-group file with a real patch so a target line exists inside a collapsed-by-default group.
+const README_PATCH = "@@ -1,2 +1,3 @@\n intro\n+second\n outro";
+const TARGET_FILES: PrFile[] = [
+  FILES[0]!,
+  { path: "README.md", additions: 1, deletions: 0, patch: README_PATCH },
+];
+
+const scroll = vi.fn();
+beforeEach(() => {
+  Element.prototype.scrollIntoView = scroll;
+});
+
+function headerOf(path: string): HTMLElement {
+  return screen.getByText(path).parentElement!.parentElement!;
 }
+
+describe("DiffTab deep-link target (PR Brief)", () => {
+  // Catches: AC-16/AC-26 - a brief link into a file inside the collapsed Docs group must open
+  // the group and the file, outline it, scroll the target row and focus the header, in Smart order.
+  it("opens the collapsed group of the target file, outlines it, scrolls to the line and focuses the header", () => {
+    renderWithIntl(
+      <DiffTab
+        prId="pr1"
+        filesCount={2}
+        files={TARGET_FILES}
+        repoFullName="acme/repo"
+        headSha="sha1"
+        target={{ path: "README.md", line: 2 }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Docs/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("second")).toBeInTheDocument();
+    const head = headerOf("README.md");
+    expect(head).toHaveFocus();
+    expect(head.parentElement!.getAttribute("style")).toContain("var(--accent)");
+    const scrolled = scroll.mock.contexts[0] as HTMLElement;
+    expect(scrolled.getAttribute("data-new-line")).toBe("2");
+    expect(scroll).toHaveBeenCalledWith({ block: "center" });
+    // still Smart order (AC-26 "current order") and other files are untouched
+    expect(screen.getByRole("button", { name: "Smart order" })).toBeInTheDocument();
+    expect(screen.queryByText("File not in this PR's diff")).not.toBeInTheDocument();
+  });
+
+  // Catches: the target being dropped when the user is (or switches to) Original order.
+  it("also targets the file in Original order", () => {
+    renderWithIntl(
+      <DiffTab
+        prId="pr1"
+        filesCount={2}
+        files={TARGET_FILES}
+        repoFullName="acme/repo"
+        headSha="sha1"
+        target={{ path: "src/core.ts", line: null }}
+      />,
+    );
+    scroll.mockReset();
+    fireEvent.click(screen.getByRole("button", { name: "Original order" }));
+    expect(headerOf("src/core.ts")).toHaveFocus();
+    expect((scroll.mock.contexts[0] as HTMLElement)).toBe(headerOf("src/core.ts"));
+  });
+
+  // Catches: AC-39 (direct URL to a file that is not in this diff) - exactly one toast, normal
+  // view, nothing focused / scrolled / expanded; a re-render with the same target must not repeat it.
+  it("an unresolved target raises the toast once and renders the normal view", () => {
+    // The toast bridge (`notify`) is registered by ToastProvider's effect, which runs AFTER
+    // children's effects on the same commit - in the app DiffTab mounts later (after data loads),
+    // so mount it one commit late here as well. The target object is rebuilt on every render,
+    // exactly like page.tsx does.
+    function Harness() {
+      const [late, setLate] = React.useState(false);
+      const [, setN] = React.useState(0);
+      React.useEffect(() => setLate(true), []);
+      return (
+        <>
+          <button onClick={() => setN((n) => n + 1)}>bump</button>
+          {late && (
+            <DiffTab
+              prId="pr1"
+              filesCount={2}
+              files={TARGET_FILES}
+              repoFullName="acme/repo"
+              headSha="sha1"
+              target={{ path: "package.json", line: 34 }}
+            />
+          )}
+        </>
+      );
+    }
+    renderWithIntl(<Harness />);
+
+    expect(screen.getAllByText("File not in this PR's diff")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /Docs/ })).toHaveAttribute("aria-expanded", "false");
+    expect(document.querySelector("[tabindex='-1']")).toBeNull();
+    expect(scroll).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "bump" }));
+    expect(screen.getAllByText("File not in this PR's diff")).toHaveLength(1);
+  });
+});
 
 describe("DiffTab", () => {
   it("shows grouped headers in Smart order, switches to Original order and back, and accepts an inline finding", () => {

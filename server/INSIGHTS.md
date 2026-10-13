@@ -14,6 +14,24 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-12** — Seed data for PR #482 (pr_files patches, extra findings)
+  is inserted only inside `if (!pr)`, so an existing dev DB never gets it;
+  the `pr_brief` row is a separate `onConflictDoNothing` insert and DOES land
+  there, but without the patches its refs are unbacked. Patches in template
+  literals must not contain blank context lines: an empty line (stripped
+  trailing space) is not a valid ` ` context line. Check hunk counts with a
+  script before trusting `@@ -a,b +c,d @@`. `server/src/db/seed-pr-brief.ts`
+
+- **2026-10-12** — PR Brief prompt is sized in two phases because spec docs
+  get "whatever the rest leaves": `buildFactBlocks` caps every non-document
+  block (each cap includes its `wrapUntrusted` delimiters) and returns
+  `restTokens`; the service then asks `projectContext.resolveForBrief` for
+  `min(8000, 11000 - restTokens)`; `assembleBriefMessages` runs a last guard
+  that drops whole docs, then file lines, then finding lines until the
+  `chars/4` estimate is <= 11000 (`budgetTrimmed` in the log line). Grounding
+  of focus/risk refs uses ALL hunk ranges of ALL changed files, not only the
+  <= 5 ranges / 200 files shown to the model. See
+  `server/src/modules/brief/prompt.ts`, `service.ts`.
 - **2026-10-11** — project-context trace field is module-local:
   `RunTraceWithContext` (`project-context/schemas.ts`) extends the vendored
   `RunTrace` with `project_context_docs` because `vendor/shared` is
@@ -110,6 +128,16 @@ read by the `engineering-insights` skill.
 
 ## Tool & Library Notes
 
+- **2026-10-12** — Two test-harness facts: (1) `server/tsconfig.json` has
+  `include: ["src/**/*.ts"]`, so `pnpm typecheck` never type-checks
+  `server/test/**`; a type error in a test only shows up as a runtime failure
+  (or never). (2) `app.ts` registers `@fastify/rate-limit` only when
+  `config.nodeEnv !== 'test'`, so per-route limits (`config.rateLimit`) are
+  inert in every `.it` suite; to assert a 429 build a dedicated app with
+  `{ ...loadConfig(...), nodeEnv: 'production', logLevel: 'silent' }`
+  (`silent` avoids the dev-only pino-pretty transport). See
+  `server/test/brief-rate-limit.it.test.ts`.
+
 - **2026-10-02** — `GitHubClient` (vendored) has no history/associated-PR
   call, so Prior PRs uses a blast-local port `PriorPrSource` with an Octokit
   GraphQL adapter (`adapters/github/pr-history.ts`); the query text is built
@@ -121,6 +149,17 @@ read by the `engineering-insights` skill.
   vanish (`available:false`).
 
 ## Recurring Errors & Fixes
+
+- **2026-10-12** — Flaky `.it` suites (`project-context.it` AC-28/29/31 and
+  AC-32 `specs_read`/`project_context_docs` undefined; `reviews.it` A2
+  `trace.config` undefined) are a pre-existing race, not caused by PR Brief:
+  `run-executor.ts` commits `agent_runs.status = done|failed`
+  (`completeAgentRun`) BEFORE `saveRunTrace`, while `test/helpers/runs.ts`
+  `waitForPrRuns` polls only `status`, so `GET /runs/:id/trace` can run in the
+  gap and return a body without the trace fields. Reproduced on a clean HEAD
+  worktree (1 of 3 full-suite runs) and with `--exclude 'test/brief*'`; it
+  passes in isolation. Fix is to wait for the trace row too (or save the trace
+  before the status flip). Check: `npx vitest run` a few times.
 
 - **2026-09-24** — `*.it.test.ts` suites build `loadConfig(process.env)`, so
   `LocalSecretsProvider` reads the developer's REAL `~/.devdigest/secrets.json`

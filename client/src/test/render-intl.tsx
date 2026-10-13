@@ -1,4 +1,4 @@
-/* Test helper: render with next-intl (skills + agents + conventions messages) and the toast
+/* Test helper: render with next-intl (skills, agents, conventions, brief, prReview, shell ... messages) and the toast
    provider, so component tests don't repeat the provider boilerplate. */
 import React from "react";
 import { render, type RenderResult } from "@testing-library/react";
@@ -9,11 +9,14 @@ import conventions from "../../messages/en/conventions.json";
 import common from "../../messages/en/common.json";
 import context from "../../messages/en/context.json";
 import onboarding from "../../messages/en/onboarding.json";
+import brief from "../../messages/en/brief.json";
+import prReview from "../../messages/en/prReview.json";
+import shell from "../../messages/en/shell.json";
 import { ToastProvider } from "@/lib/toast";
 
 export function renderWithIntl(ui: React.ReactElement): RenderResult {
   return render(
-    <NextIntlClientProvider locale="en" messages={{ skills, agents, conventions, common, context, onboarding }}>
+    <NextIntlClientProvider locale="en" messages={{ skills, agents, conventions, common, context, onboarding, brief, prReview, shell }}>
       <ToastProvider>{ui}</ToastProvider>
     </NextIntlClientProvider>,
   );
