@@ -35,6 +35,21 @@ export const s = {
     color: "var(--text-secondary)",
     marginTop: 8,
   } satisfies CSSProperties,
+  summaryOnly: {
+    fontSize: 14,
+    lineHeight: 1.55,
+    color: "var(--text-secondary)",
+    margin: 0,
+  } satisfies CSSProperties,
+  action: { flexShrink: 0, alignSelf: "flex-start" } satisfies CSSProperties,
+  scoreFooter: {
+    alignSelf: "stretch",
+    marginTop: 6,
+    paddingTop: 8,
+    borderTop: "1px solid var(--border)",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
   scoreCol: {
     display: "flex",
     flexDirection: "column",

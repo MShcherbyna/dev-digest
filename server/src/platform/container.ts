@@ -56,6 +56,10 @@ import type { RepoFiles } from '../modules/onboarding/ports.js';
 import { OnboardingRepository } from '../modules/onboarding/repository.js';
 import { OnboardingService } from '../modules/onboarding/service.js';
 import { FsRepoFiles } from '../adapters/repo-files/fs.js';
+import { BriefRepository } from '../modules/brief/repository.js';
+import { BriefService } from '../modules/brief/service.js';
+import { BRIEF_TIMEOUT_MS } from '../modules/brief/constants.js';
+import { classifyFile } from '../modules/reviews/smart-diff/classify.js';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -117,6 +121,7 @@ export class Container {
   private _priorPrs?: PriorPrSource;
   private _projectContext?: ProjectContextService;
   private _onboarding?: OnboardingService;
+  private _brief?: BriefService;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -220,6 +225,31 @@ export class Container {
       timeoutMs: this.config.onboardingTimeoutMs,
     });
     return this._onboarding;
+  }
+
+  /**
+   * PR Brief. A singleton per container on purpose: the service's in-flight
+   * map (one generation per PR at a time) must be shared.
+   */
+  get brief(): BriefService {
+    this._brief ??= new BriefService({
+      store: new BriefRepository(this.db),
+      intent: {
+        get: async (workspaceId, prId) => {
+          const stored = await this.intent.get(workspaceId, prId);
+          return stored
+            ? { intent: stored.intent, in_scope: stored.inScope, out_of_scope: stored.outOfScope }
+            : null;
+        },
+      },
+      blast: this.blast,
+      specDocs: this.projectContext,
+      roleOf: classifyFile,
+      llm: (provider) => this.llm(provider),
+      modelChoice: (workspaceId) => resolveFeatureModel(this, workspaceId, 'risk_brief'),
+      timeoutMs: BRIEF_TIMEOUT_MS,
+    });
+    return this._brief;
   }
 
   get codeIndex(): CodeIndex {

@@ -33,5 +33,38 @@
     "derive": "Derive intent",
     "regenerate": "Regenerate",
     "retry": "Retry"
+  },
+  "panel": {
+    "heading": "PR brief",
+    "reviewFocus": "Review focus — read these first",
+    "generate": "Generate brief",
+    "generating": "Generating…",
+    "busyLabel": "Generating brief",
+    "regenerateLabel": "Regenerate brief",
+    "missingIntent": "Generated without intent — no intent was derived for this PR.",
+    "missingBlast": "Generated without blast radius — the index is unavailable for this PR.",
+    "fileNotInDiff": "File not in this PR's diff",
+    "noFocus": "No specific starting point — start with Core logic in Files changed.",
+    "emptyTitle": "No brief yet",
+    "emptyHint": "Generate a brief to see a summary, risk areas and where to start reviewing.",
+    "stale": "PR changed since this brief was generated",
+    "regenerate": "Regenerate",
+    "truncated": "Based on the first {shown} of {total} files",
+    "error": {
+      "generic": "Couldn't generate the brief",
+      "missingKeyBody": "No API key is configured for the Risk Brief model's provider. Add one in",
+      "apiKeysLink": "Settings → API Keys"
+    },
+    "retry": "Retry",
+    "loadError": "Couldn't load the brief",
+    "riskShow": "Show details: {title}",
+    "riskHide": "Hide details: {title}",
+    "severity": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "costLabel": "Brief cost {cost}, {in} input and {out} output tokens",
+    "verdictSource": "{agent} · {relativeTime}"
   }
 }

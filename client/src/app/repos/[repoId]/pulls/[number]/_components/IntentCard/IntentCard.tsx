@@ -25,7 +25,7 @@ function ScopeList({ items, color }: { items: string[]; color: string }) {
   );
 }
 
-function IntentBody({ intent }: { intent: PrIntent }) {
+function IntentBody({ intent, showChips }: { intent: PrIntent; showChips: boolean }) {
   const t = useTranslations("brief.intent");
   return (
     <>
@@ -58,7 +58,7 @@ function IntentBody({ intent }: { intent: PrIntent }) {
         </div>
       )}
 
-      {intent.risk_areas.length > 0 && (
+      {showChips && intent.risk_areas.length > 0 && (
         <div>
           <div style={s.colTitle("var(--text-muted)")}>
             <Icon.AlertTriangle size={12} />
@@ -84,7 +84,15 @@ function IntentBody({ intent }: { intent: PrIntent }) {
   );
 }
 
-export function IntentCard({ prId }: { prId: string | null | undefined }) {
+export function IntentCard({
+  prId,
+  riskAreas,
+}: {
+  prId: string | null | undefined;
+  /** PR Brief slot: when given, replaces the intent's own risk chips (rendered
+   *  even when no intent exists). Omitted → today's chips, unchanged. */
+  riskAreas?: React.ReactNode;
+}) {
   const t = useTranslations("brief");
   const { state, intent, regenerate, isGenerating: generating, error } = useIntentCard(prId);
   const hasIntent = intent !== null;
@@ -133,7 +141,17 @@ export function IntentCard({ prId }: { prId: string | null | undefined }) {
         </div>
       )}
 
-      {hasIntent && <IntentBody intent={intent} />}
+      {hasIntent && <IntentBody intent={intent} showChips={riskAreas === undefined} />}
+
+      {riskAreas !== undefined && (
+        <div style={s.riskSlot}>
+          <div style={s.colTitle("var(--text-muted)")}>
+            <Icon.AlertTriangle size={12} />
+            {t("intent.riskAreas")}
+          </div>
+          {riskAreas}
+        </div>
+      )}
     </section>
   );
 }

@@ -13,10 +13,12 @@ import {
 } from './helpers.js';
 import { validateDocPath } from './paths.js';
 import type {
+  BriefDocsResolver,
   ProjectContextLog,
   ProjectContextResolver,
   ProjectContextStore,
   RepoDocsSource,
+  ResolveForBriefInput,
   ResolveForRunInput,
   ResolvedProjectContext,
 } from './ports.js';
@@ -50,7 +52,7 @@ async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise
   return out;
 }
 
-export class ProjectContextService implements ProjectContextResolver {
+export class ProjectContextService implements ProjectContextResolver, BriefDocsResolver {
   constructor(private deps: ProjectContextDeps) {
     // AC-3: the rejected configured glob is logged once, when the service is built.
     if (deps.glob.rejected !== undefined) {
@@ -250,5 +252,38 @@ export class ProjectContextService implements ProjectContextResolver {
     log(`project context: ${included.length} included, ${skipped.length} skipped`);
     for (const e of skipped) log(`project context: skipped ${e.path} (${e.reason})`);
     return { docs: included, entries };
+  }
+
+  /**
+   * Documents attached (to any agent or skill) for this repository, deduped and
+   * sorted by path, fitted into `budgetTokens`. Never throws for a bad
+   * document: invalid, missing, unreadable and empty ones are skipped silently.
+   */
+  async resolveForBrief(
+    input: ResolveForBriefInput,
+  ): Promise<{ docs: { path: string; content: string }[]; paths: string[] }> {
+    const { store, docs } = this.deps;
+    if (!input.clonePath) return { docs: [], paths: [] };
+    const rows = await store.usedByRows(input.workspaceId, input.repoId);
+    const unique = [...new Set(rows.flatMap((r) => r.paths))].sort();
+
+    const out: { path: string; content: string }[] = [];
+    let remaining = input.budgetTokens;
+    for (const path of unique) {
+      if (!validateDocPath(path).ok) continue;
+      const r = await docs.read(input.clonePath, path, MAX_DOC_BYTES);
+      if (r.kind !== 'ok' || r.content.trim().length === 0) continue;
+      const available = remaining - input.perDocOverheadTokens;
+      const cost = estimateTokens(r.content);
+      if (cost <= available) {
+        out.push({ path, content: r.content });
+        remaining -= cost + input.perDocOverheadTokens;
+        continue;
+      }
+      // Over budget: cut this last document if enough room is left, else skip it and stop.
+      if (available >= input.minDocTokens) out.push({ path, content: r.content.slice(0, available * 4) });
+      break;
+    }
+    return { docs: out, paths: out.map((d) => d.path) };
   }
 }

@@ -62,13 +62,30 @@ export default function PRDetailPage() {
 
   const tab = search.get("tab") ?? "overview";
   const traceRunId = search.get("trace");
+  // Files-changed deep link (from the PR Brief): ?tab=diff&file=<path>&line=<n>.
+  const targetFile = search.get("file");
+  const rawLine = Number(search.get("line"));
+  const targetLine = Number.isSafeInteger(rawLine) && rawLine >= 1 ? rawLine : null;
   const setParam = (key: string, val: string | null) => {
     const sp = new URLSearchParams(search.toString());
     if (val == null) sp.delete(key);
     else sp.set(key, val);
     router.replace(`/repos/${repoId}/pulls/${number}${sp.toString() ? `?${sp.toString()}` : ""}`);
   };
-  const setTab = (t: string) => setParam("tab", t);
+  // A manual tab switch drops the deep-link params so it doesn't re-target.
+  const setTab = (t: string) => {
+    const sp = new URLSearchParams(search.toString());
+    sp.set("tab", t);
+    sp.delete("file");
+    sp.delete("line");
+    router.replace(`/repos/${repoId}/pulls/${number}?${sp.toString()}`);
+  };
+  // push (not replace) so Back returns to the Overview the link was clicked on.
+  const openFile = (path: string, line: number | null) => {
+    const sp = new URLSearchParams({ tab: "diff", file: path });
+    if (line != null) sp.set("line", String(line));
+    router.push(`/repos/${repoId}/pulls/${number}?${sp.toString()}`);
+  };
 
   // Reviews come newest-first; each is its own run (grouped into accordions).
   const runs = React.useMemo(() => reviews ?? [], [reviews]);
@@ -137,7 +154,17 @@ export default function PRDetailPage() {
       />
 
       <div style={{ padding: "24px 32px 44px", display: "flex", flexDirection: "column", gap: 24, maxWidth: 1080, margin: "0 auto" }}>
-        {tab === "overview" && <OverviewTab prId={prId} prBody={pr.body} repoId={repoId} repoFullName={repoFullName} headSha={pr.head_sha} />}
+        {tab === "overview" && (
+          <OverviewTab
+            prId={prId}
+            prBody={pr.body}
+            repoId={repoId}
+            repoFullName={repoFullName}
+            headSha={pr.head_sha}
+            diffPaths={pr.files.map((f) => f.path)}
+            onOpenFile={openFile}
+          />
+        )}
 
         {tab === "findings" && (
           <FindingsTab
@@ -179,6 +206,7 @@ export default function PRDetailPage() {
             canComment={pr.status === "open"}
             repoFullName={repoFullName}
             headSha={pr.head_sha}
+            target={targetFile ? { path: targetFile, line: targetLine } : null}
           />
         )}
       </div>

@@ -12,3 +12,4 @@ export * from "./trace";
 export * from "./repo-intel";
 export * from "./project-context";
 export * from "./onboarding";
+export * from "./brief";

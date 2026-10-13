@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
 import type { FindingRecord, PrFile, ReviewRecord, SmartDiffResponse } from "@devdigest/shared";
-import { buildViewGroups, findingsByPath, latestReview, linesByPath } from "./helpers";
+import { buildViewGroups, findingsByPath, latestReview, linesByPath, resolveDiffTarget } from "./helpers";
+
+describe("resolveDiffTarget", () => {
+  // Catches: AC-27/39 - an unknown path must never reach the viewer (it only raises the toast).
+  it("keeps a target whose path is in the diff, drops others and nullish targets", () => {
+    const files = [{ path: "src/a.ts", additions: 1, deletions: 0, patch: "" }];
+    expect(resolveDiffTarget({ path: "src/a.ts", line: 3 }, files)).toEqual({ path: "src/a.ts", line: 3 });
+    expect(resolveDiffTarget({ path: "src/b.ts", line: 3 }, files)).toBeNull();
+    expect(resolveDiffTarget(null, files)).toBeNull();
+    expect(resolveDiffTarget(undefined, files)).toBeNull();
+  });
+});
 
 function file(path: string): PrFile {
   return { path, additions: 1, deletions: 0, patch: "" };

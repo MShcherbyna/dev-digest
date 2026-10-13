@@ -8,7 +8,12 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { Icon } from "@devdigest/ui";
 import type { SmartDiffRole } from "@devdigest/shared";
-import { FileCard, type DiffCommentApi, type DiffFindingsApi } from "@/components/diff-viewer";
+import {
+  FileCard,
+  type DiffCommentApi,
+  type DiffFindingsApi,
+  type DiffTarget,
+} from "@/components/diff-viewer";
 import type { ViewGroup } from "../../helpers";
 import { DEFAULT_COLLAPSED_ROLES, ROLE_COLOR, ROLE_TEXT } from "./constants";
 import { s, chevronFor } from "./styles";
@@ -20,6 +25,7 @@ function GroupSection({
   onToggle,
   commenting,
   findings,
+  target,
 }: {
   group: ViewGroup;
   reviewed: boolean;
@@ -27,6 +33,7 @@ function GroupSection({
   onToggle: () => void;
   commenting?: DiffCommentApi;
   findings?: DiffFindingsApi;
+  target?: DiffTarget | null;
 }) {
   const t = useTranslations("prReview");
   const text = ROLE_TEXT[group.role];
@@ -66,7 +73,14 @@ function GroupSection({
         <div style={s.body}>
           {!reviewed && <div style={s.hint}>{t("smartDiff.notReviewedHint")}</div>}
           {group.files.map((f) => (
-            <FileCard key={f.path} file={f} commenting={commenting} findings={findings} />
+            <FileCard
+              key={f.path}
+              file={f}
+              commenting={commenting}
+              findings={findings}
+              selected={target?.path === f.path}
+              targetLine={target?.path === f.path ? target.line : null}
+            />
           ))}
         </div>
       )}
@@ -79,15 +93,21 @@ export function SmartDiffGroups({
   reviewed,
   commenting,
   findings,
+  target,
 }: {
   groups: ViewGroup[];
   reviewed: boolean;
   commenting?: DiffCommentApi;
   findings?: DiffFindingsApi;
+  /** Resolved deep-link target: its group starts open (the parent re-keys per target). */
+  target?: DiffTarget | null;
 }) {
-  const [collapsed, setCollapsed] = React.useState<Set<SmartDiffRole>>(
-    () => new Set(DEFAULT_COLLAPSED_ROLES),
-  );
+  const [collapsed, setCollapsed] = React.useState<Set<SmartDiffRole>>(() => {
+    const initial = new Set(DEFAULT_COLLAPSED_ROLES);
+    const targetGroup = target ? groups.find((g) => g.files.some((f) => f.path === target.path)) : undefined;
+    if (targetGroup) initial.delete(targetGroup.role);
+    return initial;
+  });
 
   const toggle = (role: SmartDiffRole) => {
     setCollapsed((prev) => {
@@ -109,6 +129,7 @@ export function SmartDiffGroups({
           onToggle={() => toggle(g.role)}
           commenting={commenting}
           findings={findings}
+          target={target}
         />
       ))}
     </div>
