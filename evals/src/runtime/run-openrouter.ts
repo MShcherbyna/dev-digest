@@ -15,6 +15,7 @@ import OpenAI from "openai";
 import { EVAL_MODEL } from "../config.js";
 import type { Result, RunOptions } from "./run-claude.js";
 
+const REASONING_EFFORT = process.env.EVAL_REASONING_EFFORT ?? "low";
 const BASE_URL = (process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1").replace(/\/$/, "");
 
 /** Run one content-only turn against an OpenAI-compatible endpoint and shape it as a Result. */
@@ -40,8 +41,12 @@ export async function runOpenRouter(prompt: string, opts: RunOptions = {}): Prom
       model: opts.model ?? EVAL_MODEL,
       temperature: 0,
       // Cap output: a cheap model can loop and emit ~65k tokens, which blows the case timeout.
-      // Legitimate skill reports measured ~4-5k tokens, so 8192 leaves headroom.
-      max_tokens: 8192,
+      // Reasoning models count hidden thinking tokens against this budget, so leave headroom above
+      // the ~4-5k a real skill report needs.
+      max_tokens: 16_384,
+      // OpenRouter's unified reasoning control (not in the OpenAI SDK types). Low effort keeps
+      // thinking from eating the whole budget and leaving an empty answer.
+      ...({ reasoning: { effort: REASONING_EFFORT } } as object),
       messages: [
         { role: "system", content: system },
         { role: "user", content: prompt },
@@ -54,6 +59,9 @@ export async function runOpenRouter(prompt: string, opts: RunOptions = {}): Prom
       throw new Error(`OpenRouter returned no choices${errMsg ? `: ${errMsg}` : ""}`);
     }
     text = choice.message?.content ?? "";
+    if (!text.trim() && choice.finish_reason === "length") {
+      throw new Error("OpenRouter hit max_tokens before producing an answer (reasoning ate the budget)");
+    }
     inputTokens = res.usage?.prompt_tokens ?? 0;
     outputTokens = res.usage?.completion_tokens ?? 0;
   } catch (err) {
