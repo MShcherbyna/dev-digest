@@ -16,6 +16,7 @@ import { patternMatch } from "../scoring/pattern-match.js";
 import { llmJudge, type Verdict } from "../scoring/llm-judge.js";
 import { logTrace, logVerdict } from "../logging/log.js";
 import { record } from "../records/record.js";
+import { REPO_ROOT } from "../artifacts/paths.js";
 
 // --- Case shapes ------------------------------------------------------------
 
@@ -67,6 +68,15 @@ export type WorkflowCase =
       expectFilesRead?: string[];
       maxTurns?: number;
     };
+
+/**
+ * Was this repo-relative file read? Exact match on the absolute path — a bare `includes` let any
+ * `README.md` (server/, .claude/skills/, ...) satisfy an expectation for the root one.
+ */
+export function wasRead(filesRead: string[], file: string): boolean {
+  const abs = join(REPO_ROOT, file);
+  return filesRead.some((f) => f === abs || f === file);
+}
 
 /** Did a skill engage? Either an explicit Skill tool-call, or reading its SKILL.md. */
 export function activated(result: Result, skill: string): boolean {
@@ -139,6 +149,7 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
             activated(result, c.skill),
             `skills: ${result.skillsInvoked.join(", ")} | reads: ${result.filesRead.join(", ")}`,
           ).toBe(c.shouldActivate);
+          expect(result.isError).toBe(false);
         } finally {
           record(c.name, { result });
         }
@@ -157,7 +168,7 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
           stopWhen: (p) =>
             subs.every((s) => p.subagents.includes(s)) &&
             skls.every((s) => skillEngaged(p, s)) &&
-            files.every((f) => p.filesRead.some((r) => r.includes(f))),
+            files.every((f) => wasRead(p.filesRead, f)),
         });
         logTrace(c.name, result);
         try {
@@ -172,7 +183,7 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
           }
           for (const file of c.expectFilesRead ?? []) {
             expect(
-              result.filesRead.some((f) => f.includes(file)),
+              wasRead(result.filesRead, file),
               `${file} not read | reads: ${result.filesRead.join(", ")}`,
             ).toBe(true);
           }
@@ -194,8 +205,8 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
         logTrace(`${c.name} [treatment]`, treatment);
         logTrace(`${c.name} [control]`, control);
         try {
-          const treatmentRead = treatment.filesRead.some((f) => f.includes(c.expectFileRead));
-          const controlRead = control.filesRead.some((f) => f.includes(c.expectFileRead));
+          const treatmentRead = wasRead(treatment.filesRead, c.expectFileRead);
+          const controlRead = wasRead(control.filesRead, c.expectFileRead);
           expect(treatmentRead, `treatment reads: ${treatment.filesRead.join(", ")}`).toBe(true);
           expect(controlRead, `control reads: ${control.filesRead.join(", ")}`).toBe(false);
         } finally {
