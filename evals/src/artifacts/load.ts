@@ -15,12 +15,23 @@ function stripFrontmatter(md: string): string {
   return md;
 }
 
-/** SKILL.md plus every references/*.md — the full payload the harness would assemble. */
+/**
+ * SKILL.md plus every supporting .md the skill links to — sibling files in the skill root (e.g.
+ * report-template.md, priorities.md) and references/*.md. Without the root siblings a content-tier
+ * case can't see the template the skill tells the model to follow, so it would be graded on a
+ * format it was never given. README.md is human documentation, not part of the payload.
+ */
 export function skillContent(skillName: string): string {
   const dir = join(SKILLS_DIR, skillName);
   const skillMd = join(dir, "SKILL.md");
   if (!existsSync(skillMd)) throw new Error(`SKILL.md not found: ${skillMd}`);
   const parts = [readFileSync(skillMd, "utf8")];
+  const siblings = readdirSync(dir)
+    .filter((f) => f.endsWith(".md") && f !== "SKILL.md" && f.toLowerCase() !== "readme.md")
+    .sort();
+  for (const f of siblings) {
+    parts.push(`\n\n## Supporting file: ${f}\n\n${readFileSync(join(dir, f), "utf8")}`);
+  }
   const refs = join(dir, "references");
   if (existsSync(refs)) {
     for (const f of readdirSync(refs).filter((f) => f.endsWith(".md")).sort()) {
