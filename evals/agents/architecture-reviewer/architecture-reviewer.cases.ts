@@ -66,7 +66,7 @@ export const cases: AgentCase[] = [
       "assigns a severity (critical/major/minor) to each finding and ends with a verdict (`CONCERNS` or `VIOLATIONS`) consistent with the highest severity reported",
     ],
     threshold: 0.66, // the intent-level groundFindings() finding is hard for cheap models; rc/impure stays required,
-    maxTurns: 4,
+    maxTurns: 8, // loads two skill docs (onion + reviewer-core) before answering; 4 truncates the review,
   },
   {
     name: "does not fabricate a documented-rule violation for a benign rename",
