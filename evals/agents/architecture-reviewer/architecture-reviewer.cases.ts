@@ -27,9 +27,6 @@ const BENIGN_PROMPT = `Audit this diff against DevDigest's documented structural
 
 ${fx("benign-refactor.diff")}`;
 
-// Shared across the strict (architecture-reviewer) and relaxed (architecture-reviewer-lite)
-// variants so the two agents are graded on the exact same task — the only thing that should
-// move between the two runs is whether "cites the specific documented rule" keeps passing.
 export const cases: AgentCase[] = [
   {
     name: "flags both violations in the checkout diff with severity and a citable rule",
