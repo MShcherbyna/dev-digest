@@ -21,6 +21,7 @@ Reusable AI skills that provide specialized knowledge and workflows. Canonical l
 | [workflow-retro](workflow-retro/SKILL.md) | Workflow | Post-mortem of a multi-agent session: tokens, agent order, duplication, recommendations (manual, report in docs/retros/) |
 | [mermaid-diagram](mermaid-diagram/SKILL.md) | Shared | Mermaid diagrams in markdown (flowcharts, sequence, ERD, …) |
 | [engineering-insights](engineering-insights/SKILL.md) | Shared | Reads/records module-local INSIGHTS.md at task start/end |
+| [dependency-checker](dependency-checker/SKILL.md) | Shared | Repo-wide dependency report: Mermaid maps, per-package size (own + transitive), drift, unused, licenses, audit/outdated, P0–P3 actions (script-backed, report in docs/dependency-reports/) |
 | [pr-self-review](pr-self-review/SKILL.md) | Shared | Pre-PR review of `main...HEAD`: routes files to UI/backend skills, deterministic checks, BLOCKED on critical |
 
 ## What Are Skills?

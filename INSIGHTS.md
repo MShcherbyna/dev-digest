@@ -56,6 +56,18 @@ buttons") still failing, which was the more consequential gap of the two.
 
 ## Codebase Patterns
 
+- **2026-10-14** — `.github/workflows/evals.yml` selects evals by path, so two
+  traps apply. (1) `CLAUDE.md` is a symlink, so git reports instruction edits
+  as `AGENTS.md`/`<pkg>/AGENTS.md`; `evals/scripts/ci-detect.mjs` keys on those
+  names for the workflow tier. (2) vitest filters by substring, so
+  `vitest run agents/architecture-reviewer` also runs `-lite`; always pass a
+  trailing slash. Check: `cd evals && npx --yes pnpm@10 exec vitest list
+  "agents/architecture-reviewer/"`.
+- **2026-10-14** — GitHub's job-level `env:` cannot read the top-level `env`
+  context (only github/needs/strategy/matrix/vars/secrets/inputs), so
+  `evals.yml` repeats the `inputs.* || vars.* || 'default'` model expression in
+  each job instead of `${{ env.MODEL_* }}`. Not verified by actionlint (not
+  installed here).
 - **2026-09-24** — `CLAUDE.md` is a symlink to `AGENTS.md` in the root and in
   every package (client, server, reviewer-core, e2e), so editing either name
   edits the instructions loaded into every Claude session. Any write guard

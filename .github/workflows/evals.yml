@@ -1,0 +1,313 @@
+# Harness evals (evals/) on OpenRouter.
+#
+# On every same-repo PR (and on manual dispatch) detect which harness artifacts changed and run
+# only the matching evals:
+#   changes  - diff vs the base branch -> evals/scripts/ci-detect.mjs -> matrix outputs + summary.
+#   static   - no model, blocking: typecheck + eval:quality.
+#   skills   - matrix, blocking. Content tier: a direct OpenAI-compatible call to OpenRouter, so
+#              any model works natively and NO proxy is needed.
+#   agents   - matrix, blocking. Tool tier: needs the LiteLLM translating proxy to run non-Anthropic
+#              models (it dispatches subagents through the Anthropic-format API).
+#   workflow - non-blocking (continue-on-error). Needs the proxy too. Non-blocking because the
+#              README treats skill/subagent `activation` as indicative on non-Anthropic models.
+#
+# Setup (GitHub -> Settings -> Secrets and variables -> Actions):
+#   secret   OPENROUTER_API_KEY
+#   variable EVAL_MODEL_SKILLS (default deepseek/deepseek-v4.1-flash)
+#   variable EVAL_MODEL_TOOLS  (default anthropic/claude-haiku-5.5)
+#   variable EVAL_JUDGE_MODEL  (default google/gemini-2.5-flash)
+# workflow_dispatch inputs override the variables; `run_all` ignores the diff.
+# Fork PRs get no secrets, so the three model jobs are skipped for them (static still runs).
+name: evals
+
+on:
+  pull_request:
+    paths:
+      - 'evals/**'
+      - '.claude/skills/**'
+      - '.claude/agents/**'
+      - '.claude/CLAUDE.md'
+      - 'CLAUDE.md'
+      - 'AGENTS.md'
+      - 'server/AGENTS.md'
+      - 'client/AGENTS.md'
+      - 'reviewer-core/AGENTS.md'
+      - 'e2e/AGENTS.md'
+      - 'mcp/AGENTS.md'
+      - '.github/workflows/evals.yml'
+  workflow_dispatch:
+    inputs:
+      model_skills:
+        description: 'Model for the skills job (empty = repo var EVAL_MODEL_SKILLS, then deepseek/deepseek-v4.1-flash)'
+        type: string
+        default: ''
+      model_tools:
+        description: 'Model for agents + workflow jobs (empty = repo var EVAL_MODEL_TOOLS, then anthropic/claude-haiku-5.5)'
+        type: string
+        default: ''
+      judge_model:
+        description: 'Judge model (empty = repo var EVAL_JUDGE_MODEL, then google/gemini-2.5-flash)'
+        type: string
+        default: ''
+      run_all:
+        description: 'Run every eval that exists, ignoring the diff'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+# No secrets here: OPENROUTER_API_KEY is set only at job level in the three model jobs.
+env:
+  EVAL_BACKEND: openrouter
+  EVAL_JUDGE_MODEL: ${{ inputs.judge_model || vars.EVAL_JUDGE_MODEL || 'google/gemini-2.5-flash' }}
+
+jobs:
+  changes:
+    name: detect changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      skills: ${{ steps.detect.outputs.skills }}
+      agents: ${{ steps.detect.outputs.agents }}
+      run_workflow: ${{ steps.detect.outputs.run_workflow }}
+      skipped_skills: ${{ steps.detect.outputs.skipped_skills }}
+      skipped_agents: ${{ steps.detect.outputs.skipped_agents }}
+      trusted: ${{ steps.trust.outputs.trusted }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Detect changed artifacts
+        id: detect
+        env:
+          BASE_BRANCH: ${{ github.base_ref || github.event.repository.default_branch }}
+          EVAL_RUN_ALL: ${{ inputs.run_all || 'false' }}
+        run: |
+          CHANGED_FILES="$(git diff --name-only "origin/${BASE_BRANCH}...HEAD")"
+          export CHANGED_FILES
+          node evals/scripts/ci-detect.mjs
+
+      - name: Fork guard
+        id: trust
+        env:
+          IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          if [ "${IS_FORK}" = "true" ]; then
+            echo "trusted=false" >> "$GITHUB_OUTPUT"
+            echo "Model jobs skipped: fork PR (no secrets)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "trusted=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  static:
+    name: static checks
+    needs: changes
+    if: needs.changes.outputs.skills != '[]' || needs.changes.outputs.agents != '[]' || needs.changes.outputs.run_workflow == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: evals
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm eval:quality
+
+  skills:
+    name: skill ${{ matrix.skill }}
+    needs: [changes, static]
+    if: needs.changes.outputs.trusted == 'true' && needs.changes.outputs.skills != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        skill: ${{ fromJSON(needs.changes.outputs.skills) }}
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      EVAL_MODEL: ${{ inputs.model_skills || vars.EVAL_MODEL_SKILLS || 'deepseek/deepseek-v4.1-flash' }}
+      SKILL: ${{ matrix.skill }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Preflight - OpenRouter key
+        run: |
+          if [ -z "${OPENROUTER_API_KEY}" ]; then
+            echo "::error::OPENROUTER_API_KEY secret is not configured"
+            exit 1
+          fi
+
+      # Trailing slash matters: vitest filters by substring.
+      - name: Run skill evals
+        run: pnpm exec vitest run "skills/${SKILL}/"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evals-results-skill-${{ matrix.skill }}
+          path: evals/results/
+          if-no-files-found: ignore
+
+  agents:
+    name: agent ${{ matrix.agent }}
+    needs: [changes, static]
+    if: needs.changes.outputs.trusted == 'true' && needs.changes.outputs.agents != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        agent: ${{ fromJSON(needs.changes.outputs.agents) }}
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_BASE_URL: http://localhost:4000
+      EVAL_MODEL: ${{ inputs.model_tools || vars.EVAL_MODEL_TOOLS || 'anthropic/claude-haiku-5.5' }}
+      AGENT: ${{ matrix.agent }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Preflight - OpenRouter key
+        run: |
+          if [ -z "${OPENROUTER_API_KEY}" ]; then
+            echo "::error::OPENROUTER_API_KEY secret is not configured"
+            exit 1
+          fi
+
+      - name: Start LiteLLM proxy
+        run: |
+          docker compose -f proxy/docker-compose.yml up -d
+          pnpm proxy:wait
+
+      # Trailing slash matters: "agents/architecture-reviewer" would also match "-lite".
+      - name: Run agent evals
+        run: pnpm exec vitest run "agents/${AGENT}/"
+
+      - name: Proxy logs
+        if: failure()
+        run: docker compose -f proxy/docker-compose.yml logs --tail 100 || true
+
+      - name: Stop LiteLLM proxy
+        if: always()
+        run: pnpm proxy:down
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evals-results-agent-${{ matrix.agent }}
+          path: evals/results/
+          if-no-files-found: ignore
+
+  workflow:
+    name: workflow tier
+    needs: [changes, static]
+    if: needs.changes.outputs.trusted == 'true' && needs.changes.outputs.run_workflow == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: evals
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_BASE_URL: http://localhost:4000
+      EVAL_MODEL: ${{ inputs.model_tools || vars.EVAL_MODEL_TOOLS || 'anthropic/claude-haiku-5.5' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: evals/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Preflight - OpenRouter key
+        run: |
+          if [ -z "${OPENROUTER_API_KEY}" ]; then
+            echo "::error::OPENROUTER_API_KEY secret is not configured"
+            exit 1
+          fi
+
+      - name: Start LiteLLM proxy
+        run: |
+          docker compose -f proxy/docker-compose.yml up -d
+          pnpm proxy:wait
+
+      - name: Run workflow evals
+        run: pnpm eval:workflow
+
+      - name: Proxy logs
+        if: failure()
+        run: docker compose -f proxy/docker-compose.yml logs --tail 100 || true
+
+      - name: Stop LiteLLM proxy
+        if: always()
+        run: pnpm proxy:down
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evals-results-workflow
+          path: evals/results/
+          if-no-files-found: ignore
