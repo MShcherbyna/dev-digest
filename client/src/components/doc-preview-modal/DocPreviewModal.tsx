@@ -4,11 +4,11 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { ErrorState, Modal, Skeleton } from "@devdigest/ui";
+import { ErrorState, Skeleton } from "@devdigest/ui";
+import { AccessibleModal } from "@/components/accessible-modal";
 import { DocMarkdown } from "@/components/doc-markdown";
 import { useContextFile } from "@/lib/hooks/project-context";
 import { ApiError } from "@/lib/api";
-import { useFocusTrap } from "./focus-trap";
 import { s } from "./styles";
 
 export function DocPreviewModal({
@@ -26,25 +26,9 @@ export function DocPreviewModal({
     path,
   );
 
-  const rootRef = React.useRef<HTMLDivElement>(null);
-  useFocusTrap(rootRef);
-
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const status = error instanceof ApiError ? error.status : 0;
   return (
-    <div ref={rootRef}>
-      <Modal
-        width={860}
-        title={<span className="mono">{path}</span>}
-        onClose={onClose}
-      >
+    <AccessibleModal width={860} title={<span className="mono">{path}</span>} onClose={onClose}>
         <div style={s.body}>
           {isLoading ? (
             <Skeleton height={160} />
@@ -62,7 +46,6 @@ export function DocPreviewModal({
             <DocMarkdown>{data?.content}</DocMarkdown>
           )}
         </div>
-      </Modal>
-    </div>
+    </AccessibleModal>
   );
 }

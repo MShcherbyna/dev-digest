@@ -4,6 +4,10 @@ import { NextIntlClientProvider } from "next-intl";
 import type { FindingRecord } from "@devdigest/shared";
 import messages from "../../../../../../../../messages/en/prReview.json";
 
+const createCase = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/hooks/eval", () => ({
+  useCreateCaseFromFinding: () => ({ mutate: createCase, isPending: false }),
+}));
 vi.mock("@/lib/hooks/translation", () => ({
   useTranslateFinding: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
 }));
@@ -21,10 +25,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParams,
 }));
 
+import { ToastProvider } from "@/lib/toast";
 import { FindingsPanel } from "./FindingsPanel";
 
 afterEach(() => {
   cleanup();
+  createCase.mockReset();
   searchParams = new URLSearchParams();
   replace.mockClear();
 });
@@ -61,7 +67,7 @@ const MIXED_FINDINGS: FindingRecord[] = [
 function renderWithIntl(ui: React.ReactElement) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
-      {ui}
+      <ToastProvider>{ui}</ToastProvider>
     </NextIntlClientProvider>,
   );
 }
@@ -115,5 +121,34 @@ describe("FindingsPanel translation", () => {
     renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" />);
     // The first card is expanded: its actions row carries the single Translate button.
     expect(screen.getAllByRole("button", { name: "Translate" })).toHaveLength(1);
+  });
+});
+
+describe("FindingsPanel eval-case action", () => {
+  it("threads prId/agentId into the card: undecided is disabled, decided creates a case and links to that agent's Evals tab, eval_case_id shows 'In eval set'", () => {
+    // Catches: callers (panel -> card) dropping prId (button missing) or agentId (toast link to the wrong/no agent).
+    createCase.mockImplementation((_id: string, opts: { onSuccess: () => void }) => opts.onSuccess());
+    const { rerender } = renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" agentId="ag9" />);
+    expect(screen.getByRole("button", { name: "Turn into eval case" })).toBeDisabled();
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
+        <ToastProvider>
+          <FindingsPanel findings={[finding({ accepted_at: "2026-01-01T00:00:00Z" })]} prId="pr1" agentId="ag9" />
+        </ToastProvider>
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Turn into eval case" }));
+    expect(createCase).toHaveBeenCalledWith("f1", expect.anything());
+    expect(screen.getByRole("link", { name: "View in Evals" })).toHaveAttribute("href", "/agents/ag9?tab=evals");
+    expect(screen.getByRole("button", { name: "In eval set" })).toBeDisabled();
+  });
+
+  it("a finding that already has eval_case_id renders 'In eval set' disabled", () => {
+    // Catches: eval_case_id from the reviews payload not reaching the button (duplicate-case clicks).
+    renderWithIntl(
+      <FindingsPanel findings={[{ ...finding({ dismissed_at: "2026-01-01T00:00:00Z" }), eval_case_id: "case1" }]} prId="pr1" />,
+    );
+    expect(screen.getByRole("button", { name: "In eval set" })).toBeDisabled();
   });
 });

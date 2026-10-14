@@ -1,0 +1,57 @@
+import type { CSSProperties } from "react";
+
+export const COLUMNS = "28px 150px 76px repeat(3, minmax(110px,1.2fr)) 64px 72px";
+
+export const s = {
+  head: { display: "flex", alignItems: "center", gap: 14, marginBottom: 14 } satisfies CSSProperties,
+  selected: { fontSize: 13, color: "var(--text-muted)" } satisfies CSSProperties,
+  hint: { fontSize: 12.5, color: "var(--warn)" } satisfies CSSProperties,
+  compare: { marginLeft: "auto" } satisfies CSSProperties,
+  table: { border: "1px solid var(--border)", borderRadius: 12, background: "var(--bg-surface)", overflow: "hidden" } satisfies CSSProperties,
+  header: {
+    display: "grid",
+    gridTemplateColumns: COLUMNS,
+    gap: 16,
+    padding: "10px 20px",
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: "0.07em",
+    textTransform: "uppercase",
+    color: "var(--text-muted)",
+    borderBottom: "1px solid var(--border)",
+  } satisfies CSSProperties,
+  row: (selected: boolean): CSSProperties => ({
+    display: "grid",
+    gridTemplateColumns: COLUMNS,
+    gap: 16,
+    alignItems: "center",
+    padding: "13px 20px",
+    borderBottom: "1px solid var(--border)",
+    fontSize: 14,
+    background: selected ? "var(--bg-hover)" : "transparent",
+  }),
+  date: { fontSize: 13, color: "var(--text-secondary)" } satisfies CSSProperties,
+  version: { color: "var(--accent-text)", fontSize: 13, display: "inline-flex", alignItems: "center", gap: 6 } satisfies CSSProperties,
+  tag: {
+    fontSize: 10.5,
+    padding: "1px 6px",
+    borderRadius: 4,
+    background: "var(--warn-bg)",
+    color: "var(--warn)",
+    fontFamily: "inherit",
+  } satisfies CSSProperties,
+  wide: { gridColumn: "span 5", fontSize: 13 } satisfies CSSProperties,
+  running: { color: "var(--accent-text)" } satisfies CSSProperties,
+  failed: { color: "var(--crit)" } satisfies CSSProperties,
+  pass: { fontWeight: 600 } satisfies CSSProperties,
+  cost: { fontSize: 13, color: "var(--text-secondary)" } satisfies CSSProperties,
+  more: { padding: 12, display: "flex", justifyContent: "center" } satisfies CSSProperties,
+  srOnly: {
+    position: "absolute",
+    width: 1,
+    height: 1,
+    overflow: "hidden",
+    clip: "rect(0 0 0 0)",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
+};

@@ -6,13 +6,18 @@ const FOCUSABLE =
 /**
  * Traps keyboard focus inside `ref` while mounted: focus moves into the dialog
  * on open, Tab / Shift+Tab wrap at the ends, and focus returns to the opener on
- * close. The vendored Modal has none of this, so it lives in our wrapper.
+ * close (to `returnFocusTo.current` when given and connected, else the element focused at mount;
+ * pass it when the dialog mounts after an async step that already blurred the trigger). The vendored Modal has none of this, so it lives in our wrapper.
  */
-export function useFocusTrap(ref: React.RefObject<HTMLElement | null>) {
+export function useFocusTrap(
+  ref: React.RefObject<HTMLElement | null>,
+  returnFocusTo?: React.RefObject<HTMLElement | null>,
+) {
   React.useEffect(() => {
     const root = ref.current;
     if (!root) return;
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const opener = returnFocusTo?.current ?? active;
     const dialog = root.querySelector<HTMLElement>('[role="dialog"]') ?? root;
     const items = () => Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE));
 
@@ -29,11 +34,11 @@ export function useFocusTrap(ref: React.RefObject<HTMLElement | null>) {
       }
       const first = list[0]!;
       const last = list[list.length - 1]!;
-      const active = document.activeElement;
-      if (e.shiftKey && (active === first || !root.contains(active) || active === dialog)) {
+      const cur = document.activeElement;
+      if (e.shiftKey && (cur === first || !root.contains(cur) || cur === dialog)) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && (active === last || !root.contains(active))) {
+      } else if (!e.shiftKey && (cur === last || !root.contains(cur))) {
         e.preventDefault();
         first.focus();
       }
@@ -41,7 +46,7 @@ export function useFocusTrap(ref: React.RefObject<HTMLElement | null>) {
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      opener?.focus();
+      (opener?.isConnected ? opener : active)?.focus();
     };
-  }, [ref]);
+  }, [ref, returnFocusTo]);
 }

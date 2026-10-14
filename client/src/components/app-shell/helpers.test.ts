@@ -12,4 +12,13 @@ describe("activeKeyFor (AC-13)", () => {
     expect(activeKeyFor("/repos/r1/context")).toBe("context");
     expect(activeKeyFor("/repos/r1/pulls")).toBe("pulls");
   });
+
+  it("highlights Eval Dashboard on /eval and /eval/<agentId>, without stealing neighbouring keys", () => {
+    // Catches: the Eval Dashboard sidebar item not lighting up on the all-agents or per-agent
+    // page (P2-AC-1), or a neighbouring /agents path being mapped to "eval".
+    expect(activeKeyFor("/eval")).toBe("eval");
+    expect(activeKeyFor("/eval/ag1")).toBe("eval");
+    expect(activeKeyFor("/agents/ag1")).toBe("agents");
+    expect(activeKeyFor("/skills")).toBe("skills");
+  });
 });

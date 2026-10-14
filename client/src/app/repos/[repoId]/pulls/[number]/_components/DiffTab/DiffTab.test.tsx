@@ -12,6 +12,9 @@ vi.mock("@/lib/hooks/reviews", () => ({
   usePrReviews: () => ({ data: REVIEWS }),
   useFindingAction: () => ({ mutate, isPending: false }),
 }));
+vi.mock("@/lib/hooks/eval", () => ({
+  useCreateCaseFromFinding: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 vi.mock("@/lib/hooks/translation", () => ({
   useTranslateFinding: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
 }));
@@ -207,5 +210,11 @@ describe("DiffTab", () => {
     // Accept the inline finding.
     fireEvent.click(screen.getByText("Accept"));
     expect(mutate).toHaveBeenCalledWith({ findingId: "f1", action: "accept", prId: "pr1" });
+  });
+
+  it("renders the 'Turn into eval case' action on the inline finding card (disabled while undecided)", () => {
+    // Catches: DiffTab not passing prId to the injected FindingCard, so the action is missing in the diff view.
+    renderWithIntl(<DiffTab prId="pr1" filesCount={FILES.length} files={FILES} repoFullName="acme/repo" headSha="sha1" />);
+    expect(screen.getByRole("button", { name: "Turn into eval case" })).toBeDisabled();
   });
 });

@@ -17,7 +17,9 @@ import {
   type Severity,
   type Category,
 } from "@devdigest/ui";
-import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
+import type { FindingActionKind } from "@devdigest/shared";
+import type { EvalAwareFinding } from "@/lib/hooks/eval";
+import { EvalCaseButton } from "./_components/EvalCaseButton";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
 import { useTranslateFinding, type TranslatedFinding } from "@/lib/hooks/translation";
@@ -32,14 +34,19 @@ export function FindingCard({
   pending,
   repoFullName,
   headSha,
+  prId,
+  agentId,
 }: {
-  f: FindingRecord;
+  f: EvalAwareFinding;
   focused?: boolean;
   defaultExpanded?: boolean;
   onAction?: (action: FindingActionKind, reply?: string) => void;
   pending?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
+  /** When set, the "Turn into eval case" action is shown. */
+  prId?: string;
+  agentId?: string | null;
 }) {
   const t = useTranslations("prReview");
   const [expanded, setExpanded] = React.useState(defaultExpanded ?? false);
@@ -128,6 +135,7 @@ export function FindingCard({
             >
               {t("finding.dismiss")}
             </Button>
+            {prId && <EvalCaseButton finding={f} prId={prId} agentId={agentId} />}
             <Button
               kind="ghost"
               size="sm"

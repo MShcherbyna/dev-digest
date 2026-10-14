@@ -7,6 +7,7 @@ import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, API_BASE } from "../api";
 import { notify } from "../toast";
+import type { EvalAwareFinding } from "./eval";
 import type {
   FindingActionKind,
   PrReviewComment,
@@ -53,7 +54,8 @@ export function usePrRuns(prId: string | null | undefined) {
 export function usePrReviews(prId: string | null | undefined) {
   return useQuery({
     queryKey: queryKeys.reviews(prId),
-    queryFn: () => api.get<ReviewRecord[]>(`/pulls/${prId}/reviews`),
+    // Findings also carry `eval_case_id` (module-local extension, see hooks/eval.ts).
+    queryFn: () => api.get<(ReviewRecord & { findings: EvalAwareFinding[] })[]>(`/pulls/${prId}/reviews`),
     enabled: !!prId,
   });
 }

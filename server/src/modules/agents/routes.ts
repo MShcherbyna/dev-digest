@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { AgentUsageStats, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
+import { Agent, AgentUsageStats, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
 import { getContext } from '../_shared/context.js';
 import { IdParams } from '../_shared/schemas.js';
 import { NotFoundError } from '../../platform/errors.js';
@@ -31,6 +31,10 @@ const VersionParams = z.object({
  *   GET    /agents/:id/models       → dynamic model list for the agent's provider
  *   GET    /providers/:id/models    → dynamic model list for a provider (editor)
  */
+
+/** POST /agents/:id/promote — roll the agent config forward to a copy of `version`. */
+const PromoteBody = z.object({ version: z.number().int().min(1) }).strict();
+const PromoteResponse = z.object({ agent: Agent, version: z.number().int() });
 
 const CreateAgentBody = z.object({
   name: z.string().min(1),
@@ -190,6 +194,18 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
             );
       if (!links) throw new NotFoundError('Agent not found');
       return links;
+    },
+  );
+
+  app.post(
+    '/agents/:id/promote',
+    {
+      schema: { params: IdParams, body: PromoteBody, response: { 200: PromoteResponse } },
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (req) => {
+      const { workspaceId } = await getContext(app.container, req);
+      return service.promote(workspaceId, req.params.id, req.body.version, req.log);
     },
   );
 

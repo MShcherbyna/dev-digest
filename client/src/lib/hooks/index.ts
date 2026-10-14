@@ -13,3 +13,4 @@ export * from "./repo-intel";
 export * from "./project-context";
 export * from "./onboarding";
 export * from "./brief";
+export * from "./eval";

@@ -123,15 +123,30 @@ export class AgentsRepository {
     return row;
   }
 
-  /** Delete an agent (scoped to workspace). Versions/skill-links cascade;
-   *  agent_runs keep their history with agent_id set null. Returns false if
-   *  no such agent existed in the workspace. */
+  /** Delete an agent (scoped to workspace). Versions/skill-links and agent-level
+   *  eval runs cascade by FK; agent_runs keep their history with agent_id set
+   *  null. The agent's eval cases are deleted explicitly in the same
+   *  transaction: `eval_cases.owner_id` is polymorphic (skill | agent) and has no
+   *  FK, so this is a table-level cascade emulation (the one accepted reach into
+   *  the eval tables, see server/docs/eval.md); their results cascade by FK.
+   *  Returns false if no such agent existed in the workspace. */
   async deleteById(workspaceId: string, id: string): Promise<boolean> {
-    const rows = await this.db
-      .delete(t.agents)
-      .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, id)))
-      .returning({ id: t.agents.id });
-    return rows.length > 0;
+    return this.db.transaction(async (tx) => {
+      await tx
+        .delete(t.evalCases)
+        .where(
+          and(
+            eq(t.evalCases.workspaceId, workspaceId),
+            eq(t.evalCases.ownerKind, 'agent'),
+            eq(t.evalCases.ownerId, id),
+          ),
+        );
+      const rows = await tx
+        .delete(t.agents)
+        .where(and(eq(t.agents.workspaceId, workspaceId), eq(t.agents.id, id)))
+        .returning({ id: t.agents.id });
+      return rows.length > 0;
+    });
   }
 
   /** Insert an agent AND record version 1 in agent_versions (immutable snapshot). */

@@ -15,6 +15,11 @@ import type { Finding, UnifiedDiff } from '@devdigest/shared';
 
 const FULL_FILE_KINDS = new Set(['secret_leak', 'lethal_trifecta', 'phantom', 'hook']);
 
+/** True for finding kinds that ground against the file existing in the diff (no hunk needed). */
+export function isFullFileKind(kind?: string | null): boolean {
+  return kind ? FULL_FILE_KINDS.has(kind) : false;
+}
+
 export interface GroundingResult {
   kept: Finding[];
   dropped: { finding: Finding; reason: string }[];
@@ -56,7 +61,7 @@ export function groundFindings(findings: Finding[], diff: UnifiedDiff): Groundin
   const dropped: { finding: Finding; reason: string }[] = [];
 
   for (const finding of findings) {
-    const isFullFile = finding.kind ? FULL_FILE_KINDS.has(finding.kind) : false;
+    const isFullFile = isFullFileKind(finding.kind);
 
     if (!filesInDiff.has(finding.file)) {
       dropped.push({ finding, reason: `file '${finding.file}' not present in diff` });

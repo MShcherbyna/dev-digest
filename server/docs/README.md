@@ -5,3 +5,8 @@ top-level map — one file per topic (e.g. `repo-intel-indexing.md`,
 `grounding-gate.md`). Link a new file from [`../AGENTS.md`](../AGENTS.md)
 under "Read when" once it exists; don't duplicate what `../README.md` already
 covers.
+
+## Index
+
+- [eval.md](eval.md) - eval pipeline: cases from findings, agent runs, scoring, status codes.
+- [project-context.md](project-context.md) - project context docs attached to agents/skills.

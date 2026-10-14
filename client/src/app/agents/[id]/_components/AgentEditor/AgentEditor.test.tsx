@@ -1,11 +1,12 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@/test/user";
 import { NextIntlClientProvider } from "next-intl";
 import type { Agent } from "@devdigest/shared";
 import messages from "../../../../../../messages/en/agents.json";
 import contextMessages from "../../../../../../messages/en/context.json";
+import evalMessages from "../../../../../../messages/en/eval.json";
 import { ToastProvider } from "@/lib/toast";
 
 const apiGet = vi.hoisted(() => vi.fn());
@@ -91,8 +92,26 @@ describe("A2 Agent Editor (smoke)", () => {
     expect(apiGet).toHaveBeenCalledWith("/agents/ag1/context?repo_id=r1");
   });
 
-  it("renders the Evals placeholder", () => {
-    renderWithIntl(<AgentEditor agent={AGENT} tab="evals" onTab={() => {}} />);
-    expect(screen.getByText("Evals are coming soon")).toBeInTheDocument();
+  it("tab=evals renders the real Evals tab for this agent and loads its cases and runs", async () => {
+    // Catches: the editor still rendering the placeholder, or EvalsTab wired to the wrong agent (cases/runs/dashboard link).
+    apiGet.mockReset().mockImplementation(async (url: string) => {
+      if (url === "/agents/ag1/eval-cases" || url === "/agents/ag1/eval-runs") return [];
+      throw new Error(`unexpected GET ${url}`);
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <NextIntlClientProvider locale="en" messages={{ agents: messages, eval: evalMessages }}>
+        <ToastProvider>
+          <QueryClientProvider client={qc}>
+            <AgentEditor agent={AGENT} tab="evals" onTab={() => {}} />
+          </QueryClientProvider>
+        </ToastProvider>
+      </NextIntlClientProvider>,
+    );
+    expect(await screen.findByRole("heading", { name: "Eval cases" })).toBeInTheDocument();
+    expect(screen.queryByText("Evals are coming soon")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View full dashboard →" })).toHaveAttribute("href", "/eval/ag1");
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith("/agents/ag1/eval-cases"));
+    expect(apiGet).toHaveBeenCalledWith("/agents/ag1/eval-runs");
   });
 });
