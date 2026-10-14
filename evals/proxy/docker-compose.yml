@@ -14,9 +14,14 @@ services:
     image: ghcr.io/berriai/litellm:main-stable
     container_name: devdigest-eval-litellm
     ports:
-      - "4000:4000"
+      # Loopback only: never publish this gateway beyond the host.
+      - "127.0.0.1:4000:4000"
     environment:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in the environment}
+      # Newer LiteLLM images refuse to boot without a master key. The eval clients already send
+      # OPENROUTER_API_KEY as their bearer token (src/runtime/env.ts, run-openrouter.ts), so using
+      # it as the master key makes the proxy authenticated with no client changes.
+      LITELLM_MASTER_KEY: ${OPENROUTER_API_KEY}
     volumes:
       - ./litellm.config.yaml:/app/config.yaml:ro
     command: ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "1"]
