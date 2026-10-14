@@ -169,7 +169,7 @@ export const cases: WorkflowCase[] = [
     prompt: "Куди в React-компоненті краще винести константи та хелпери, щоб файл не розростався?",
     skill: "design",
     shouldActivate: false,
-    maxTurns: 4,
+    maxTurns: 6, // the model explores the repo before answering; 4 hit the turn cap with an error
   },
 
   // --- engineering-insights (record a finding) --------------------------------------------------
