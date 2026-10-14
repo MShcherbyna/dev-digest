@@ -16,6 +16,8 @@ const fx = fixtureReader(import.meta.url);
 
 const REPO_DATA = `Here is the output of scripts/collect.mjs (offline mode) for this repo — treat it as already collected, and produce the report directly from it (do not ask for tool access or more data). The numbers in it are the only numbers you may use.
 
+Length budget: keep the whole answer under ~6000 words. In the per-package weight tables list only the 8 heaviest dependencies, and always finish every section of the report template, including the last one (Method and limits).
+
 \`\`\`json
 ${fx("deps-sample.json")}
 \`\`\``;
