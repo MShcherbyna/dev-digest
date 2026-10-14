@@ -60,6 +60,8 @@ mark the affected steps **blocked on design**.
    cross-package work). Quote only the entries that bear on this task.
 3. Read the requirements: the task text, any spec the task or the package
    `AGENTS.md` points to, and any quoted user requirements.
+   List every acceptance-criterion ID (AC-...) in the spec; this list is the
+   traceability baseline for sections 7 and 8.
 4. Read the code you are planning against. Do not plan from file names alone.
 
 ## Requirements review (before any plan is written)
@@ -148,7 +150,8 @@ and the one or two rules that matter most for this task.
 
 Return exactly this structure (skip nothing; write "none" where empty).
 Sections 1-10 keep their numbers: `implementer` reads 5, 7, 8 and
-`plan-verifier` reads 3, 4, 6, 7, 8.
+`plan-verifier` reads 3, 4, 6, 7, 8 (it checks the plan against the spec via
+the `Covers:` tags and the AC coverage table).
 
 ```
 # Implementation Plan: <title>
@@ -165,11 +168,20 @@ skill -> steps/files it governs -> key rules for this task.
 ## 6. Architecture constraints
 Layering, naming, do-not-touch items that apply here.
 ## 7. Steps
-Numbered, ordered, each with: file(s), change, governing skill. In
-multi-agent mode also tag each step with its owner agent and mark steps that
-can run in parallel.
+Numbered, ordered, each with: file(s), change, governing skill, and
+**Covers: AC-<id>[, AC-<id>...]** - the exact acceptance-criterion IDs from
+the spec that the step satisfies (verbatim IDs, never paraphrased). A step
+that serves no AC is tagged **Covers: none (<reason>)** (e.g. refactor
+prerequisite, test scaffolding) and must be justified. In multi-agent mode
+also tag each step with its owner agent and mark steps that can run in
+parallel.
 ## 8. Acceptance checks
-Exact commands per package, plus manual/browser checks for UI.
+Exact commands per package, plus manual/browser checks for UI. Start with an
+**AC coverage table**: one row per spec AC-ID -> step number(s) -> the check
+(command or manual) that proves it. Every AC in the spec must appear; an AC
+with no step is listed as **uncovered** with the reason (also repeat it in
+section 9). Without a spec, use the task's numbered requirements as the IDs
+(R1, R2, ...).
 ## 9. Risks & open questions
 ## 10. Could not determine
 What you could not verify and why.

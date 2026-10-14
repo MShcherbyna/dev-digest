@@ -1,19 +1,21 @@
 import { estimateTokens, type ProjectDoc } from '@devdigest/reviewer-core';
-import { BadRequestError, NotFoundError, PayloadTooLargeError } from '../../platform/errors.js';
-import { EXCLUDED_DIRS, MAX_DOC_BYTES, READ_CONCURRENCY } from './constants.js';
-import type { ResolvedGlob } from './glob.js';
 import {
-  capAndSort,
-  countUsedBy,
-  docTypeOf,
-  duplicatesOf,
-  mergeAttachments,
-  tokensFor,
-  underExcludedDir,
-} from './helpers.js';
+  AppError,
+  BadRequestError,
+  NotFoundError,
+  PayloadTooLargeError,
+} from '../../platform/errors.js';
+import { TimeoutError } from '../../platform/resilience.js';
+import { EXCLUDED_DIRS, INDEX_JOB_KIND, MAX_DOC_BYTES } from './constants.js';
+import type { ResolvedGlob } from './glob.js';
+import { countUsedBy, duplicatesOf, mergeAttachments, underExcludedDir } from './helpers.js';
+import { buildIndex, CancelledError } from './indexer.js';
 import { validateDocPath } from './paths.js';
 import type {
   BriefDocsResolver,
+  CloneHead,
+  ContextIndexStore,
+  IndexJobs,
   ProjectContextLog,
   ProjectContextResolver,
   ProjectContextStore,
@@ -24,9 +26,13 @@ import type {
 } from './ports.js';
 import type {
   ContextFileContent,
+  ContextIndexInfo,
   ContextListing,
   ContextPaths,
+  FailureReason,
+  IndexStateRecord,
   ProjectContextDocEntry,
+  ReindexAccepted,
 } from './types.js';
 
 const EXCLUDED = new Set<string>(EXCLUDED_DIRS);
@@ -36,23 +42,22 @@ export interface ProjectContextDeps {
   docs: RepoDocsSource;
   glob: ResolvedGlob;
   log: ProjectContextLog;
+  index: ContextIndexStore;
+  head: CloneHead;
+  jobs: IndexJobs;
+  now?: () => Date;
 }
 
-/** Run `fn` over `items` with at most `limit` in flight, preserving order. */
-async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const out = new Array<R>(items.length);
-  let next = 0;
-  const worker = async () => {
-    while (next < items.length) {
-      const i = next++;
-      out[i] = await fn(items[i]!);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return out;
+interface InflightIndex {
+  jobId: Promise<string>;
+  /** Set when the job timed out: the abandoned build must not write. */
+  cancelled: boolean;
 }
 
 export class ProjectContextService implements ProjectContextResolver, BriefDocsResolver {
+  /** One re-index per repository at a time; shared by the route, listing and clone trigger. */
+  private inflight = new Map<string, InflightIndex>();
+
   constructor(private deps: ProjectContextDeps) {
     // AC-3: the rejected configured glob is logged once, when the service is built.
     if (deps.glob.rejected !== undefined) {
@@ -67,53 +72,211 @@ export class ProjectContextService implements ProjectContextResolver, BriefDocsR
     return this.deps.glob.regex.test(path) && !underExcludedDir(path, EXCLUDED);
   }
 
+  private indexInfo(repoId: string, state: IndexStateRecord | undefined): ContextIndexInfo {
+    return {
+      status: this.inflight.has(repoId) ? 'indexing' : (state?.status ?? 'none'),
+      indexed_at: state?.indexedAt?.toISOString() ?? null,
+      indexed_sha: state?.indexedSha ?? null,
+      files: state?.files ?? 0,
+      chunks: state?.chunks ?? 0,
+      ...(state?.failedAt
+        ? {
+            failed_at: state.failedAt.toISOString(),
+            ...(state.failureReason ? { failure_reason: state.failureReason } : {}),
+          }
+        : {}),
+    };
+  }
+
+  /** Served from the persisted index: never walks or reads the clone (AC-13). */
   async discover(workspaceId: string, repoId: string): Promise<ContextListing> {
-    const { store, docs, glob } = this.deps;
+    const { store, glob, index } = this.deps;
     const repo = await store.getRepo(workspaceId, repoId);
     if (!repo) throw new NotFoundError('Repository not found');
-    const scannedAt = new Date().toISOString();
-    const empty = {
-      glob: glob.glob,
-      scanned_at: scannedAt,
-      cloned: false,
-      truncated: false,
-      total: 0,
-      files: [],
-    };
-    if (!repo.clonePath) return empty;
-    const found = await docs.walk(
-      repo.clonePath,
-      EXCLUDED,
-      // Paths with quotes/control chars are dropped so they can never become a prompt label.
-      (p) => glob.regex.test(p) && validateDocPath(p).ok,
-    );
-    if (!found) return empty;
-
-    const { files, truncated, total } = capAndSort(found);
+    const { state, files } = await index.readListing(repoId);
+    const info = this.indexInfo(repoId, state);
+    if (!repo.clonePath) {
+      return {
+        glob: glob.glob,
+        cloned: false,
+        truncated: false,
+        total: 0,
+        stale: false,
+        index: info,
+        files: [],
+      };
+    }
     const clonePath = repo.clonePath;
-    const [usedBy, tokens] = await Promise.all([
+    const [usedBy, stale] = await Promise.all([
       store.usedByRows(workspaceId, repoId).then(countUsedBy),
-      mapPool(files, READ_CONCURRENCY, async (f) => {
-        if (f.size > MAX_DOC_BYTES) return tokensFor(f.size);
-        const r = await docs.read(clonePath, f.path, MAX_DOC_BYTES);
-        return r.kind === 'ok' ? tokensFor(f.size, r.content) : tokensFor(f.size);
-      }),
+      // No complete index → nothing can be out of date.
+      state?.indexedAt != null
+        ? this.isStale(state, clonePath, repo.owner, repo.name)
+        : Promise.resolve(false),
     ]);
     return {
       glob: glob.glob,
-      scanned_at: scannedAt,
       cloned: true,
-      truncated,
-      total,
-      files: files.map((f, i) => ({
+      truncated: state?.truncated ?? false,
+      total: state?.total ?? 0,
+      stale,
+      index: info,
+      files: files.map((f) => ({
         path: f.path,
-        type: docTypeOf(f.path),
+        type: f.type,
         size: f.size,
-        tokens: tokens[i]!,
-        too_large: f.size > MAX_DOC_BYTES,
+        tokens: f.tokens,
+        too_large: f.tooLarge,
         used_by: usedBy.get(f.path) ?? 0,
       })),
     };
+  }
+
+  /** Out of date: clone gone, HEAD moved (or unreadable), or the configured glob changed. */
+  private async isStale(
+    state: IndexStateRecord,
+    clonePath: string,
+    owner: string,
+    name: string,
+  ): Promise<boolean> {
+    const { docs, head, glob } = this.deps;
+    if (state.glob !== glob.glob) return true;
+    if (!(await docs.isDirectory(clonePath))) return true;
+    try {
+      return (await head.currentHead(owner, name)) !== state.indexedSha;
+    } catch {
+      return true;
+    }
+  }
+
+  /**
+   * Queue a full re-index. 404 unknown/foreign, 409 not cloned, 503 when the
+   * job cannot be queued. A second request while one is in flight joins it.
+   */
+  async requestReindex(workspaceId: string, repoId: string): Promise<ReindexAccepted> {
+    const { store, jobs, log } = this.deps;
+    const repo = await store.getRepo(workspaceId, repoId);
+    if (!repo) throw new NotFoundError('Repository not found');
+    if (!repo.clonePath) throw new AppError('not_cloned', 'The repository has not been cloned', 409);
+
+    const existing = this.inflight.get(repoId);
+    if (existing) return { status: 'accepted', job_id: await existing.jobId };
+
+    // Registered synchronously (no await since the has() check) so concurrent callers merge.
+    const enqueued = jobs.enqueue(workspaceId, INDEX_JOB_KIND, { workspaceId, repoId });
+    const entry: InflightIndex = {
+      cancelled: false,
+      jobId: enqueued.then(
+        (j) => j.id,
+        () => {
+          if (this.inflight.get(repoId) === entry) this.inflight.delete(repoId);
+          throw new AppError('job_unavailable', 'The re-index job could not be queued', 503);
+        },
+      ),
+    };
+    this.inflight.set(repoId, entry);
+
+    const onSettled = (err?: unknown): void => {
+      if (err instanceof TimeoutError) {
+        entry.cancelled = true;
+        this.deps.index
+          .recordFailure(repoId, this.now(), 'timeout')
+          .catch(() => undefined)
+          .finally(() => {
+            if (this.inflight.get(repoId) === entry) this.inflight.delete(repoId);
+          });
+        log.warn('project context index failed: timeout', { repoId });
+        return;
+      }
+      if (this.inflight.get(repoId) === entry) this.inflight.delete(repoId);
+    };
+    // Rejections are always handled here; the enqueue failure is surfaced via entry.jobId.
+    enqueued.then(
+      (j) => j.done.then(() => onSettled(), onSettled),
+      () => undefined,
+    );
+
+    return { status: 'accepted', job_id: await entry.jobId };
+  }
+
+  /** Clone follow-up: never throws, so a failed index can't fail the clone job (AC-10). */
+  async requestReindexAfterClone(workspaceId: string, repoId: string): Promise<void> {
+    try {
+      await this.requestReindex(workspaceId, repoId);
+    } catch {
+      // not cloned / queue unavailable: nothing to do, the user can re-index manually
+    }
+  }
+
+  registerIndexJobHandler(): void {
+    this.deps.jobs.register(INDEX_JOB_KIND, (payload) =>
+      this.runIndexJob(payload as { workspaceId: string; repoId: string }),
+    );
+  }
+
+  private now(): Date {
+    return this.deps.now ? this.deps.now() : new Date();
+  }
+
+  private async runIndexJob({
+    workspaceId,
+    repoId,
+  }: {
+    workspaceId: string;
+    repoId: string;
+  }): Promise<void> {
+    const { store, docs, glob, index, head, log } = this.deps;
+    const entry = this.inflight.get(repoId);
+    const cancelled = () => entry?.cancelled === true;
+    const t0 = Date.now();
+
+    let failure: FailureReason | undefined;
+    try {
+      const repo = await store.getRepo(workspaceId, repoId);
+      if (!repo) return; // repository deleted meanwhile
+      if (!repo.clonePath) {
+        failure = 'clone_missing';
+      } else {
+        let sha: string | undefined;
+        try {
+          sha = await head.currentHead(repo.owner, repo.name);
+        } catch {
+          failure = 'clone_missing';
+        }
+        if (sha !== undefined) {
+          const build = await buildIndex(
+            { docs, glob },
+            { clonePath: repo.clonePath, indexedSha: sha },
+            cancelled,
+          );
+          if (!build) {
+            failure = 'clone_missing';
+          } else {
+            await index.replaceIndex(repoId, build, this.now(), () => {
+              if (cancelled()) throw new CancelledError();
+            });
+            const chunks = build.files.reduce((n, f) => n + f.chunks.length, 0);
+            log.info(
+              `project context index: ${build.files.length} files, ${chunks} chunks, ${Date.now() - t0} ms, sha ${sha}`,
+            );
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof CancelledError) return; // the timeout was already recorded
+      failure = 'internal_error';
+    }
+    if (failure === undefined || cancelled()) return;
+
+    try {
+      await index.recordFailure(repoId, this.now(), failure);
+    } catch {
+      // e.g. the repository was deleted meanwhile (FK): nothing left to record
+    }
+    log.warn(`project context index failed: ${failure}`, { repoId });
+    // A plain Error has no status/code, so JobRunner does not retry it; the jobs row ends `failed`.
+    throw new Error(`project context index failed: ${failure}`);
   }
 
   async readFile(workspaceId: string, repoId: string, path: string): Promise<ContextFileContent> {

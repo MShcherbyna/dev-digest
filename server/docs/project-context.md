@@ -270,6 +270,32 @@ rewritten. This is an accepted limitation: the primary defence is the shared
 injection guard, not text matching (same `wrapUntrusted` as every other
 untrusted slot).
 
+## Index (manifest + chunks)
+
+`GET /repos/:id/context` is answered from a persisted index, not by walking the
+clone. Tables: `context_index_state` (one row per repo: last finished outcome,
+`indexed_at`, `indexed_sha`, counts, `glob`), `context_files` (manifest with a
+SHA-256 `content_hash`), `context_chunks` (heading-based chunks, each with its
+own hash). All cascade on repository delete.
+
+- **Lifecycle.** `POST /repos/:id/context/reindex` and every successful clone
+  job (initial clone and refresh) enqueue a `project_context_index` job. One
+  job per repo at a time: a second request joins the in-flight `job_id`. Every
+  job is a full rebuild, swapped in by one transaction; a failed or timed-out
+  build keeps the previous index and only records `failed_at` / `failure_reason`
+  (`timeout`, `clone_missing`, `internal_error`).
+- **`indexing` is in memory.** It is reported while the service holds the repo in
+  its in-flight map; the DB only stores `ready` / `failed` (no row = `none`).
+  A server restart therefore drops a running job's `indexing` flag.
+- **Chunking.** ATX headings of level 1 to 3 outside fenced code start a section;
+  oversize sections split at blank-line blocks, then hard-split at 800 tokens.
+  Concatenating the chunks gives the file back exactly.
+- **`stale`.** True when the clone directory is gone, HEAD differs from
+  `indexed_sha` (or cannot be read), or the configured glob differs from the
+  one indexed. False when there is no complete index.
+- Runs and the PR Brief still read the clone directly (`resolveForRun`,
+  `resolveForBrief`, `readFile`), not the index.
+
 ## Known limitations
 
 - **Map-reduce repeats the block.** In map-reduce mode `reviewer-core`

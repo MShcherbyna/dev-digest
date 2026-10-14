@@ -1,7 +1,12 @@
 import { lstat, readdir, readFile, realpath, stat } from 'node:fs/promises';
 import { join, relative, sep } from 'node:path';
 import type { Dirent } from 'node:fs';
-import type { DocFile, DocRead, RepoDocsSource } from '../../modules/project-context/ports.js';
+import type {
+  DocFile,
+  DocRead,
+  RawRead,
+  RepoDocsSource,
+} from '../../modules/project-context/ports.js';
 
 /**
  * Node-fs RepoDocsSource. Fails CLOSED: symlinks are never followed or listed,
@@ -56,7 +61,30 @@ export class FsRepoDocsSource implements RepoDocsSource {
     }
   }
 
+  async isDirectory(root: string): Promise<boolean> {
+    try {
+      return (await stat(root)).isDirectory();
+    } catch {
+      return false;
+    }
+  }
+
   async read(root: string, relPath: string, maxBytes: number): Promise<DocRead> {
+    const r = await this.readBytes(root, relPath, maxBytes);
+    if (r.kind !== 'ok') return r;
+    try {
+      return { kind: 'ok', content: new TextDecoder('utf-8', { fatal: true }).decode(r.bytes) };
+    } catch {
+      return { kind: 'unreadable' };
+    }
+  }
+
+  async readRaw(root: string, relPath: string, maxBytes: number): Promise<RawRead> {
+    return this.readBytes(root, relPath, maxBytes);
+  }
+
+  /** Fail-closed read shared by `read` (decodes) and `readRaw` (hashes): no decoding here. */
+  private async readBytes(root: string, relPath: string, maxBytes: number): Promise<RawRead> {
     let realRoot: string;
     try {
       realRoot = await realpath(root);
@@ -91,7 +119,7 @@ export class FsRepoDocsSource implements RepoDocsSource {
       if (st.size > maxBytes) return { kind: 'too_large' };
       const buf = await readFile(cur);
       if (buf.length > maxBytes) return { kind: 'too_large' };
-      return { kind: 'ok', content: new TextDecoder('utf-8', { fatal: true }).decode(buf) };
+      return { kind: 'ok', bytes: buf };
     } catch {
       return { kind: 'unreadable' };
     }

@@ -79,4 +79,29 @@ describe('FsRepoDocsSource', () => {
       expect(await fsrc.read(root, p, 1 << 20)).not.toMatchObject({ kind: 'ok' });
     }
   });
+
+  it('readRaw: undecoded bytes with the same classification and symlink refusals as read', async () => {
+    // Catches: the index reader (readRaw) following a symlink out of the clone, or decoding bytes that must be hashed raw.
+    const ok = await fsrc.readRaw(root, 'specs/a.md', 1024);
+    expect(ok.kind).toBe('ok');
+    expect(ok.kind === 'ok' && Buffer.from(ok.bytes).toString()).toBe('alpha');
+    // non-UTF-8 bytes are returned as-is (the caller decides it is unreadable text)
+    const bad = await fsrc.readRaw(root, 'docs/bad.md', 1024);
+    expect(bad.kind === 'ok' && Array.from(bad.bytes)).toEqual([0xff, 0xfe, 0x41]);
+    expect(await fsrc.readRaw(root, 'specs/none.md', 1024)).toEqual({ kind: 'missing' });
+    expect(await fsrc.readRaw(root, 'docs/big.md', 99)).toEqual({ kind: 'too_large' });
+    expect(await fsrc.readRaw(root, 'docs', 1024)).toEqual({ kind: 'unreadable' });
+    expect((await fsrc.readRaw(root, 'docs/evil.md', 1 << 20)).kind).toBe('invalid_path');
+    expect((await fsrc.readRaw(root, 'docs/linked/secret.md', 1 << 20)).kind).toBe('invalid_path');
+    expect((await fsrc.readRaw(root, 'docs/inside-link.md', 1 << 20)).kind).toBe('unreadable');
+    expect((await fsrc.readRaw(root, '../outside/secret.md', 1 << 20)).kind).not.toBe('ok');
+    expect(await fsrc.readRaw(join(base, 'nope'), 'specs/a.md', 1024)).toEqual({ kind: 'missing' });
+  });
+
+  it('isDirectory: true for a directory, false for a file, a missing path or anything unreadable', async () => {
+    // Catches: "stale" never firing after the clone directory is removed.
+    expect(await fsrc.isDirectory(root)).toBe(true);
+    expect(await fsrc.isDirectory(join(root, 'specs/a.md'))).toBe(false);
+    expect(await fsrc.isDirectory(join(base, 'nope'))).toBe(false);
+  });
 });

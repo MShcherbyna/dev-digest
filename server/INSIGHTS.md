@@ -14,6 +14,19 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-13** — Project Context `indexing` status is never in the DB: it is
+  `ProjectContextService.inflight.has(repoId)`, so reindex route, listing and
+  the post-clone trigger MUST share the `container.projectContext` singleton
+  (a second `new ProjectContextService` has its own map and reports `none`).
+  A `JobRunner` timeout rejects `done` with `TimeoutError` while the handler
+  keeps running; the service sets `entry.cancelled` and `replaceIndex` calls
+  `assertNotCancelled()` as its last in-transaction statement, so the zombie
+  build rolls back. `test/helpers/brief.ts` builds the service without the
+  `index`/`head`/`jobs` deps (fine only because it never calls `discover`).
+  **Updated 2026-10-13:** the helper now passes inert fakes from
+  `test/helpers/context-index.ts`.
+  See `server/src/modules/project-context/service.ts`.
+
 - **2026-10-12** — Seed data for PR #482 (pr_files patches, extra findings)
   is inserted only inside `if (!pr)`, so an existing dev DB never gets it;
   the `pr_brief` row is a separate `onConflictDoNothing` insert and DOES land
@@ -127,6 +140,17 @@ read by the `engineering-insights` skill.
   ~50s, 28 verified candidates.
 
 ## Tool & Library Notes
+
+- **2026-10-13** — Testing the Project Context index: `Container` builds
+  `new JobRunner(db)` itself (120 s timeout, not overridable), so the timeout
+  half of AC-9 is only reachable in a unit test (`FakeJobs.timeoutNext` in
+  `test/helpers/context-index.ts`). In `.it` tests hold a build open with
+  `ControlDocs.holdWalks()` (gate on `walk`) and drain with
+  `app.container.jobs.onIdle()`, which also covers the index job the clone job
+  enqueues from inside itself. `MockGitClient.clone` returns `/mock/clones/...`
+  (not a real dir); use `HeadGit` with `cloneDir` for AC-10. Drizzle
+  `transaction(fn, { isolationLevel, accessMode: 'read only' })` is accepted
+  by the installed version (`project-context-index.it.test.ts` passes).
 
 - **2026-10-12** — Two test-harness facts: (1) `server/tsconfig.json` has
   `include: ["src/**/*.ts"]`, so `pnpm typecheck` never type-checks

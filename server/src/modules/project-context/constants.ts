@@ -28,3 +28,14 @@ export const EXCLUDED_DIRS: readonly string[] = [
 
 export const DOC_TYPES = ['specs', 'docs', 'insights'] as const;
 export type DocType = (typeof DOC_TYPES)[number];
+
+/** A chunk never exceeds this many estimated tokens (`ceil(chars/4)`). */
+export const MAX_CHUNK_TOKENS = 800;
+
+/** `jobs.kind` of the background index build. */
+export const INDEX_JOB_KIND = 'project_context_index';
+
+export const FAILURE_REASONS = ['timeout', 'clone_missing', 'internal_error'] as const;
+
+/** Rows per INSERT statement when persisting an index. */
+export const INSERT_BATCH = 1000;

@@ -34,7 +34,7 @@ import type {
 } from '@devdigest/shared';
 import { parseUnifiedDiff } from './git/diff-parser.js';
 import type { PriorPrHit, PriorPrQuery, PriorPrSource } from '../modules/blast/ports.js';
-import type { DocFile, DocRead, RepoDocsSource } from '../modules/project-context/ports.js';
+import type { DocFile, DocRead, RawRead, RepoDocsSource } from '../modules/project-context/ports.js';
 import type { FileRead, FsKind, RepoFile, RepoFiles } from '../modules/onboarding/ports.js';
 
 /**
@@ -358,12 +358,37 @@ export class MockSecretsProvider implements SecretsProvider {
 }
 
 // ---------- Mock repo docs (project-context) ----------
-/** Files keyed by repo-relative path: text, `{ size }` (too large), or 'unreadable'. */
-export type MockRepoDocsFiles = Record<string, string | { size: number } | 'unreadable'>;
+/**
+ * Files keyed by repo-relative path: text, `{ size }` (too large), 'unreadable',
+ * or raw bytes (e.g. invalid UTF-8 to model a binary file named .md).
+ */
+export type MockRepoDocsFiles = Record<string, string | { size: number } | 'unreadable' | Uint8Array>;
 
 export class MockRepoDocsSource implements RepoDocsSource {
-  /** `root` is ignored; null `files` simulates a missing clone directory. */
-  constructor(private files: MockRepoDocsFiles | null = {}) {}
+  /**
+   * `root` is ignored; null `files` simulates a missing clone directory.
+   * `failOn`: `readRaw` of this path throws, to simulate a mid-build failure.
+   */
+  constructor(
+    private files: MockRepoDocsFiles | null = {},
+    private opts: { failOn?: string } = {},
+  ) {}
+
+  /** Replace the tree (tests edit a "clone" between index runs). */
+  setFiles(files: MockRepoDocsFiles | null): void {
+    this.files = files;
+  }
+
+  async isDirectory(): Promise<boolean> {
+    return this.files !== null;
+  }
+
+  private sizeOf(v: string | { size: number } | 'unreadable' | Uint8Array): number {
+    if (v === 'unreadable') return 0;
+    if (typeof v === 'string') return Buffer.byteLength(v, 'utf8');
+    if (v instanceof Uint8Array) return v.byteLength;
+    return v.size;
+  }
 
   async walk(
     _root: string,
@@ -373,19 +398,35 @@ export class MockRepoDocsSource implements RepoDocsSource {
     if (!this.files) return null;
     return Object.entries(this.files)
       .filter(([p]) => !p.split('/').slice(0, -1).some((s) => excluded.has(s)) && accept(p))
-      .map(([path, v]) => ({
-        path,
-        size:
-          v === 'unreadable' ? 0 : typeof v === 'string' ? Buffer.byteLength(v, 'utf8') : v.size,
-      }));
+      .map(([path, v]) => ({ path, size: this.sizeOf(v) }));
   }
 
   async read(_root: string, relPath: string, maxBytes: number): Promise<DocRead> {
     const v = this.files?.[relPath];
     if (v === undefined) return { kind: 'missing' };
     if (v === 'unreadable') return { kind: 'unreadable' };
+    if (v instanceof Uint8Array) {
+      if (v.byteLength > maxBytes) return { kind: 'too_large' };
+      try {
+        return { kind: 'ok', content: new TextDecoder('utf-8', { fatal: true }).decode(v) };
+      } catch {
+        return { kind: 'unreadable' };
+      }
+    }
     if (typeof v !== 'string') return v.size > maxBytes ? { kind: 'too_large' } : { kind: 'unreadable' };
     return Buffer.byteLength(v, 'utf8') > maxBytes ? { kind: 'too_large' } : { kind: 'ok', content: v };
+  }
+
+  async readRaw(_root: string, relPath: string, maxBytes: number): Promise<RawRead> {
+    if (this.opts.failOn === relPath) throw new Error('mock readRaw failure');
+    const v = this.files?.[relPath];
+    if (v === undefined) return { kind: 'missing' };
+    if (v === 'unreadable') return { kind: 'unreadable' };
+    if (typeof v === 'object' && !(v instanceof Uint8Array)) {
+      return v.size > maxBytes ? { kind: 'too_large' } : { kind: 'unreadable' };
+    }
+    const bytes = typeof v === 'string' ? new TextEncoder().encode(v) : v;
+    return bytes.byteLength > maxBytes ? { kind: 'too_large' } : { kind: 'ok', bytes };
   }
 }
 

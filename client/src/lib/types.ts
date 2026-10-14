@@ -44,13 +44,33 @@ export interface ContextFileInfo {
   used_by: number;
 }
 
+export type ContextIndexStatus = "none" | "indexing" | "ready" | "failed";
+export type ContextFailureReason = "timeout" | "clone_missing" | "internal_error";
+
+export interface ContextIndexInfo {
+  status: ContextIndexStatus;
+  indexed_at: string | null;
+  indexed_sha: string | null;
+  files: number;
+  chunks: number;
+  failed_at?: string;
+  failure_reason?: ContextFailureReason;
+}
+
 export interface ContextListing {
   glob: string;
-  scanned_at: string;
   cloned: boolean;
   truncated: boolean;
   total: number;
+  stale: boolean;
+  index: ContextIndexInfo;
   files: ContextFileInfo[];
+}
+
+/** 202 body of POST /repos/:id/context/reindex. */
+export interface ReindexAccepted {
+  status: "accepted";
+  job_id: string;
 }
 
 export interface ContextFileContent {

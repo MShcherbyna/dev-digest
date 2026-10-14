@@ -8,11 +8,13 @@ import {
   ContextListing,
   ContextPaths,
   ContextRepoQuery,
+  ReindexAccepted,
 } from './schemas.js';
 
 /**
  * Project Context module.
- *   GET /repos/:id/context              → discovered markdown docs in the repo clone
+ *   GET /repos/:id/context              → docs from the persisted index (+ `index`, `stale`)
+ *   POST /repos/:id/context/reindex     → queue a full re-index (202; 404; 409 not_cloned; 503)
  *   GET /repos/:id/context/file?path=   → one discoverable doc's text
  *   GET|PUT /agents/:id/context?repo_id= → ordered attached paths for that repo (no version bump)
  *   GET|PUT /skills/:id/context?repo_id= → same, for skills
@@ -24,12 +26,26 @@ export default async function projectContextRoutes(appBase: FastifyInstance) {
   const app = appBase.withTypeProvider<ZodTypeProvider>();
   const { container } = app;
 
+  // Once, at plugin load: the job handler runs on the shared container singleton.
+  container.projectContext.registerIndexJobHandler();
+
   app.get(
     '/repos/:id/context',
     { schema: { params: IdParams, response: { 200: ContextListing } } },
     async (req) => {
       const { workspaceId } = await getContext(container, req);
       return container.projectContext.discover(workspaceId, req.params.id);
+    },
+  );
+
+  app.post(
+    '/repos/:id/context/reindex',
+    { schema: { params: IdParams, response: { 202: ReindexAccepted } } },
+    async (req, reply) => {
+      const { workspaceId } = await getContext(container, req);
+      const out = await container.projectContext.requestReindex(workspaceId, req.params.id);
+      reply.code(202);
+      return out;
     },
   );
 

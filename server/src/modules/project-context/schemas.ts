@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { RunTrace } from '@devdigest/shared';
-import { DOC_TYPES } from './constants.js';
+import { DOC_TYPES, FAILURE_REASONS } from './constants.js';
 import type * as App from './types.js';
 
 export const SkipReason = z.enum(['missing', 'too_large', 'invalid_path', 'unreadable', 'empty']);
@@ -36,15 +36,33 @@ export const ContextFile = z.object({
   used_by: z.number().int().nonnegative(),
 });
 
+export const ContextIndexInfo = z.object({
+  status: z.enum(['none', 'indexing', 'ready', 'failed']),
+  indexed_at: z.string().nullable(),
+  indexed_sha: z.string().nullable(),
+  files: z.number().int().nonnegative(),
+  chunks: z.number().int().nonnegative(),
+  failed_at: z.string().optional(),
+  failure_reason: z.enum(FAILURE_REASONS).optional(),
+});
+export type ContextIndexInfo = z.infer<typeof ContextIndexInfo>;
+
 export const ContextListing = z.object({
   glob: z.string(),
-  scanned_at: z.string(),
   cloned: z.boolean(),
   truncated: z.boolean(),
   total: z.number().int().nonnegative(),
+  stale: z.boolean(),
+  index: ContextIndexInfo,
   files: z.array(ContextFile),
 });
 export type ContextListing = z.infer<typeof ContextListing>;
+
+export const ReindexAccepted = z.object({
+  status: z.literal('accepted'),
+  job_id: z.string(),
+});
+export type ReindexAccepted = z.infer<typeof ReindexAccepted>;
 
 export const ContextFileQuery = z.object({ path: z.string().max(1024) });
 
@@ -78,7 +96,9 @@ export type SchemaMatchesApplicationTypes = [
   Assignable<SkipReason, App.SkipReason>,
   Assignable<ProjectContextDocEntry, App.ProjectContextDocEntry>,
   Assignable<z.infer<typeof ContextFile>, App.ContextFile>,
+  Assignable<ContextIndexInfo, App.ContextIndexInfo>,
   Assignable<ContextListing, App.ContextListing>,
+  Assignable<ReindexAccepted, App.ReindexAccepted>,
   Assignable<ContextFileContent, App.ContextFileContent>,
   Assignable<ContextPaths, App.ContextPaths>,
 ];

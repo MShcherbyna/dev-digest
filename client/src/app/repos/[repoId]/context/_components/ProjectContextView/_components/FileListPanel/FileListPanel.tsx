@@ -4,18 +4,22 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Badge, Icon, IconBtn } from "@devdigest/ui";
+import { Badge, Icon } from "@devdigest/ui";
 import { DOC_TYPE_STYLE } from "@/components/context-doc-list/constants";
 import type { ContextListing } from "@/lib/types";
-import { areaOf, baseName, dirOf, relativeTime, sortFiles } from "../../helpers";
+import { areaOf, baseName, dirOf, sortFiles } from "../../helpers";
 import { s } from "../../styles";
+import { IndexFooter } from "./_components/IndexFooter";
+import { ReindexButton } from "./_components/ReindexButton";
 
 export interface FileListPanelProps {
   listing: ContextListing;
   repoName: string;
   selected: string | null;
   onSelect: (path: string) => void;
-  onRefresh: () => void;
+  reindex: { running: boolean; onClick: () => void };
+  /** Replaces the row list (empty states). */
+  children?: React.ReactNode;
 }
 
 /** Area badge colours: "docs" keeps its green, every other area is neutral. */
@@ -23,7 +27,7 @@ function areaStyle(area: string) {
   return area === "docs" ? DOC_TYPE_STYLE.docs : { color: "var(--text-secondary)", bg: "var(--bg-hover)" };
 }
 
-export function FileListPanel({ listing, repoName, selected, onSelect, onRefresh }: FileListPanelProps) {
+export function FileListPanel({ listing, repoName, selected, onSelect, reindex, children }: FileListPanelProps) {
   const t = useTranslations("context");
   const files = React.useMemo(() => sortFiles(listing.files), [listing.files]);
   return (
@@ -35,11 +39,14 @@ export function FileListPanel({ listing, repoName, selected, onSelect, onRefresh
             {repoName}
           </div>
         </div>
-        <IconBtn icon="RefreshCw" label={t("page.refresh")} onClick={onRefresh} />
+        <div style={s.iconRow} role="toolbar" aria-label={t("page.panelTitle")}>
+          <ReindexButton running={reindex.running} noClone={!listing.cloned} onClick={reindex.onClick} />
+        </div>
       </div>
       <div style={s.list}>
-        {listing.truncated && <div style={s.notice}>{t("list.truncated", { total: listing.total })}</div>}
-        {files.map((f) => {
+        {children}
+        {!children && listing.truncated && <div style={s.notice}>{t("list.truncated", { total: listing.total })}</div>}
+        {!children && files.map((f) => {
           const active = f.path === selected;
           const area = areaOf(f.path);
           const style = areaStyle(area);
@@ -71,13 +78,7 @@ export function FileListPanel({ listing, repoName, selected, onSelect, onRefresh
           );
         })}
       </div>
-      <div style={s.footer}>
-        <span style={s.footerLine}>
-          <span style={s.dot} />
-          {t("page.indexed", { count: files.length })}
-        </span>
-        <span>{t("page.lastScanned", { when: relativeTime(listing.scanned_at) })}</span>
-      </div>
+      {listing.cloned && <IndexFooter index={listing.index} stale={listing.stale} running={reindex.running} />}
     </aside>
   );
 }

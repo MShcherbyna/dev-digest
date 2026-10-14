@@ -201,12 +201,21 @@ export class Container {
 
   /** Project Context (attached markdown docs): discovery, attachments, run-time resolution. */
   get projectContext(): ProjectContextService & ProjectContextResolver {
-    this._projectContext ??= new ProjectContextService({
-      store: new ProjectContextRepository(this.db),
-      docs: this.overrides.repoDocs ?? new FsRepoDocsSource(),
-      glob: resolveGlob(this.config.projectContextGlob),
-      log: { warn: (msg) => console.warn(msg) },
-    });
+    if (!this._projectContext) {
+      const repo = new ProjectContextRepository(this.db);
+      this._projectContext = new ProjectContextService({
+        store: repo,
+        index: repo,
+        docs: this.overrides.repoDocs ?? new FsRepoDocsSource(),
+        glob: resolveGlob(this.config.projectContextGlob),
+        head: { currentHead: (owner, name) => this.git.currentHead({ owner, name }) },
+        jobs: this.jobs,
+        log: {
+          warn: (msg, data) => (data ? console.warn(msg, data) : console.warn(msg)),
+          info: (msg, data) => (data ? console.info(msg, data) : console.info(msg)),
+        },
+      });
+    }
     return this._projectContext;
   }
 

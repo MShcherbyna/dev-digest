@@ -6,18 +6,7 @@ export function sectionDomId(key: SectionKey): string {
   return `tour-${key}`;
 }
 
-/** Compact "2m ago" / "2h ago" / "3d ago"; the raw string for an unparsable date. */
-export function relativeTime(iso: string, now: number = Date.now()): string {
-  const then = Date.parse(iso);
-  if (Number.isNaN(then)) return iso;
-  const sec = Math.max(0, Math.round((now - then) / 1000));
-  if (sec < 60) return "just now";
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  return `${Math.floor(hr / 24)}d ago`;
-}
+export { compactRelativeTime as relativeTime } from "@/lib/relative-time";
 
 /** en-US digit grouping: 12450 -> "12,450". */
 export function formatCount(n: number): string {

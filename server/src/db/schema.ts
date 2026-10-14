@@ -33,7 +33,13 @@ import { pullRequests, prFiles, prCommits } from './schema/pulls';
 import { reviews, findings, prIntent, prBrief } from './schema/reviews';
 import { skills, skillVersions } from './schema/skills';
 import { agents, agentVersions, agentSkills } from './schema/agents';
-import { agentRepoContext, skillRepoContext } from './schema/project-context';
+import {
+  agentRepoContext,
+  skillRepoContext,
+  contextIndexState,
+  contextFiles,
+  contextChunks,
+} from './schema/project-context';
 import { memory, conventions } from './schema/knowledge';
 import { codeChunks, symbols, references, onboarding } from './schema/context';
 import { evalCases, evalRuns, conformanceChecks, composedReviews } from './schema/eval';
@@ -69,6 +75,9 @@ export const schema = {
   agentSkills,
   agentRepoContext,
   skillRepoContext,
+  contextIndexState,
+  contextFiles,
+  contextChunks,
   conventions,
   memory,
   codeChunks,

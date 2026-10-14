@@ -74,7 +74,7 @@ describe("A2 Agent Editor (smoke)", () => {
     // Catches: the Context tab unreachable / unwired from the editor, or the container not passing the active repo (AC-37).
     apiGet.mockReset().mockImplementation(async (url: string) => {
       if (url === "/agents/ag1/context?repo_id=r1") return { paths: [] };
-      if (url === "/repos/r1/context") return { glob: "g", scanned_at: "2026-10-11T10:00:00Z", cloned: true, truncated: false, total: 0, files: [] };
+      if (url === "/repos/r1/context") return { glob: "g", cloned: true, truncated: false, total: 0, stale: false, index: { status: "ready", indexed_at: "2026-10-11T10:00:00Z", indexed_sha: "abc", files: 0, chunks: 0 }, files: [] };
       throw new Error(`unexpected GET ${url}`);
     });
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
