@@ -1,0 +1,704 @@
+{
+ "mode": "offline (no --online)",
+ "packages": {
+  "client": {
+   "counts": {
+    "prod": 12,
+    "dev": 15
+   },
+   "totals": {
+    "prodBytes": 559886336,
+    "devOnlyBytes": 159019008,
+    "uniqueBytes": 718905344,
+    "nodeModulesBytes": 719384576
+   },
+   "licenseFlags": [],
+   "deps": [
+    {
+     "name": "next-intl",
+     "kind": "prod",
+     "range": "^3.26.0",
+     "version": "3.26.5",
+     "ownBytes": 1429504,
+     "withDepsBytes": 341049344,
+     "usage": "referenced"
+    },
+    {
+     "name": "next",
+     "kind": "prod",
+     "range": "^15.1.3",
+     "version": "15.5.19",
+     "ownBytes": 159703040,
+     "withDepsBytes": 335900672,
+     "usage": "referenced"
+    },
+    {
+     "name": "mermaid",
+     "kind": "prod",
+     "range": "^11.15.0",
+     "version": "11.15.0",
+     "ownBytes": 78966784,
+     "withDepsBytes": 144695296,
+     "usage": "referenced"
+    },
+    {
+     "name": "eslint-config-next",
+     "kind": "dev",
+     "range": "^15.5.25",
+     "version": "15.5.25",
+     "ownBytes": 32768,
+     "withDepsBytes": 86679552,
+     "usage": "referenced"
+    },
+    {
+     "name": "vitest",
+     "kind": "dev",
+     "range": "^2.1.8",
+     "version": "2.1.9",
+     "ownBytes": 1957888,
+     "withDepsBytes": 64454656,
+     "usage": "referenced"
+    },
+    {
+     "name": "@vitejs/plugin-react",
+     "kind": "dev",
+     "range": "^4.3.4",
+     "version": "4.7.0",
+     "ownBytes": 86016,
+     "withDepsBytes": 58343424,
+     "usage": "referenced"
+    },
+    {
+     "name": "postcss",
+     "kind": "dev",
+     "range": "^8.4.49",
+     "version": "8.5.15",
+     "ownBytes": 348160,
+     "withDepsBytes": 671744,
+     "usage": "unused-candidate"
+    }
+   ]
+  },
+  "e2e": {
+   "counts": {
+    "prod": 0,
+    "dev": 3
+   },
+   "totals": {
+    "prodBytes": 0,
+    "devOnlyBytes": 38207488,
+    "uniqueBytes": 38207488,
+    "nodeModulesBytes": 38244352
+   },
+   "licenseFlags": [],
+   "deps": [
+    {
+     "name": "typescript",
+     "kind": "dev",
+     "range": "^5.7.2",
+     "version": "5.9.3",
+     "ownBytes": 23957504,
+     "withDepsBytes": 23957504,
+     "usage": "used-via-script"
+    },
+    {
+     "name": "tsx",
+     "kind": "dev",
+     "range": "^4.19.2",
+     "version": "4.23.15",
+     "ownBytes": 499712,
+     "withDepsBytes": 11448320,
+     "usage": "used-via-script"
+    },
+    {
+     "name": "@types/node",
+     "kind": "dev",
+     "range": "^22.10.0",
+     "version": "22.20.5",
+     "ownBytes": 2600960,
+     "withDepsBytes": 2801664,
+     "usage": "referenced"
+    }
+   ]
+  },
+  "evals": {
+   "counts": {
+    "prod": 2,
+    "dev": 5
+   },
+   "totals": {
+    "prodBytes": 286883840,
+    "devOnlyBytes": 81715200,
+    "uniqueBytes": 368599040,
+    "nodeModulesBytes": 348323840
+   },
+   "licenseFlags": [
+    {
+     "license": "Unknown",
+     "name": "@anthropic-ai/claude-agent-sdk",
+     "versions": [
+      "0.3.198"
+     ]
+    }
+   ],
+   "deps": [
+    {
+     "name": "@anthropic-ai/claude-agent-sdk",
+     "kind": "prod",
+     "range": "^0.3.198",
+     "version": "0.3.198",
+     "ownBytes": 3723264,
+     "withDepsBytes": 271339520,
+     "usage": "referenced"
+    },
+    {
+     "name": "vitest",
+     "kind": "dev",
+     "range": "^2.1.0",
+     "version": "2.1.9",
+     "ownBytes": 1957888,
+     "withDepsBytes": 37457920,
+     "usage": "referenced"
+    },
+    {
+     "name": "typescript",
+     "kind": "dev",
+     "range": "^5.6.0",
+     "version": "5.9.3",
+     "ownBytes": 23957504,
+     "withDepsBytes": 23957504,
+     "usage": "used-via-script"
+    },
+    {
+     "name": "openai",
+     "kind": "prod",
+     "range": "^4.77.0",
+     "version": "4.104.0",
+     "ownBytes": 7720960,
+     "withDepsBytes": 22990848,
+     "usage": "referenced"
+    },
+    {
+     "name": "tsx",
+     "kind": "dev",
+     "range": "^4.19.0",
+     "version": "4.22.4",
+     "ownBytes": 688128,
+     "withDepsBytes": 22183936,
+     "usage": "referenced"
+    },
+    {
+     "name": "@types/node",
+     "kind": "dev",
+     "range": "^22.0.0",
+     "version": "22.20.0",
+     "ownBytes": 2605056,
+     "withDepsBytes": 2805760,
+     "usage": "referenced"
+    }
+   ]
+  },
+  "mcp": {
+   "counts": {
+    "prod": 2,
+    "dev": 4
+   },
+   "totals": {
+    "prodBytes": 24027136,
+    "devOnlyBytes": 62922752,
+    "uniqueBytes": 86949888,
+    "nodeModulesBytes": 87076864
+   },
+   "licenseFlags": [],
+   "deps": [
+    {
+     "name": "vitest",
+     "kind": "dev",
+     "range": "^2.1.8",
+     "version": "2.1.9",
+     "ownBytes": 1957888,
+     "withDepsBytes": 27779072,
+     "usage": "referenced"
+    },
+    {
+     "name": "@modelcontextprotocol/sdk",
+     "kind": "prod",
+     "range": "1.31.0",
+     "version": "1.31.0",
+     "ownBytes": 6283264,
+     "withDepsBytes": 24027136,
+     "usage": "referenced"
+    },
+    {
+     "name": "typescript",
+     "kind": "dev",
+     "range": "^5.7.2",
+     "version": "5.9.3",
+     "ownBytes": 23957504,
+     "withDepsBytes": 23957504,
+     "usage": "used-via-script"
+    },
+    {
+     "name": "tsx",
+     "kind": "dev",
+     "range": "^4.19.2",
+     "version": "4.23.15",
+     "ownBytes": 499712,
+     "withDepsBytes": 11448320,
+     "usage": "used-via-script"
+    },
+    {
+     "name": "zod",
+     "kind": "prod",
+     "range": "^3.25.76",
+     "version": "3.25.76",
+     "ownBytes": 5259264,
+     "withDepsBytes": 5259264,
+     "usage": "referenced"
+    },
+    {
+     "name": "@types/node",
+     "kind": "dev",
+     "range": "^22.10.0",
+     "version": "22.20.4",
+     "ownBytes": 2600960,
+     "withDepsBytes": 2801664,
+     "usage": "referenced"
+    }
+   ]
+  },
+  "reviewer-core": {
+   "counts": {
+    "prod": 2,
+    "dev": 4
+   },
+   "totals": {
+    "prodBytes": 21692416,
+    "devOnlyBytes": 60325888,
+    "uniqueBytes": 82018304,
+    "nodeModulesBytes": 82132992
+   },
+   "licenseFlags": [],
+   "deps": [
+    {
+     "name": "vitest",
+     "kind": "dev",
+     "range": "^2.1.8",
+     "version": "2.1.9",
+     "ownBytes": 1957888,
+     "withDepsBytes": 27734016,
+     "usage": "referenced"
+    },
+    {
+     "name": "typescript",
+     "kind": "dev",
+     "range": "^5.7.2",
+     "version": "5.9.3",
+     "ownBytes": 23957504,
+     "withDepsBytes": 23957504,
+     "usage": "used-via-script"
+    },
+    {
+     "name": "openai",
+     "kind": "prod",
+     "range": "^4.77.0",
+     "version": "4.104.0",
+     "ownBytes": 7720960,
+     "withDepsBytes": 21692416,
+     "usage": "referenced"
+    },
+    {
+     "name": "tsx",
+     "kind": "dev",
+     "range": "^4.19.2",
+     "version": "4.23.13",
+     "ownBytes": 692224,
+     "withDepsBytes": 11640832,
+     "usage": "unused-candidate"
+    },
+    {
+     "name": "zod",
+     "kind": "prod",
+     "range": "^3.24.1",
+     "version": "3.25.76",
+     "ownBytes": 5259264,
+     "withDepsBytes": 5259264,
+     "usage": "referenced"
+    },
+    {
+     "name": "@types/node",
+     "kind": "dev",
+     "range": "^22.10.0",
+     "version": "22.20.3",
+     "ownBytes": 2605056,
+     "withDepsBytes": 2805760,
+     "usage": "referenced"
+    }
+   ]
+  },
+  "server": {
+   "counts": {
+    "prod": 22,
+    "dev": 8
+   },
+   "totals": {
+    "prodBytes": 116264960,
+    "devOnlyBytes": 169545728,
+    "uniqueBytes": 285810688,
+    "nodeModulesBytes": 286154752
+   },
+   "licenseFlags": [],
+   "deps": [
+    {
+     "name": "drizzle-kit",
+     "kind": "dev",
+     "range": "^0.30.1",
+     "version": "0.30.6",
+     "ownBytes": 7798784,
+     "withDepsBytes": 50606080,
+     "usage": "referenced"
+    },
+    {
+     "name": "@testcontainers/postgresql",
+     "kind": "dev",
+     "range": "^10.16.0",
+     "version": "10.28.0",
+     "ownBytes": 40960,
+     "withDepsBytes": 44310528,
+     "usage": "referenced"
+    },
+    {
+     "name": "testcontainers",
+     "kind": "dev",
+     "range": "^10.16.0",
+     "version": "10.28.0",
+     "ownBytes": 1212416,
+     "withDepsBytes": 44269568,
+     "usage": "unused-candidate"
+    },
+    {
+     "name": "vitest",
+     "kind": "dev",
+     "range": "^2.1.8",
+     "version": "2.1.9",
+     "ownBytes": 1957888,
+     "withDepsBytes": 37421056,
+     "usage": "referenced"
+    },
+    {
+     "name": "typescript",
+     "kind": "dev",
+     "range": "^5.7.2",
+     "version": "5.9.3",
+     "ownBytes": 23957504,
+     "withDepsBytes": 23957504,
+     "usage": "used-via-script"
+    },
+    {
+     "name": "js-tiktoken",
+     "kind": "prod",
+     "range": "^1.0.21",
+     "version": "1.0.21",
+     "ownBytes": 22536192,
+     "withDepsBytes": 22560768,
+     "usage": "referenced"
+    },
+    {
+     "name": "@fastify/autoload",
+     "kind": "prod",
+     "range": "^6.0.3",
+     "version": "6.3.1",
+     "ownBytes": 1245184,
+     "withDepsBytes": 1245184,
+     "usage": "unused-candidate"
+    }
+   ]
+  }
+ },
+ "versionDrift": [
+  {
+   "dep": "@types/node",
+   "versions": [
+    {
+     "version": "22.19.19",
+     "pkgs": [
+      "client",
+      "server"
+     ]
+    },
+    {
+     "version": "22.20.5",
+     "pkgs": [
+      "e2e"
+     ]
+    },
+    {
+     "version": "22.20.0",
+     "pkgs": [
+      "evals"
+     ]
+    },
+    {
+     "version": "22.20.4",
+     "pkgs": [
+      "mcp"
+     ]
+    },
+    {
+     "version": "22.20.3",
+     "pkgs": [
+      "reviewer-core"
+     ]
+    }
+   ]
+  },
+  {
+   "dep": "tsx",
+   "versions": [
+    {
+     "version": "4.23.15",
+     "pkgs": [
+      "e2e",
+      "mcp"
+     ]
+    },
+    {
+     "version": "4.22.4",
+     "pkgs": [
+      "evals",
+      "server"
+     ]
+    },
+    {
+     "version": "4.23.13",
+     "pkgs": [
+      "reviewer-core"
+     ]
+    }
+   ]
+  }
+ ],
+ "rangeDrift": [
+  {
+   "dep": "zod",
+   "ranges": [
+    {
+     "range": "^3.24.1",
+     "pkgs": [
+      "client",
+      "reviewer-core",
+      "server"
+     ]
+    },
+    {
+     "range": "^3.25.76",
+     "pkgs": [
+      "mcp"
+     ]
+    }
+   ]
+  },
+  {
+   "dep": "@types/node",
+   "ranges": [
+    {
+     "range": "^22.10.0",
+     "pkgs": [
+      "client",
+      "e2e",
+      "mcp",
+      "reviewer-core",
+      "server"
+     ]
+    },
+    {
+     "range": "^22.0.0",
+     "pkgs": [
+      "evals"
+     ]
+    }
+   ]
+  },
+  {
+   "dep": "typescript",
+   "ranges": [
+    {
+     "range": "^5.7.2",
+     "pkgs": [
+      "client",
+      "e2e",
+      "mcp",
+      "reviewer-core",
+      "server"
+     ]
+    },
+    {
+     "range": "^5.6.0",
+     "pkgs": [
+      "evals"
+     ]
+    }
+   ]
+  },
+  {
+   "dep": "vitest",
+   "ranges": [
+    {
+     "range": "^2.1.8",
+     "pkgs": [
+      "client",
+      "mcp",
+      "reviewer-core",
+      "server"
+     ]
+    },
+    {
+     "range": "^2.1.0",
+     "pkgs": [
+      "evals"
+     ]
+    }
+   ]
+  },
+  {
+   "dep": "tsx",
+   "ranges": [
+    {
+     "range": "^4.19.2",
+     "pkgs": [
+      "e2e",
+      "mcp",
+      "reviewer-core",
+      "server"
+     ]
+    },
+    {
+     "range": "^4.19.0",
+     "pkgs": [
+      "evals"
+     ]
+    }
+   ]
+  }
+ ],
+ "vendorDrift": [
+  {
+   "a": "client/src/vendor/shared",
+   "b": "server/src/vendor/shared",
+   "identical": false,
+   "differences": [
+    "Files client/src/vendor/shared/adapters.ts and server/src/vendor/shared/adapters.ts differ",
+    "Files client/src/vendor/shared/contracts/eval-ci.ts and server/src/vendor/shared/contracts/eval-ci.ts differ",
+    "Files client/src/vendor/shared/contracts/knowledge.ts and server/src/vendor/shared/contracts/knowledge.ts differ",
+    "Files client/src/vendor/shared/contracts/productionize.ts and server/src/vendor/shared/contracts/productionize.ts differ",
+    "Files client/src/vendor/shared/contracts/trace.ts and server/src/vendor/shared/contracts/trace.ts differ"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "client",
+   "to": "vendor/shared",
+   "kind": "vendored-alias",
+   "files": [
+    "client/src/app/agents/[id]/_components/AgentEditor/AgentEditor.tsx:8",
+    "client/src/app/agents/[id]/_components/AgentEditor/_components/ConfigTab/ConfigTab.tsx:6",
+    "client/src/app/agents/[id]/_components/AgentEditor/_components/ConfigTab/constants.ts:1"
+   ],
+   "count": 67
+  },
+  {
+   "from": "reviewer-core",
+   "to": "vendor/shared",
+   "kind": "vendored-alias",
+   "files": [
+    "reviewer-core/src/grounding.ts:1",
+    "reviewer-core/src/llm/openrouter.ts:9",
+    "reviewer-core/src/output/to-review.ts:1"
+   ],
+   "count": 7
+  },
+  {
+   "from": "server",
+   "to": "vendor/shared",
+   "kind": "vendored-alias",
+   "files": [
+    "server/src/adapters/auth/local.ts:1",
+    "server/src/adapters/codeindex/ripgrep.ts:11",
+    "server/src/adapters/embedder/openai.ts:1"
+   ],
+   "count": 72
+  },
+  {
+   "from": "server",
+   "to": "reviewer-core",
+   "kind": "alias",
+   "files": [
+    "server/src/modules/brief/helpers.ts:1",
+    "server/src/modules/brief/prompt.ts:2",
+    "server/src/modules/intent/prompt.ts:2"
+   ],
+   "count": 14
+  }
+ ],
+ "runtimeEdges": [
+  {
+   "from": "client",
+   "to": "server",
+   "via": "REST/SSE (README#architecture)"
+  },
+  {
+   "from": "mcp",
+   "to": "server",
+   "via": "HTTP — \"thin layer over the running API\" (CLAUDE.md)"
+  }
+ ],
+ "internalCycles": {
+  "client": {
+   "cycles": [],
+   "cyclesExcludingRoots": [],
+   "compositionRoots": []
+  },
+  "evals": {
+   "cycles": [],
+   "cyclesExcludingRoots": [],
+   "compositionRoots": []
+  },
+  "mcp": {
+   "cycles": [
+    2
+   ],
+   "cyclesExcludingRoots": [
+    [
+     "gateway",
+     "lib"
+    ]
+   ],
+   "compositionRoots": []
+  },
+  "server": {
+   "cycles": [
+    14
+   ],
+   "cyclesExcludingRoots": [
+    [
+     "brief",
+     "db"
+    ],
+    [
+     "adapters",
+     "blast",
+     "repo-intel"
+    ]
+   ],
+   "compositionRoots": [
+    "platform"
+   ]
+  }
+ },
+ "warnings": [],
+ "render": {
+  "packageGraph": "```mermaid\nflowchart LR\n  client[\"client<br/>533.9 MB prod / 685.6 MB total\"]\n  e2e[\"e2e<br/>0 B prod / 36.4 MB total\"]\n  evals[\"evals<br/>273.6 MB prod / 351.5 MB total\"]\n  mcp[\"mcp<br/>22.9 MB prod / 82.9 MB total\"]\n  reviewer_core[\"reviewer-core<br/>20.7 MB prod / 78.2 MB total\"]\n  server[\"server<br/>110.9 MB prod / 272.6 MB total\"]\n  vendor_shared([\"vendor/shared<br/>@devdigest/shared\"])\n  client -.->|\"vendored-alias ×67\"| vendor_shared\n  reviewer_core -.->|\"vendored-alias ×7\"| vendor_shared\n  server -.->|\"vendored-alias ×72\"| vendor_shared\n  server -->|\"alias ×14\"| reviewer_core\n  client -.->|\"runtime: REST/SSE\"| server\n  mcp -.->|\"runtime: HTTP\"| server\n```",
+  "topHeaviest": "| # | Package | Dependency | Kind | With transitive | |\n|---|---|---|---|---|---|\n| 1 | client | `next-intl` | prod | 325.3 MB | ████████████████████ |\n| 2 | client | `next` | prod | 320.3 MB | ████████████████████ |\n| 3 | evals | `@anthropic-ai/claude-agent-sdk` | prod | 258.8 MB | ████████████████ |\n| 4 | client | `mermaid` | prod | 138.0 MB | ████████ |\n| 5 | client | `eslint-config-next` | dev | 82.7 MB | █████ |\n| 6 | client | `vitest` | dev | 61.5 MB | ████ |\n| 7 | client | `@vitejs/plugin-react` | dev | 55.6 MB | ███ |\n| 8 | server | `drizzle-kit` | dev | 48.3 MB | ███ |\n| 9 | server | `@testcontainers/postgresql` | dev | 42.3 MB | ███ |\n| 10 | server | `testcontainers` | dev | 42.2 MB | ███ |\n| 11 | client | `lucide-react` | prod | 36.5 MB | ██ |\n| 12 | evals | `vitest` | dev | 35.7 MB | ██ |\n| 13 | server | `vitest` | dev | 35.7 MB | ██ |\n| 14 | client | `recharts` | prod | 26.7 MB | ██ |\n| 15 | mcp | `vitest` | dev | 26.5 MB | ██ |"
+ }
+}
