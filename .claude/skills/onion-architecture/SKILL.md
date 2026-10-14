@@ -1,6 +1,6 @@
 ---
 name: onion-architecture
-description: Enforces Onion Architecture (dependency rule, ports/adapters, thin routes, repositories returning domain types) for new and changed backend modules in server/src/modules. Use when creating or refactoring a module, adding a service, repository, port or adapter, wiring the DI container, writing Fastify routes, Drizzle queries or Zod schemas on the backend, or reviewing layer dependencies. Backend only; for React/Next.js use react-frontend-architecture.
+description: Enforces Onion Architecture (dependency rule, ports/adapters, thin routes, repositories returning domain types) for new and changed backend modules in server/src/modules. Use BEFORE answering or writing code whenever asked how to design, structure or lay out a backend module, its layers or their dependencies (routes, service, repository, ports, adapters, DI container), and when creating or refactoring a module, adding a service, repository, port or adapter, wiring the DI container, writing Fastify routes, Drizzle queries or Zod schemas on the backend, or reviewing layer dependencies. Also triggers on "новий модуль", "розкласти залежності між шарами", "архітектура модуля". Backend only; for React/Next.js use react-frontend-architecture.
 ---
 
 # Onion Architecture (backend, `server/`)
