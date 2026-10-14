@@ -14,7 +14,7 @@
 # Setup (GitHub -> Settings -> Secrets and variables -> Actions):
 #   secret   OPENROUTER_API_KEY
 #   variable EVAL_MODEL_SKILLS (default deepseek/deepseek-v4.1-flash)
-#   variable EVAL_MODEL_TOOLS  (default deepseek/deepseek-v4.1-flash)
+#   variable EVAL_MODEL_TOOLS  (default google/gemini-2.5-flash)
 #   variable EVAL_JUDGE_MODEL  (default google/gemini-2.5-flash)
 # workflow_dispatch inputs override the variables; `run_all` ignores the diff.
 # Fork PRs get no secrets, so the three model jobs are skipped for them (static still runs).
@@ -42,7 +42,7 @@ on:
         type: string
         default: ''
       model_tools:
-        description: 'Model for agents + workflow jobs (empty = repo var EVAL_MODEL_TOOLS, then deepseek/deepseek-v4.1-flash)'
+        description: 'Model for agents + workflow jobs (empty = repo var EVAL_MODEL_TOOLS, then google/gemini-2.5-flash)'
         type: string
         default: ''
       judge_model:
@@ -205,7 +205,7 @@ jobs:
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       OPENROUTER_BASE_URL: http://localhost:4000
-      EVAL_MODEL: ${{ inputs.model_tools || vars.EVAL_MODEL_TOOLS || 'deepseek/deepseek-v4.1-flash' }}
+      EVAL_MODEL: ${{ inputs.model_tools || vars.EVAL_MODEL_TOOLS || 'google/gemini-2.5-flash' }}
       AGENT: ${{ matrix.agent }}
     steps:
       - uses: actions/checkout@v4
@@ -266,7 +266,7 @@ jobs:
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       OPENROUTER_BASE_URL: http://localhost:4000
-      EVAL_MODEL: ${{ inputs.model_tools || vars.EVAL_MODEL_TOOLS || 'deepseek/deepseek-v4.1-flash' }}
+      EVAL_MODEL: ${{ inputs.model_tools || vars.EVAL_MODEL_TOOLS || 'google/gemini-2.5-flash' }}
     steps:
       - uses: actions/checkout@v4
 

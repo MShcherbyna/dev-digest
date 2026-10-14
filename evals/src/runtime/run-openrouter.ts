@@ -39,6 +39,9 @@ export async function runOpenRouter(prompt: string, opts: RunOptions = {}): Prom
     const res = await client.chat.completions.create({
       model: opts.model ?? EVAL_MODEL,
       temperature: 0,
+      // Cap output: a cheap model can loop and emit ~65k tokens, which blows the case timeout.
+      // Legitimate skill reports measured ~4-5k tokens, so 8192 leaves headroom.
+      max_tokens: 8192,
       messages: [
         { role: "system", content: system },
         { role: "user", content: prompt },
