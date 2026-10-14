@@ -36,8 +36,17 @@ function parseVerdict(text: string): Verdict["results"] {
 export async function llmJudge(output: string, practices: string[], model = EVAL_JUDGE_MODEL): Promise<Verdict> {
   const listed = practices.map((p, i) => `${i + 1}. ${p}`).join("\n");
   const prompt = `${JUDGE_RUBRIC}\n\n## PRACTICES\n${listed}\n\n## OUTPUT\n${output}\n\nReturn the JSON now.`;
-  const res = await runContent(prompt, { allowedTools: [], maxTurns: 1, model });
-  const results = parseVerdict(res.text);
+  // The primary judge can fail on the provider side (empty body, timeout, finish_reason: error).
+  // Retry once on a more reliable fallback model so a flaky judge never fails the eval itself.
+  const fallback = process.env.EVAL_JUDGE_FALLBACK_MODEL ?? "anthropic/claude-haiku-5.5";
+  let results: Verdict["results"];
+  try {
+    results = parseVerdict((await runContent(prompt, { allowedTools: [], maxTurns: 1, model })).text);
+  } catch (err) {
+    if (fallback === model) throw err;
+    console.warn(`judge ${model} failed (${String(err).slice(0, 120)}); retrying on ${fallback}`);
+    results = parseVerdict((await runContent(prompt, { allowedTools: [], maxTurns: 1, model: fallback })).text);
+  }
   const total = results.length || 1;
   const passed = results.filter((r) => r.passed).length;
   return { results, passed, total, score: passed / total };

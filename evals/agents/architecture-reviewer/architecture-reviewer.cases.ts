@@ -47,7 +47,7 @@ export const cases: AgentCase[] = [
     kind: "quality",
     prompt: REVIEW_PROMPT,
     practices: [
-      "does not invent an architecture-contract violation for the optional `reply?: FastifyReply` parameter beyond the `det/layer-service-infra` import issue itself (no runtime bug/security finding fabricated as an architecture rule)",
+      "does not report the optional `reply?: FastifyReply` parameter as a runtime bug, security issue or dead-code defect; the only acceptable finding about it is the layering violation (the `fastify` import in domain/), even if that finding is also mentioned in a second row",
       "stays scoped to structural/layering/DI findings and does not comment on naming, style, or test coverage",
     ],
     threshold: 1.0,
@@ -61,7 +61,7 @@ export const cases: AgentCase[] = [
       "flags the `import { readFileSync } from 'node:fs'` added to reviewer-core/src/pipeline/run.ts as a violation (reviewer-core must do no I/O except the injected LLMProvider)",
       "flags that runPipeline now returns `deduped` directly, skipping the mandatory `groundFindings()` gate before emitting findings",
       "names the exact rule id `rc/impure` for the fs-import finding rather than only describing it in prose",
-      "cites a documented rule or skill/contract source (not only prose) for the skipped-`groundFindings()` finding; it is an intent-level (Pass 2) finding, so no fixed rule id is required",
+      "names the rule id `rc/ungrounded-output` for the skipped-`groundFindings()` finding and cites `reviewer-core/AGENTS.md` (Gotchas) as the rule source",
       "quotes the offending line verbatim as evidence for each finding, not a paraphrase",
       "assigns a severity (critical/major/minor) to each finding and ends with a verdict (`CONCERNS` or `VIOLATIONS`) consistent with the highest severity reported",
     ],
