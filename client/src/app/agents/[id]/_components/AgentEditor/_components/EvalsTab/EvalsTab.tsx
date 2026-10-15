@@ -9,7 +9,7 @@ import { Button, EmptyState, ErrorState, SectionLabel, Skeleton } from "@devdige
 import { ConfirmDeleteModal } from "@/components/confirm-delete-modal";
 import { notify } from "@/lib/toast";
 import { ApiError } from "@/lib/api";
-import { useAgentEvalRuns, useDeleteEvalCase, useEvalCases, useRunEvalCase } from "@/lib/hooks/eval";
+import { useAgentEvalRuns, useCancelEvalCase, useDeleteEvalCase, useEvalCases, useRunEvalCase } from "@/lib/hooks/eval";
 import { EvalCaseModal } from "./_components/EvalCaseModal";
 import { EvalCaseRow } from "./_components/EvalCaseRow";
 import { EvalMetricCards } from "./_components/EvalMetricCards";
@@ -22,9 +22,11 @@ type ModalState = null | "new" | { id: string };
 
 export function EvalsTab({ agent }: { agent: Agent }) {
   const t = useTranslations("eval.evalsTab");
-  const cases = useEvalCases(agent.id);
   const runs = useAgentEvalRuns(agent.id);
+  const activeRunId = runs.data?.find((r) => r.status === "running")?.id ?? null;
+  const cases = useEvalCases(agent.id, activeRunId !== null);
   const runCase = useRunEvalCase(agent.id);
+  const cancelCase = useCancelEvalCase(agent.id);
   const del = useDeleteEvalCase(agent.id);
   const [modal, setModal] = React.useState<ModalState>(null);
   const [toDelete, setToDelete] = React.useState<{ id: string; name: string } | null>(null);
@@ -75,7 +77,9 @@ export function EvalsTab({ agent }: { agent: Agent }) {
             <EvalCaseRow
               key={c.id}
               c={c}
+              activeRunId={activeRunId}
               onRun={() => onRun(c.id)}
+              onStop={() => cancelCase.mutate(c.id)}
               onEdit={() => setModal({ id: c.id })}
               onDelete={() => setToDelete({ id: c.id, name: c.name })}
             />

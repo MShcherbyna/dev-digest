@@ -133,6 +133,26 @@ export default async function evalRoutes(appBase: FastifyInstance) {
   );
 
   app.post(
+    '/eval-cases/:id/cancel',
+    { schema: { params: IdParams, response: { 200: OkResponse } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      await container.eval.cancelCase(workspaceId, req.params.id);
+      return { ok: true as const };
+    },
+  );
+
+  app.post(
+    '/eval-runs/:id/cancel',
+    { schema: { params: IdParams, response: { 200: OkResponse } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      await container.eval.cancelRun(workspaceId, req.params.id);
+      return { ok: true as const };
+    },
+  );
+
+  app.post(
     '/agents/:id/eval-runs',
     {
       schema: { params: IdParams, response: { 202: StartAgentRunResponse } },

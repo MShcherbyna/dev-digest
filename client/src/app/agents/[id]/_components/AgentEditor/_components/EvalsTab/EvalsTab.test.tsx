@@ -233,7 +233,9 @@ describe("agent EvalsTab", () => {
     runDetail = { run: { ...runs[0], system_prompt: "" }, progress: { done: 0, total: 1 }, cases: [] };
     mount();
     await screen.findByRole("button", { name: "Running… 0/1" });
-    expect(within(rowOf("case-one")).getByText("never run")).toBeInTheDocument();
+    // Run all is active and this case has no result from it yet: it spins like a running case.
+    expect(rowOf("case-one")).toHaveAttribute("data-status", "running");
+    expect(within(rowOf("case-one")).queryByText("never run")).not.toBeInTheDocument();
 
     // Server finishes. The case list has no running row so it is not polled; only the run list is.
     cases = [kase({ id: "c1", name: "case-one", latest_result: result({ status: "failed", expected_count: 1, got_count: 0 }) })];
@@ -242,6 +244,50 @@ describe("agent EvalsTab", () => {
     await waitFor(() => expect(rowOf("case-one")).toHaveAttribute("data-status", "failed"));
     expect(within(rowOf("case-one")).getByText("expected 1 finding, got 0")).toBeInTheDocument();
     expect(within(rowOf("case-one")).queryByText("never run")).not.toBeInTheDocument();
+  });
+
+  it("while Run all is active, a case without a result from that run spins and one with a result shows it", async () => {
+    // Catches: rows only spinning once the server marks them running, so queued cases looked idle until a reload.
+    cases = [
+      kase({ id: "c1", name: "case-one", latest_result: result({ status: "passed", eval_run_id: "run9", expected_count: 1, got_count: 1 }) }),
+      kase({ id: "c2", name: "case-two", latest_result: result({ status: "failed", eval_run_id: "old", expected_count: 1, got_count: 0 }) }),
+    ];
+    runs = [run({ id: "run9", status: "running", cases_total: 2, cases_executed: 1, recall: null, precision: null, citation_accuracy: null })];
+    runDetail = { run: { ...runs[0], system_prompt: "" }, progress: { done: 1, total: 2 }, cases: [] };
+    mount();
+    await screen.findByRole("button", { name: "Running… 1/2" });
+    expect(rowOf("case-one")).toHaveAttribute("data-status", "passed");
+    expect(rowOf("case-two")).toHaveAttribute("data-status", "running");
+  });
+
+  it("a running case shows Stop instead of Run and Stop posts to /eval-cases/:id/cancel", async () => {
+    // Catches: no way to stop a stalled case; Stop wired to the wrong case or endpoint.
+    cases = [
+      kase({ id: "c1", name: "case-one", latest_result: result({ status: "running", finished_at: null }) }),
+      kase({ id: "c2", name: "case-two" }),
+    ];
+    mount();
+    await screen.findByText("case-one");
+    expect(screen.queryByRole("button", { name: "Run case-one" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run case-two" })).toBeInTheDocument();
+
+    apiPost.mockResolvedValue({ ok: true });
+    await userEvent.click(screen.getByRole("button", { name: "Stop case-one" }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/eval-cases/c1/cancel"));
+  });
+
+  it("while Run all is active a Stop button cancels that run; queued cases get a Stop too", async () => {
+    // Catches: no way to abort Run all; Stop posting to the wrong run id.
+    cases = [kase({ id: "c1", name: "case-one" })];
+    runs = [run({ id: "run9", status: "running", cases_total: 1, cases_executed: 0, recall: null, precision: null, citation_accuracy: null })];
+    runDetail = { run: { ...runs[0], system_prompt: "" }, progress: { done: 0, total: 1 }, cases: [] };
+    mount();
+    await screen.findByRole("button", { name: "Running… 0/1" });
+    expect(await screen.findByRole("button", { name: "Stop case-one" })).toBeInTheDocument();
+
+    apiPost.mockResolvedValue({ ok: true });
+    await userEvent.click(screen.getByRole("button", { name: "Stop" }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/eval-runs/run9/cancel"));
   });
 
   it("toasts the coded reason when a row Run is rejected (409), and delete asks for confirmation before calling the API", async () => {

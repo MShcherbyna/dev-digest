@@ -39,4 +39,16 @@ export const EVAL_REASON = {
   agentDeleted: 'agent_deleted',
   missingApiKey: 'missing_api_key',
   caseDeleted: 'case_deleted',
+  cancelled: 'cancelled',
+} as const;
+
+/**
+ * LLM settings for eval calls only (real reviews keep the provider defaults). The SDK default is a
+ * 90 s timeout with 2 silent retries, so one slow reasoning-model case could block a run for ~4.5 min
+ * with no log line. Here a request gets a longer single window and is not retried: a stalled one fails
+ * once, as a case error, and the run moves on.
+ */
+export const EVAL_LLM = {
+  timeoutMs: 180_000,
+  maxRetries: 0,
 } as const;

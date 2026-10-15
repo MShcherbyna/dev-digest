@@ -1,5 +1,5 @@
 import { AppError, NotFoundError } from '../../platform/errors.js';
-import { DIFF_MAX_CHARS, EVAL_ERROR, RECENT_RUNS_LIMIT, SPARKLINE_POINTS } from './constants.js';
+import { DIFF_MAX_CHARS, EVAL_ERROR, EVAL_REASON, RECENT_RUNS_LIMIT, SPARKLINE_POINTS } from './constants.js';
 import type { EvalAgent, EvalDeps, EvalLog } from './ports.js';
 import type {
   AgentEvalCard,
@@ -246,6 +246,38 @@ export class EvalService {
   private runActive(runId: string | null): AppError {
     return new AppError(EVAL_ERROR.runActive, 'An eval run is already active for this agent', 409, {
       eval_run_id: runId,
+    });
+  }
+
+  /**
+   * Stops one case: a running single run, or its slot in the agent's active run (the run carries on).
+   * Idempotent: a case that is not running is a no-op.
+   */
+  async cancelCase(workspaceId: string, caseId: string): Promise<void> {
+    const c = await this.deps.cases.getCase(workspaceId, caseId);
+    if (!c) throw new NotFoundError('Eval case not found');
+    const runId = await this.deps.runs.activeRunId(workspaceId, c.agent_id);
+    await this.executor.cancelCase(caseId, runId);
+  }
+
+  /** Stops an agent run; it ends `failed` with reason `cancelled`. Idempotent for a finished run. */
+  async cancelRun(workspaceId: string, runId: string): Promise<void> {
+    const run = await this.deps.runs.getAgentRun(workspaceId, runId);
+    if (!run) throw new NotFoundError('Eval run not found');
+    if (run.status !== 'running') return;
+    if (this.executor.cancelRun(runId)) return;
+    // Not executing in this process: fail the row so it stops blocking new runs.
+    await this.deps.runs.finalizeRun(runId, {
+      status: 'failed',
+      casesExecuted: 0,
+      casesErrored: 0,
+      casesPassed: 0,
+      recall: null,
+      precision: null,
+      citationAccuracy: null,
+      costUsd: null,
+      reason: EVAL_REASON.cancelled,
+      durationMs: 0,
     });
   }
 

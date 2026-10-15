@@ -19,17 +19,21 @@ function StatusIcon({ status }: { status: RowStatus }) {
 
 export function EvalCaseRow({
   c,
+  activeRunId,
   onRun,
+  onStop,
   onEdit,
   onDelete,
 }: {
   c: EvalCaseSummary;
+  activeRunId?: string | null;
   onRun: () => void;
+  onStop: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const t = useTranslations("eval.evalsTab");
-  const status = rowStatus(c);
+  const status = rowStatus(c, activeRunId);
   const r = c.latest_result;
   const label = rowLabel(c.expected_output);
 
@@ -64,7 +68,11 @@ export function EvalCaseRow({
         </span>
       )}
       <div style={s.actions}>
-        <IconBtn icon="Play" label={t("runCaseAria", { name: c.name })} onClick={onRun} />
+        {status === "running" ? (
+          <IconBtn icon="X" label={t("stopCaseAria", { name: c.name })} onClick={onStop} />
+        ) : (
+          <IconBtn icon="Play" label={t("runCaseAria", { name: c.name })} onClick={onRun} />
+        )}
         <IconBtn icon="Edit" label={t("editCaseAria", { name: c.name })} onClick={onEdit} />
         <IconBtn icon="Trash" label={t("deleteCaseAria", { name: c.name })} onClick={onDelete} danger />
       </div>

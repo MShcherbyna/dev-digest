@@ -21,7 +21,9 @@ export function formatPct(v: number | null | undefined): string {
 
 export type RowStatus = "never" | EvalCaseStatus;
 
-export function rowStatus(c: EvalCaseSummary): RowStatus {
+/** `activeRunId`: while that agent run is going, a case without a result from it yet is queued, so it spins like a running one. */
+export function rowStatus(c: EvalCaseSummary, activeRunId?: string | null): RowStatus {
+  if (activeRunId && c.latest_result?.eval_run_id !== activeRunId) return "running";
   return c.latest_result?.status ?? "never";
 }
 

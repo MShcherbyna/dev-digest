@@ -254,14 +254,21 @@ export interface RunAllResponse {
 
 /** Poll interval while something is running (P1-AC-18: refresh within 5 s). */
 export const EVAL_POLL_MS = 2000;
+/** Case-list poll while an agent run is active. Slower than EVAL_POLL_MS: the API rate-limits at 120 req/min and the run list + run detail already poll every 2 s. */
+export const EVAL_CASES_POLL_MS = 4000;
 
-export function useEvalCases(agentId: string | null | undefined) {
+/** `polling` forces the poll while an agent-level run is active: its cases are not "running" until reached. */
+export function useEvalCases(agentId: string | null | undefined, polling = false) {
   return useQuery({
     queryKey: queryKeys.evalCases(agentId),
     queryFn: () => api.get<EvalCaseSummary[]>(`/agents/${agentId}/eval-cases`),
     enabled: !!agentId,
     refetchInterval: (q) =>
-      q.state.data?.some((c) => c.latest_result?.status === "running") ? EVAL_POLL_MS : false,
+      q.state.data?.some((c) => c.latest_result?.status === "running")
+        ? EVAL_POLL_MS
+        : polling
+          ? EVAL_CASES_POLL_MS
+          : false,
   });
 }
 
@@ -310,6 +317,33 @@ export function useRunEvalCase(agentId: string) {
     onSettled: (_d, _e, caseId) => {
       qc.invalidateQueries({ queryKey: queryKeys.evalCases(agentId) });
       qc.invalidateQueries({ queryKey: queryKeys.evalCase(caseId) });
+    },
+  });
+}
+
+/** Stop button on a case row: a running single run, or its slot in the agent's active run. */
+export function useCancelEvalCase(agentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (caseId: string) => api.post<{ ok: boolean }>(`/eval-cases/${caseId}/cancel`),
+    onSettled: (_d, _e, caseId) => {
+      qc.invalidateQueries({ queryKey: queryKeys.evalCases(agentId) });
+      qc.invalidateQueries({ queryKey: queryKeys.evalCase(caseId) });
+      qc.invalidateQueries({ queryKey: queryKeys.agentEvalRuns(agentId) });
+    },
+  });
+}
+
+/** Stop button next to "Running… k/N": ends the agent run as failed/cancelled. */
+export function useCancelEvalRun(agentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (runId: string) => api.post<{ ok: boolean }>(`/eval-runs/${runId}/cancel`),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.agentEvalRuns(agentId) });
+      qc.invalidateQueries({ queryKey: queryKeys.evalCases(agentId) });
+      qc.invalidateQueries({ queryKey: queryKeys.agentEvalDashboard(agentId) });
+      qc.invalidateQueries({ queryKey: queryKeys.evalDashboard() });
     },
   });
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { Finding, LLMProvider } from '@devdigest/shared';
 import { buildLineIndex, buildTaskLine, isFullFileKind } from '@devdigest/reviewer-core';
 import { EvalService } from '../src/modules/eval/service.js';
@@ -117,6 +117,8 @@ interface World {
   existingForFinding: string | null;
   insertRace: boolean;
   activeRunId: string | null;
+  /** What `getAgentRun` returns (cancelRun reads its status). */
+  agentRun: { status: string } | undefined;
   insertRunActive: boolean;
   caseRunning: string | null;
   runExists: boolean[]; // consumed one per check; last value repeats
@@ -144,6 +146,7 @@ function makeWorld(over: Partial<World> = {}): World {
     existingForFinding: null,
     insertRace: false,
     activeRunId: null,
+    agentRun: undefined,
     insertRunActive: false,
     caseRunning: null,
     runExists: [true],
@@ -205,7 +208,7 @@ function makeService(w: World, runnable: RunnableCase[] = []) {
         w.snapshots.push(snapshot);
         return w.insertRunActive ? { kind: 'active_exists', runId: 'run-race' } : { kind: 'created', runId: 'run-1' };
       },
-      getAgentRun: async () => undefined,
+      getAgentRun: async () => w.agentRun as never,
       listRunResults: async () => [],
       listAgentRuns: async () => [],
       activeRunId: async () => w.activeRunId,
@@ -503,3 +506,109 @@ async function waitUntil(pred: () => boolean, timeoutMs = 2000): Promise<void> {
     await new Promise((r) => setImmediate(r));
   }
 }
+
+describe('EvalService cancel (stop button)', () => {
+  const three = [
+    runnableCase('c1', [item()]),
+    runnableCase('c2', [item()]),
+    runnableCase('c3', [item({ expect: 'must_not_flag' })]),
+  ];
+  /** First engine call never returns (a stalled model request); later calls succeed. */
+  const stallFirst = () => {
+    let calls = 0;
+    return (): Promise<ReviewEngineResult> =>
+      ++calls === 1 ? new Promise<ReviewEngineResult>(() => undefined) : Promise.resolve({ kept: [kept('src/config.ts', 11)], dropped: 0, costUsd: 0.01 });
+  };
+
+  it('cancelRun stops a run stuck on a stalled model call: that case is a cancelled error, no later case runs, the run ends failed/cancelled', async () => {
+    // Regression: without the stop button a stalled request blocked the whole run for minutes.
+    const w = makeWorld({ engine: () => new Promise(() => undefined) });
+    const svc = makeService(w, three);
+    await svc.startAgentRun(WS, AGENT_ID, log(w));
+    await vi.waitFor(() => expect(w.engineCalls).toHaveLength(1));
+
+    w.agentRun = { status: 'running' };
+    await svc.cancelRun(WS, 'run-1');
+    await w.done;
+
+    expect(w.engineCalls).toHaveLength(1);
+    expect(w.recorded).toHaveLength(1);
+    expect(w.recorded[0]!.outcome).toMatchObject({ errored: true, errorReason: 'cancelled' });
+    expect(w.finalized[0]).toMatchObject({ status: 'failed', reason: 'cancelled' });
+  });
+
+  it('cancelCase on the case being executed errors only that case; the run carries on with the next one', async () => {
+    // Regression: a per-row stop must not kill the whole run.
+    const w = makeWorld({ engine: stallFirst() });
+    const svc = makeService(w, three);
+    await svc.startAgentRun(WS, AGENT_ID, log(w));
+    w.activeRunId = 'run-1';
+    await vi.waitFor(() => expect(w.engineCalls).toHaveLength(1));
+
+    await svc.cancelCase(WS, 'c1');
+    await w.done;
+
+    expect(w.recorded.map((r) => [r.caseId, r.outcome.errorReason])).toEqual([
+      ['c1', 'cancelled'],
+      ['c2', null],
+      ['c3', null],
+    ]);
+    expect(w.finalized[0]).toMatchObject({ status: 'partial', casesErrored: 1, casesExecuted: 2 });
+  });
+
+  it('cancelCase on a queued case stores its cancelled result at once and the loop steps over it without calling the engine', async () => {
+    // Regression: a queued row must stop spinning immediately and must not be run later.
+    const w = makeWorld({ engine: stallFirst() });
+    const svc = makeService(w, three);
+    await svc.startAgentRun(WS, AGENT_ID, log(w));
+    w.activeRunId = 'run-1';
+    await vi.waitFor(() => expect(w.engineCalls).toHaveLength(1));
+
+    await svc.cancelCase(WS, 'c3');
+    expect(w.recorded.map((r) => [r.caseId, r.outcome.errorReason])).toEqual([['c3', 'cancelled']]);
+
+    await svc.cancelCase(WS, 'c1');
+    await w.done;
+
+    expect(w.engineCalls).toHaveLength(2);
+    expect(w.recorded.map((r) => r.caseId)).toEqual(['c3', 'c1', 'c2']);
+    expect(w.finalized[0]).toMatchObject({ status: 'partial', casesErrored: 2, casesExecuted: 1 });
+  });
+
+  it('cancelCase on a single-case run finishes its result as errored/cancelled', async () => {
+    // Regression: the row stop for a one-off run.
+    const w = makeWorld({ engine: () => new Promise(() => undefined) });
+    const svc = makeService(w);
+    const created = await svc.createCase(WS, AGENT_ID, body() as never);
+    await svc.startCaseRun(WS, created.id, log(w));
+    await vi.waitFor(() => expect(w.engineCalls).toHaveLength(1));
+
+    await svc.cancelCase(WS, created.id);
+    await w.done;
+
+    expect(w.singleFinished[0]!.outcome).toMatchObject({ errored: true, errorReason: 'cancelled' });
+  });
+
+  it('cancelRun is a no-op for a finished run and 404 for an unknown one; an orphaned running run is failed directly', async () => {
+    // Regression: idempotent stop, and a `running` row nobody executes must not block new runs forever.
+    const none = makeWorld();
+    expect((await failure(makeService(none).cancelRun(WS, 'x'))).statusCode).toBe(404);
+
+    const finished = makeWorld({ agentRun: { status: 'done' } });
+    await makeService(finished).cancelRun(WS, 'run-1');
+    expect(finished.finalized).toHaveLength(0);
+
+    const orphan = makeWorld({ agentRun: { status: 'running' } });
+    await makeService(orphan).cancelRun(WS, 'run-1');
+    expect(orphan.finalized[0]).toMatchObject({ status: 'failed', reason: 'cancelled' });
+    expect(orphan.engineCalls).toHaveLength(0);
+  });
+
+  it('cancelCase for an unknown case is 404; for a case that is not running it does nothing', async () => {
+    const w = makeWorld();
+    const svc = makeService(w, three);
+    expect((await failure(svc.cancelCase(WS, 'missing'))).statusCode).toBe(404);
+    await svc.cancelCase(WS, 'c1');
+    expect(w.recorded).toHaveLength(0);
+  });
+});

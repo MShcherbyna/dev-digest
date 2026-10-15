@@ -117,6 +117,8 @@
     "runCaseAria": "Run {name}",
     "editCaseAria": "Edit {name}",
     "deleteCaseAria": "Delete {name}",
+    "stopCaseAria": "Stop {name}",
+    "stopRun": "Stop",
     "deleteTitle": "Delete eval case",
     "deleteMessage": "Delete “{name}”? Its run history is removed too.",
     "loadError": "Could not load eval cases.",
@@ -138,7 +140,8 @@
       "missing_api_key": "no API key",
       "interrupted": "interrupted",
       "case_deleted": "case deleted",
-      "agent_deleted": "agent deleted"
+      "agent_deleted": "agent deleted",
+      "cancelled": "stopped"
     }
   },
   "page": {
@@ -228,7 +231,8 @@
       "colCost": "Cost",
       "failedReasons": {
         "missing_api_key": "No API key for the agent's provider",
-        "interrupted": "The run was interrupted"
+        "interrupted": "The run was interrupted",
+        "cancelled": "The run was stopped"
       },
       "compareFailed": "Could not compare these runs"
     }

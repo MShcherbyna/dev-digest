@@ -65,6 +65,7 @@ import type { EvalCaseLinks } from '../modules/reviews/ports.js';
 import { EvalRepository } from '../modules/eval/repository.js';
 import { EvalService } from '../modules/eval/service.js';
 import { createAgentConfigs } from '../modules/eval/agent-configs.js';
+import { EVAL_LLM } from '../modules/eval/constants.js';
 import { sameAgentConfig } from '../modules/agents/helpers.js';
 import type { AgentSource, EvalAgent, LlmProviderId } from '../modules/eval/ports.js';
 import { parseUnifiedDiff } from '../adapters/git/diff-parser.js';
@@ -114,6 +115,7 @@ export class Container {
   private _codeIndex?: CodeIndex;
   private _embedder?: Embedder;
   private llmCache = new Map<string, LLMProvider>();
+  private evalLlmCache = new Map<string, LLMProvider>();
 
   // Shared repositories for cross-cutting entities (agents, reviews/pulls,
   // runs). Constructed here, in the composition root, so consuming modules use
@@ -332,7 +334,7 @@ export class Container {
         lineIndex: buildLineIndex,
         isFullFileKind,
         taskLine: buildTaskLine,
-        llm: (provider) => this.llm(provider),
+        llm: (provider) => this.evalLlm(provider),
         isConfigError: (err) => err instanceof ConfigError,
       });
     }
@@ -424,6 +426,25 @@ export class Container {
     return provider;
   }
 
+  /**
+   * Provider for eval runs: OpenRouter with a longer timeout and no SDK retries (see EVAL_LLM).
+   * Other providers are the regular ones.
+   */
+  async evalLlm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
+    if (id !== 'openrouter' || this.overrides.llm?.[id]) return this.llm(id);
+    const cached = this.evalLlmCache.get(id);
+    if (cached) return cached;
+    const key = await this.secrets.get('OPENROUTER_API_KEY');
+    if (!key) throw new ConfigError('OPENROUTER_API_KEY is not configured');
+    const provider = new OpenRouterProvider(key, {
+      estimateCost: (model, tokensIn, tokensOut) => this.priceBook.estimate(model, tokensIn, tokensOut),
+      timeoutMs: EVAL_LLM.timeoutMs,
+      maxRetries: EVAL_LLM.maxRetries,
+    });
+    this.evalLlmCache.set(id, provider);
+    return provider;
+  }
+
   private async buildLlm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
     if (id === 'openai') {
       const key = await this.secrets.get('OPENAI_API_KEY');
@@ -467,6 +488,7 @@ export class Container {
    */
   invalidateSecretCaches(): void {
     this.llmCache.clear();
+    this.evalLlmCache.clear();
     this._github = undefined;
     this._priorPrs = undefined;
     this._embedder = undefined;

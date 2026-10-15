@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@devdigest/ui";
 import { ApiError } from "@/lib/api";
 import { notify } from "@/lib/toast";
-import { useEvalRun, useStartEvalRun, type EvalAgentRun } from "@/lib/hooks/eval";
+import { useCancelEvalRun, useEvalRun, useStartEvalRun, type EvalAgentRun } from "@/lib/hooks/eval";
 
 export function RunAllEvalsButton({
   agentId,
@@ -21,6 +21,7 @@ export function RunAllEvalsButton({
 }) {
   const t = useTranslations("eval.evalsTab");
   const start = useStartEvalRun(agentId);
+  const cancel = useCancelEvalRun(agentId);
   const active = runs?.find((r) => r.status === "running");
   const progress = useEvalRun(active?.id, agentId).data?.progress;
 
@@ -44,6 +45,11 @@ export function RunAllEvalsButton({
       <Button icon="Play" onClick={onClick} disabled={!!active || disabled} loading={start.isPending}>
         {label}
       </Button>
+      {active && (
+        <Button kind="secondary" icon="X" onClick={() => cancel.mutate(active.id)} loading={cancel.isPending}>
+          {t("stopRun")}
+        </Button>
+      )}
     </>
   );
 }
