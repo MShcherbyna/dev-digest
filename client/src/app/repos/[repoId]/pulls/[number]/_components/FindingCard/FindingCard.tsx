@@ -78,8 +78,8 @@ export function FindingCard({
   const suggestion = shown ? shown.suggestion : f.suggestion;
 
   return (
-    <div data-finding-id={f.id} style={s.card(!!focused, sevColor, muted)}>
-      <div onClick={() => setExpanded((e) => !e)} style={s.header}>
+    <div data-finding-id={f.id} style={s.card(!!focused, sevColor)}>
+      <div onClick={() => setExpanded((e) => !e)} style={{ ...s.header, ...s.dim(muted) }}>
         <div style={s.badgeWrap}>
           <SeverityBadge severity={f.severity as Severity} compact />
         </div>
@@ -102,11 +102,11 @@ export function FindingCard({
 
       {expanded && (
         <div style={s.body}>
-          <div style={s.prose}>
+          <div style={{ ...s.prose, ...s.dim(muted) }}>
             <Markdown>{rationale}</Markdown>
           </div>
           {suggestion && (
-            <div style={s.suggestionWrap}>
+            <div style={{ ...s.suggestionWrap, ...s.dim(muted) }}>
               <div style={s.suggestionLabel}>{t("finding.suggestedFix")}</div>
               <div style={s.prose}>
                 <Markdown>{suggestion}</Markdown>
@@ -114,7 +114,7 @@ export function FindingCard({
             </div>
           )}
 
-          <div style={s.actions}>
+          <div style={{ ...s.actions, ...s.dim(muted, 0.8) }}>
             <Button
               kind="secondary"
               size="sm"
@@ -126,7 +126,7 @@ export function FindingCard({
               {t("finding.accept")}
             </Button>
             <Button
-              kind="ghost"
+              kind="secondary"
               size="sm"
               icon="X"
               disabled={pending}
@@ -137,7 +137,7 @@ export function FindingCard({
             </Button>
             {prId && <EvalCaseButton finding={f} prId={prId} agentId={agentId} />}
             <Button
-              kind="ghost"
+              kind="secondary"
               size="sm"
               icon="Globe"
               loading={translate.isPending}

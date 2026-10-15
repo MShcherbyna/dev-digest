@@ -33,6 +33,9 @@ export const s = {
   expHead: { display: "flex", alignItems: "center", gap: 10 } satisfies CSSProperties,
   expTitle: { fontSize: 14, fontWeight: 600, color: "var(--text-secondary)" } satisfies CSSProperties,
   badge: (ok: boolean): CSSProperties => ({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
     fontSize: 13,
     fontWeight: 500,
     padding: "3px 10px",

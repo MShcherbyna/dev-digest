@@ -65,7 +65,7 @@ export function EvalCaseButton({
   }
   return (
     <Button
-      kind="ghost"
+      kind={inSet ? "ghost" : "secondary"}
       size="sm"
       icon="FlaskConical"
       disabled={inSet}

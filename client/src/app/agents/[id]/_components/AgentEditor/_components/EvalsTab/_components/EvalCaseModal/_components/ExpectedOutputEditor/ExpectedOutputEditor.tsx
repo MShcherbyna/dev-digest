@@ -25,7 +25,8 @@ export function ExpectedOutputEditor({
       <div style={s.expHead}>
         <span style={s.expTitle}>{t("expectedOutput")}</span>
         <span style={s.badge(valid)}>
-          {valid ? <Icon.Check size={12} /> : null} {valid ? t("validJson") : t("invalidJson")}
+          {valid ? <Icon.Check size={12} aria-hidden /> : null}
+          {valid ? t("validJson") : t("invalidJson")}
         </span>
         <Button kind="ghost" size="sm" icon="Plus" onClick={onSkeleton} style={s.skeletonBtn}>
           {t("findingSkeleton")}
