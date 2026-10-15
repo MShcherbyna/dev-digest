@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import {
   aggregateRun,
@@ -172,5 +173,22 @@ describe('eval scoring: aggregateRun (AC-23)', () => {
     expect(caseMetrics({ mustFindTotal: 4, mustFindMatched: 1, positiveFindings: 1, negativeFindings: 1, keptCount: 3, droppedCount: 1 })).toEqual({
       recall: 0.25, precision: 0.5, citationAccuracy: 0.75,
     });
+  });
+});
+
+describe('eval scoring: makes no model call (L06)', () => {
+  const src = readFileSync(new URL('../src/modules/eval/domain/scoring.ts', import.meta.url), 'utf8');
+
+  it('the scoring module imports nothing, so no LLM/SDK/network/DB can be reached from it', () => {
+    // Regression: scoring is a pure function of (expected, findings). A future import of a model
+    // adapter, SDK or fetch here would make recall/precision non-deterministic and cost money per run.
+    expect(src).not.toMatch(/^\s*import\s/m);
+    expect(src).not.toMatch(/\brequire\(|\bimport\(|\bfetch\(/);
+  });
+
+  it('is deterministic: the same inputs always give the same score', () => {
+    const items = [mf('a.ts', 5, 9), mn('a.ts', 50)];
+    const kept = [f('a.ts', 7), f('b.ts', 1)];
+    expect(scoreCase(items, kept)).toEqual(scoreCase(items, kept));
   });
 });
