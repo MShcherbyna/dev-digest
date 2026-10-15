@@ -7,7 +7,7 @@
     { "cmd": ["find", "text", "Add rate limiting to public API endpoints", "click"], "label": "open the PR row" },
     { "cmd": ["wait", "--url", "/pulls/482"], "label": "navigate to the PR detail route" },
     { "cmd": ["wait", "--load", "networkidle"], "label": "PR detail data settles" },
-    { "cmd": ["wait", "--text", "Review focus"], "label": "Review focus card renders from the seeded brief" },
+    { "cmd": ["wait", "--text", "REVIEW FOCUS"], "label": "Review focus card renders from the seeded brief" },
     { "cmd": ["wait", "--text", "src/api/public/webhooks.ts:61"], "label": "seeded focus item is listed" },
     {
       "cmd": [
