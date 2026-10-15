@@ -10,6 +10,10 @@
     { "cmd": ["wait", "--text", "REVIEW FOCUS"], "label": "Review focus card renders from the seeded brief" },
     { "cmd": ["wait", "--text", "src/api/public/webhooks.ts:61"], "label": "seeded focus item is listed" },
     {
+      "cmd": ["scrollintoview", "button[aria-label^=\"src/api/public/webhooks.ts:61\"]"],
+      "label": "scroll the webhooks.ts:61 focus item into view (agent-browser clicks by coordinates and does not scroll)"
+    },
+    {
       "cmd": [
         "find", "role", "button", "click", "--name",
         "src/api/public/webhooks.ts:61 — request callback_url forwards the account token to a caller-controlled URL"
