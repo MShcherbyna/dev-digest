@@ -139,6 +139,15 @@ buttons") still failing, which was the more consequential gap of the two.
   changes, `curl` + grep the HTML for client changes. Only kill a process you
   started yourself (check `ps` for the PID/start-time your own launch
   printed) if your own launch attempt is what's left dangling.
+- **2026-10-16** — An eval "control" run (no harness) with `cwd` = the repo
+  is not clean even with `settingSources: []`: the commit-prefix rule still
+  reached it (most likely from the auto-memory keyed by the repo path, which
+  holds that rule; not isolated further), so the
+  control matched the treatment 4/4. The same prompt from a different path
+  (tmpdir) had no prefix. Fix in `evals/src/dsl/case.ts` `controlRepo()`:
+  `git archive HEAD` into a tmpdir, then remove `CLAUDE.md`/`AGENTS.md`/`.claude/`.
+  Also, a branch named like a ticket (`L07-evals`) gets prefixed even without
+  the rule, so it can't tell the runs apart. Use `feature/<slug>`.
 
 ## Session Notes
 
