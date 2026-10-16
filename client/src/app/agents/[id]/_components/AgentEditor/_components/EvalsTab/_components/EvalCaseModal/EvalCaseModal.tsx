@@ -7,7 +7,9 @@ import { useTranslations } from "next-intl";
 import type { Agent } from "@devdigest/shared";
 import { Button, FormField, Tabs, TextInput, Toggle } from "@devdigest/ui";
 import { AccessibleModal } from "@/components/accessible-modal";
+import { ApiError } from "@/lib/api";
 import {
+  useCreateCaseFromFinding,
   useCreateEvalCase,
   useEvalCase,
   useRunEvalCase,
@@ -25,8 +27,26 @@ import { PrMetaInput } from "./_components/PrMetaInput";
 import { RunResultPanel } from "./_components/RunResultPanel";
 import { s } from "./styles";
 
-/** `caseId` null = new case. Loads the full case (with its diff) before showing the form. */
-export function EvalCaseModal({ agent, caseId, onClose }: { agent: Agent; caseId: string | null; onClose: () => void }) {
+/** `caseId` null = new case. `findingId` (+ `prId` and a pre-loaded `draft`) previews/creates a case
+ *  from a decided finding instead: the diff and PR meta come read-only from the finding. */
+export function EvalCaseModal({
+  agent,
+  caseId,
+  draft,
+  findingId,
+  prId,
+  onSaved,
+  onClose,
+}: {
+  agent: Agent;
+  caseId: string | null;
+  draft?: EvalCaseBody | null;
+  findingId?: string;
+  prId?: string;
+  /** Called right after the case is persisted (including a 409 "already exists" race), before onClose. */
+  onSaved?: () => void;
+  onClose: () => void;
+}) {
   const t = useTranslations("eval.caseEditor");
   const loaded = useEvalCase(caseId);
   if (caseId && !loaded.data) {
@@ -36,17 +56,46 @@ export function EvalCaseModal({ agent, caseId, onClose }: { agent: Agent; caseId
       </AccessibleModal>
     );
   }
-  return <CaseForm agent={agent} initial={loaded.data ?? null} onClose={onClose} />;
+  return (
+    <CaseForm
+      agent={agent}
+      initial={loaded.data ?? null}
+      draft={draft ?? null}
+      findingId={findingId}
+      prId={prId}
+      onSaved={onSaved}
+      onClose={onClose}
+    />
+  );
 }
 
-function CaseForm({ agent, initial, onClose }: { agent: Agent; initial: EvalCase | null; onClose: () => void }) {
+function CaseForm({
+  agent,
+  initial,
+  draft,
+  findingId,
+  prId,
+  onSaved,
+  onClose,
+}: {
+  agent: Agent;
+  initial: EvalCase | null;
+  draft: EvalCaseBody | null;
+  findingId?: string;
+  prId?: string;
+  onSaved?: () => void;
+  onClose: () => void;
+}) {
   const t = useTranslations("eval.caseEditor");
-  const [name, setName] = React.useState(initial?.name ?? "");
-  const [diff, setDiff] = React.useState(initial?.input_diff ?? "");
-  const [title, setTitle] = React.useState(initial?.input_meta.title ?? "");
-  const [body, setBody] = React.useState(initial?.input_meta.body ?? "");
+  const source = initial ?? draft;
+  /** Preview-from-finding: the diff/PR meta are the finding's own stored diff, not user-editable. */
+  const readOnly = !initial && !!findingId;
+  const [name, setName] = React.useState(source?.name ?? "");
+  const [diff, setDiff] = React.useState(source?.input_diff ?? "");
+  const [title, setTitle] = React.useState(source?.input_meta.title ?? "");
+  const [body, setBody] = React.useState(source?.input_meta.body ?? "");
   const [expected, setExpected] = React.useState(
-    initial ? JSON.stringify(initial.expected_output, null, 2) : EMPTY_EXPECTED,
+    source ? JSON.stringify(source.expected_output, null, 2) : EMPTY_EXPECTED,
   );
   const [runOnSave, setRunOnSave] = React.useState(true);
   const [tab, setTab] = React.useState<InputTab>("diff");
@@ -56,6 +105,7 @@ function CaseForm({ agent, initial, onClose }: { agent: Agent; initial: EvalCase
 
   const create = useCreateEvalCase(agent.id);
   const update = useUpdateEvalCase(agent.id);
+  const createFromFinding = useCreateCaseFromFinding(prId ?? "");
   const run = useRunEvalCase(agent.id);
   const live = useEvalCase(savedId).data;
 
@@ -65,17 +115,36 @@ function CaseForm({ agent, initial, onClose }: { agent: Agent; initial: EvalCase
   const text = (r?: { key: string; values?: Record<string, string> }) => (r ? t(r.key, r.values) : undefined);
   const at = (field: ServerReason["field"]) => (serverErr?.field === field ? text(serverErr) : undefined);
 
-  /** Persists the form; returns the case id, or null after surfacing the server's reason. */
+  /** Persists the form; returns the case id, or null after surfacing the server's reason (or, on a
+   *  409 race for a finding-sourced case, after treating the pre-existing case as this save's result). */
   const save = async (): Promise<string | null> => {
     const parsed = parseExpected(expected);
     if (!parsed.ok) return null;
+    setServerErr(null);
+    if (findingId) {
+      try {
+        const c = await createFromFinding.mutateAsync({
+          findingId,
+          override: { name: name.trim(), expected_output: parsed.items },
+        });
+        setSavedId(c.id);
+        return c.id;
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          onSaved?.();
+          onClose();
+          return null;
+        }
+        setServerErr(serverReason(e));
+        return null;
+      }
+    }
     const payload: EvalCaseBody = {
       name: name.trim(),
       input_diff: diff,
       input_meta: { title, body },
       expected_output: parsed.items,
     };
-    setServerErr(null);
     try {
       const c = savedId ? await update.mutateAsync({ id: savedId, body: payload }) : await create.mutateAsync(payload);
       setSavedId(c.id);
@@ -103,6 +172,7 @@ function CaseForm({ agent, initial, onClose }: { agent: Agent; initial: EvalCase
   const onSave = guarded(async () => {
     const id = await save();
     if (!id) return;
+    onSaved?.();
     if (runOnSave) await start(id);
     onClose();
   });
@@ -120,7 +190,7 @@ function CaseForm({ agent, initial, onClose }: { agent: Agent; initial: EvalCase
   return (
     <AccessibleModal
       width={1100}
-      title={initial ? t("caseTitle", { name: initial.name }) : t("newCase")}
+      title={source ? t("caseTitle", { name: source.name }) : t("newCase")}
       subtitle={t("subtitle", { agent: agent.name })}
       onClose={onClose}
       footer={
@@ -150,11 +220,16 @@ function CaseForm({ agent, initial, onClose }: { agent: Agent; initial: EvalCase
           <Tabs tabs={tabs} value={tab} onChange={(k) => setTab(k as InputTab)} pad="0" />
           {tab === "diff" && (
             <div style={{ paddingTop: 12 }}>
-              <DiffInput value={diff} onChange={setDiff} error={at("diff") ?? (diff ? text(reasons.diff) : undefined)} />
+              <DiffInput
+                value={diff}
+                onChange={setDiff}
+                error={at("diff") ?? (diff ? text(reasons.diff) : undefined)}
+                readOnly={readOnly}
+              />
             </div>
           )}
           {tab === "files" && <FilesList files={files} />}
-          {tab === "meta" && <PrMetaInput title={title} body={body} onTitle={setTitle} onBody={setBody} />}
+          {tab === "meta" && <PrMetaInput title={title} body={body} onTitle={setTitle} onBody={setBody} readOnly={readOnly} />}
         </div>
         <div style={s.right}>
           <ExpectedOutputEditor

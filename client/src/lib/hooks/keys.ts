@@ -54,6 +54,8 @@ export const queryKeys = {
   prBlast: (prId: string | null | undefined) => ["pr-blast", prId] as const,
   evalCases: (agentId: string | null | undefined) => ["eval-cases", agentId] as const,
   evalCase: (id: string | null | undefined) => ["eval-case", id] as const,
+  evalCaseDraftFromFinding: (findingId: string | null | undefined) =>
+    ["eval-case-draft-from-finding", findingId] as const,
   agentEvalRuns: (agentId: string | null | undefined) => ["agent-eval-runs", agentId] as const,
   evalRun: (id: string | null | undefined) => ["eval-run", id] as const,
   evalDashboard: () => ["eval-dashboard"] as const,

@@ -14,6 +14,10 @@ vi.mock("@/lib/hooks/reviews", () => ({
 }));
 vi.mock("@/lib/hooks/eval", () => ({
   useCreateCaseFromFinding: () => ({ mutate: vi.fn(), isPending: false }),
+  useEvalCaseDraftFromFinding: () => ({ data: undefined, isLoading: false, isError: false, error: undefined }),
+}));
+vi.mock("@/lib/hooks/agents", () => ({
+  useAgent: () => ({ data: undefined, isLoading: false }),
 }));
 vi.mock("@/lib/hooks/translation", () => ({
   useTranslateFinding: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
