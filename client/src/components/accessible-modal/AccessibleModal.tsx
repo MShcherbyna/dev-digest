@@ -3,6 +3,7 @@
 "use client";
 
 import React from "react";
+import { createPortal } from "react-dom";
 import { Modal } from "@devdigest/ui";
 import { useFocusTrap } from "./focus-trap";
 
@@ -40,7 +41,10 @@ export function AccessibleModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  // Portaled to <body>: a trigger nested under a dimmed/opacity'd ancestor (e.g. a muted
+  // finding's action row) would otherwise drag the fixed-position Modal's opacity and
+  // stacking context down with it, rendering it see-through and behind other page content.
+  return createPortal(
     <div ref={rootRef}>
       <Modal
         width={width}
@@ -51,6 +55,7 @@ export function AccessibleModal({
       >
         {children}
       </Modal>
-    </div>
+    </div>,
+    document.body,
   );
 }
