@@ -2,6 +2,9 @@ import postgres from 'postgres';
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { schema } from './schema.js';
 
+/** Default postgres-js pool size when the caller does not pass `max`. */
+const DEFAULT_POOL_MAX = 10;
+
 export type Db = PostgresJsDatabase<typeof schema>;
 
 export interface DbHandle {
@@ -15,7 +18,7 @@ export interface DbHandle {
  * and by the Testcontainers harness (per-test handle).
  */
 export function createDb(databaseUrl: string, opts?: { max?: number }): DbHandle {
-  const sql = postgres(databaseUrl, { max: opts?.max ?? 10 });
+  const sql = postgres(databaseUrl, { max: opts?.max ?? DEFAULT_POOL_MAX });
   const db = drizzle(sql, { schema });
   return {
     db,
