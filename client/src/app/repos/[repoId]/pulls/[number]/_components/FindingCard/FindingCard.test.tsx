@@ -9,6 +9,10 @@ vi.mock("@/lib/hooks/translation", () => ({
   useTranslateFinding: () => ({ mutate: translateMutate, isPending: false, isError: false }),
 }));
 
+vi.mock("@/lib/hooks/eval", () => ({
+  useCreateCaseFromFinding: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 import { FindingCard } from "./FindingCard";
 
 afterEach(() => {
@@ -65,6 +69,30 @@ describe("FindingCard (smoke, both themes)", () => {
     expect(onAction).toHaveBeenCalledWith("accept");
     fireEvent.click(screen.getByText("Dismiss"));
     expect(onAction).toHaveBeenCalledWith("dismiss");
+  });
+});
+
+describe("FindingCard eval-case action", () => {
+  const actionNames = () =>
+    screen
+      .getAllByRole("button")
+      .map((b) => b.textContent)
+      .filter((n) => ["Accept", "Dismiss", "Turn into eval case", "Translate"].includes(n ?? ""));
+
+  it("shows 'Turn into eval case' in the expanded action row between Dismiss and Translate when prId is given", () => {
+    // Catches: wrong placement (P1-AC-1: after Dismiss, before Translate) and the action leaking into the collapsed card.
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded prId="pr1" />);
+    expect(actionNames()).toEqual(["Accept", "Dismiss", "Turn into eval case", "Translate"]);
+    cleanup();
+
+    renderWithIntl(<FindingCard f={FINDING} prId="pr1" />);
+    expect(screen.queryByRole("button", { name: "Turn into eval case" })).not.toBeInTheDocument();
+  });
+
+  it("omits the action when no prId is given (callers without a PR context)", () => {
+    // Catches: a button that cannot refresh the PR's reviews after creating a case.
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded />);
+    expect(screen.queryByRole("button", { name: "Turn into eval case" })).not.toBeInTheDocument();
   });
 });
 

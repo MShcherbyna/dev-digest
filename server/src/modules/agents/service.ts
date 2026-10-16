@@ -9,10 +9,10 @@ import type {
   Provider,
   ReviewStrategy,
 } from '@devdigest/shared';
-import { NotFoundError } from '../../platform/errors.js';
+import { AppError, NotFoundError } from '../../platform/errors.js';
 import { AgentsRepository } from './repository.js';
 import { DAY_MS, RECENT_RUNS_LIMIT, SEVERITY_WEEKS, STATS_WINDOW_DAYS } from './constants.js';
-import { buildAgentStats, toAgentDto, toAgentVersionDto } from './helpers.js';
+import { buildAgentStats, sameAgentConfig, toAgentDto, toAgentVersionDto } from './helpers.js';
 
 /**
  * A2 — agents service. Business logic for the Agents tab + Agent Editor.
@@ -149,6 +149,40 @@ export class AgentsService {
     if (!agent) return undefined;
     const row = await this.repo.getVersion(agentId, version);
     return row ? toAgentVersionDto(row) : undefined;
+  }
+
+  /**
+   * Promote an old config snapshot to a new current version: copies its seven
+   * config fields onto the agent (the update bumps the version and snapshots;
+   * skill links stay as they are). Rejects a snapshot identical to the live
+   * config. The log line carries ids and numbers only, never prompt text.
+   */
+  async promote(
+    workspaceId: string,
+    agentId: string,
+    version: number,
+    log: { info(obj: Record<string, unknown>, msg: string): void },
+  ): Promise<{ agent: Agent; version: number }> {
+    const agent = await this.repo.getById(workspaceId, agentId);
+    if (!agent) throw new NotFoundError('Agent not found');
+    const snapshot = await this.repo.getVersion(agentId, version);
+    if (!snapshot) throw new AppError('version_missing', 'Agent version not found', 404);
+    const config = toAgentVersionDto(snapshot).config;
+    if (sameAgentConfig(config, agent)) {
+      throw new AppError('identical', 'That version is identical to the current config', 409);
+    }
+    const row = await this.repo.update(workspaceId, agentId, {
+      provider: config.provider,
+      model: config.model,
+      systemPrompt: config.system_prompt,
+      outputSchema: config.output_schema ?? null,
+      strategy: config.strategy,
+      ciFailOn: config.ci_fail_on,
+      repoIntel: config.repo_intel,
+    });
+    if (!row) throw new NotFoundError('Agent not found');
+    log.info({ agentId, sourceVersion: version, newVersion: row.version }, 'agent: version promoted');
+    return { agent: toAgentDto(row), version: row.version };
   }
 
   /**

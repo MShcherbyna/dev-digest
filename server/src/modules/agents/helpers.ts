@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import type { Agent, AgentUsageStats, AgentVersion, CiFailOn, Provider, ReviewStrategy } from '@devdigest/shared';
 import { AgentVersionConfig } from '@devdigest/shared';
 import {
@@ -294,4 +295,28 @@ export function buildAgentStats(input: AgentStatsInput): AgentUsageStats {
     by_category: countByCategory(findings),
     recent_runs: toRecentRuns(input.latest, input.findingCounts),
   };
+}
+
+/**
+ * True when a recorded version snapshot equals the agent's live config on the
+ * promote-relevant fields: provider, model, system_prompt, output_schema,
+ * strategy, ci_fail_on, repo_intel. Not skills, name or description.
+ * `output_schema` compares deep and null-safe (`undefined` equals `null`).
+ */
+export function sameAgentConfig(
+  versionConfig: AgentVersionConfig,
+  agent: Pick<
+    AgentRow,
+    'provider' | 'model' | 'systemPrompt' | 'outputSchema' | 'strategy' | 'ciFailOn' | 'repoIntel'
+  >,
+): boolean {
+  return (
+    versionConfig.provider === agent.provider &&
+    versionConfig.model === agent.model &&
+    versionConfig.system_prompt === agent.systemPrompt &&
+    isDeepStrictEqual(versionConfig.output_schema ?? null, agent.outputSchema ?? null) &&
+    versionConfig.strategy === agent.strategy &&
+    versionConfig.ci_fail_on === agent.ciFailOn &&
+    versionConfig.repo_intel === agent.repoIntel
+  );
 }

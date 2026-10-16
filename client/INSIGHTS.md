@@ -68,10 +68,28 @@ read by the `engineering-insights` skill.
   source or the next re-vendor will revert it. **Refined 2026-10-11:** a second
   local edit adds the WORKSPACE "Project Context" item (`key: "context"`, icon
   `Folder`, no `gKey`); `activeKeyFor` and `shell.nav.context` already existed.
+  **Refined 2026-10-15:** a third local edit adds the WORKSPACE "Eval
+  Dashboard" item right after "Project Context" (`key: "eval"`, icon `Gauge`,
+  href `/eval`, no `gKey`); `activeKeyFor` (`/eval*`) and `shell.nav.eval`
+  already existed.
+  Port all three edits to the sync source.
 - Conventions confidence bar turns amber below `CONFIDENCE_WARN_BELOW` (0.85,
   `ConventionCard/constants.ts`): the design shows 90% neutral and 80% amber.
 
 ## Tool & Library Notes
+
+- **2026-10-15** — Focus-return tests need manual focus/blur: the `fireEvent`
+  `userEvent.click` shim never focuses the target, and jsdom does not blur a
+  button that becomes disabled/loading (browsers do). To reproduce the "trigger
+  lost focus before the modal mounted" bug, `btn.focus()` before the click and
+  `btn.blur()` after it. See `AgentEvalDashboardView.test.tsx` (B-3 test).
+
+- **2026-10-14** — Two RTL query traps in component tests: the vendored
+  `@devdigest/ui` `Tabs` renders plain `<button>`s (no `role="tab"`), so use
+  `getByRole("button", { name })`; and `ToastProvider` always mounts a
+  `role="status"` live region, so `getByRole("status")` is ambiguous in any
+  `renderWithIntl` test — scope it, e.g. `within(screen.getByRole("dialog")).getByRole("status")`.
+  See `EvalCaseModal.test.tsx`.
 
 - **2026-10-12** — Testing code that calls the module-level `notify.*`
   (`src/lib/toast.tsx`, e.g. `DiffTab`'s "File not in this PR's diff" mount
@@ -108,6 +126,18 @@ read by the `engineering-insights` skill.
   drops a stray `pnpm-workspace.yaml` you must not commit).
 
 ## Recurring Errors & Fixes
+
+- **2026-10-15** — A modal that mounts after an async step (e.g. Compare
+  fetch) restores focus to `<body>` on close: `useFocusTrap` captures
+  `document.activeElement` at mount, by which time the busy trigger button
+  is disabled/blurred. Capture the trigger on click into a ref and pass
+  `returnFocusTo` to `AccessibleModal`. `AgentEvalDashboardView.tsx`
+- **2026-10-15** — Eval case rows stayed stale after a run finished: the
+  per-run detail query (`useEvalRun`) is `enabled` only while a run is
+  "running", so once disabled it never reports the terminal status and
+  cannot trigger the final refetch. Drive terminal detection from the run
+  LIST query (`useAgentEvalRuns`) and invalidate the case list there.
+  `client/src/lib/hooks/eval.ts:317`
 
 - **2026-09-18** — Loading a `/repos/:repoId/pulls...` URL directly (full
   page navigation, not an in-app click) shows "No repo selected" even

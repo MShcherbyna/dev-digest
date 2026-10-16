@@ -89,12 +89,14 @@ export function DiffTab({ prId, filesCount, files, canComment, repoFullName, hea
         pending={action.isPending}
         repoFullName={repoFullName}
         headSha={headSha}
+        prId={prId ?? undefined}
+        agentId={latest?.agent_id}
         onAction={(a) => {
           if (prId) action.mutate({ findingId: f.id, action: a, prId });
         }}
       />
     ),
-    [action, repoFullName, headSha, prId],
+    [action, repoFullName, headSha, prId, latest],
   );
 
   const findings: DiffFindingsApi | undefined = React.useMemo(

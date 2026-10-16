@@ -104,3 +104,4 @@ a CI artifact by `.github/workflows/e2e-web.yml`).
 | `06-onboarding` | `/onboarding` → add-repository form renders (no submit) |
 | `07-settings` | `/settings/api-keys` + `/settings/models` → section titles render |
 | `09-pr-brief` | PR #482 Overview → seeded PR Brief Review focus → click entry → Files changed deep link (`tab=diff&file=…`) + seeded finding |
+| `10-eval-dashboard` | app root → sidebar "Eval Dashboard" → `/eval` → all-agents subtitle + empty state ("No eval cases yet") |

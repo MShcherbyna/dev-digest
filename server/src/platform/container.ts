@@ -1,3 +1,4 @@
+import { AgentVersionConfig } from '@devdigest/shared';
 import type {
   AuthProvider,
   SecretsProvider,
@@ -60,6 +61,15 @@ import { BriefRepository } from '../modules/brief/repository.js';
 import { BriefService } from '../modules/brief/service.js';
 import { BRIEF_TIMEOUT_MS } from '../modules/brief/constants.js';
 import { classifyFile } from '../modules/reviews/smart-diff/classify.js';
+import type { EvalCaseLinks } from '../modules/reviews/ports.js';
+import { EvalRepository } from '../modules/eval/repository.js';
+import { EvalService } from '../modules/eval/service.js';
+import { createAgentConfigs } from '../modules/eval/agent-configs.js';
+import { EVAL_LLM } from '../modules/eval/constants.js';
+import { sameAgentConfig } from '../modules/agents/helpers.js';
+import type { AgentSource, EvalAgent, LlmProviderId } from '../modules/eval/ports.js';
+import { parseUnifiedDiff } from '../adapters/git/diff-parser.js';
+import { buildLineIndex, buildTaskLine, isFullFileKind, reviewPullRequest } from '@devdigest/reviewer-core';
 
 /**
  * DI container. One per app instance. Holds config, db, the JobRunner,
@@ -105,6 +115,7 @@ export class Container {
   private _codeIndex?: CodeIndex;
   private _embedder?: Embedder;
   private llmCache = new Map<string, LLMProvider>();
+  private evalLlmCache = new Map<string, LLMProvider>();
 
   // Shared repositories for cross-cutting entities (agents, reviews/pulls,
   // runs). Constructed here, in the composition root, so consuming modules use
@@ -122,6 +133,8 @@ export class Container {
   private _projectContext?: ProjectContextService;
   private _onboarding?: OnboardingService;
   private _brief?: BriefService;
+  private _eval?: EvalService;
+  private _evalRepo?: EvalRepository;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -252,6 +265,87 @@ export class Container {
     return this._brief;
   }
 
+  private get evalRepo(): EvalRepository {
+    return (this._evalRepo ??= new EvalRepository(this.db));
+  }
+
+  /**
+   * Eval pipeline. A singleton per container on purpose: runs execute in the
+   * background and the service holds the executor. Agents are reached through a
+   * narrow `AgentSource` over `agentsRepo`; the engine is `reviewPullRequest`
+   * with only the inputs an eval case carries (no repo context).
+   */
+  get eval(): EvalService {
+    if (!this._eval) {
+      const toEvalAgent = (a: Awaited<ReturnType<AgentsRepository['list']>>[number]): EvalAgent => ({
+        id: a.id,
+        name: a.name,
+        enabled: a.enabled,
+        version: a.version,
+        provider: a.provider as LlmProviderId,
+        model: a.model,
+        strategy: a.strategy,
+        systemPrompt: a.systemPrompt,
+      });
+      const agentSource: AgentSource = {
+        list: async (workspaceId) => (await this.agentsRepo.list(workspaceId)).map(toEvalAgent),
+        get: async (workspaceId, agentId) => {
+          const a = await this.agentsRepo.getById(workspaceId, agentId);
+          return a ? toEvalAgent(a) : undefined;
+        },
+        enabledSkillIds: async (agentId) =>
+          (await this.agentsRepo.linkedSkills(agentId))
+            .filter((l) => l.enabled && l.skill.enabled)
+            .map((l) => l.skill.id),
+      };
+      this._eval = new EvalService({
+        cases: this.evalRepo,
+        runs: this.evalRepo,
+        findings: this.evalRepo,
+        agents: agentSource,
+        dashboard: this.evalRepo,
+        configs: createAgentConfigs({
+          getAgent: (workspaceId, agentId) => this.agentsRepo.getById(workspaceId, agentId),
+          getVersionConfig: async (agentId, version) => {
+            const row = await this.agentsRepo.getVersion(agentId, version);
+            const parsed = row ? AgentVersionConfig.safeParse(row.configJson) : undefined;
+            return parsed?.success ? parsed.data : undefined;
+          },
+          isSame: sameAgentConfig,
+        }),
+        engine: async (input) => {
+          const outcome = await reviewPullRequest({
+            systemPrompt: input.systemPrompt,
+            model: input.model,
+            diff: input.diff,
+            llm: input.llm,
+            strategy: input.strategy as 'auto' | 'single-pass' | 'map-reduce',
+            task: input.task,
+            ...(input.prDescription ? { prDescription: input.prDescription } : {}),
+            sessionId: input.sessionId,
+          });
+          return {
+            kept: outcome.review.findings,
+            dropped: outcome.dropped.length,
+            costUsd: outcome.costUsd,
+          };
+        },
+        parseDiff: parseUnifiedDiff,
+        lineIndex: buildLineIndex,
+        isFullFileKind,
+        taskLine: buildTaskLine,
+        llm: (provider) => this.evalLlm(provider),
+        isConfigError: (err) => err instanceof ConfigError,
+      });
+    }
+    return this._eval;
+  }
+
+  /** Finding -> eval case links for the reviews read (reviews port, implemented by the eval repository). */
+  get evalCaseLinks(): EvalCaseLinks {
+    return this.evalRepo;
+  }
+
   get codeIndex(): CodeIndex {
     if (this.overrides.codeIndex) return this.overrides.codeIndex;
     this._codeIndex ??= new RipgrepCodeIndex(this.git);
@@ -332,6 +426,25 @@ export class Container {
     return provider;
   }
 
+  /**
+   * Provider for eval runs: OpenRouter with a longer timeout and no SDK retries (see EVAL_LLM).
+   * Other providers are the regular ones.
+   */
+  async evalLlm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
+    if (id !== 'openrouter' || this.overrides.llm?.[id]) return this.llm(id);
+    const cached = this.evalLlmCache.get(id);
+    if (cached) return cached;
+    const key = await this.secrets.get('OPENROUTER_API_KEY');
+    if (!key) throw new ConfigError('OPENROUTER_API_KEY is not configured');
+    const provider = new OpenRouterProvider(key, {
+      estimateCost: (model, tokensIn, tokensOut) => this.priceBook.estimate(model, tokensIn, tokensOut),
+      timeoutMs: EVAL_LLM.timeoutMs,
+      maxRetries: EVAL_LLM.maxRetries,
+    });
+    this.evalLlmCache.set(id, provider);
+    return provider;
+  }
+
   private async buildLlm(id: 'openai' | 'anthropic' | 'openrouter'): Promise<LLMProvider> {
     if (id === 'openai') {
       const key = await this.secrets.get('OPENAI_API_KEY');
@@ -375,6 +488,7 @@ export class Container {
    */
   invalidateSecretCaches(): void {
     this.llmCache.clear();
+    this.evalLlmCache.clear();
     this._github = undefined;
     this._priorPrs = undefined;
     this._embedder = undefined;

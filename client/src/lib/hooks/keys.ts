@@ -52,5 +52,16 @@ export const queryKeys = {
   /** Deliberately OUTSIDE the `pr-blast` prefix: a resync invalidates the map, not GitHub history. */
   prBlastHistory: (prId: string | null | undefined) => ["pr-blast-history", prId] as const,
   prBlast: (prId: string | null | undefined) => ["pr-blast", prId] as const,
+  evalCases: (agentId: string | null | undefined) => ["eval-cases", agentId] as const,
+  evalCase: (id: string | null | undefined) => ["eval-case", id] as const,
+  agentEvalRuns: (agentId: string | null | undefined) => ["agent-eval-runs", agentId] as const,
+  evalRun: (id: string | null | undefined) => ["eval-run", id] as const,
+  evalDashboard: () => ["eval-dashboard"] as const,
+  /** Omit `range` for the prefix of every range of one agent's dashboard. */
+  agentEvalDashboard: (agentId: string | null | undefined, range?: string) =>
+    range === undefined
+      ? (["agent-eval-dashboard", agentId] as const)
+      : (["agent-eval-dashboard", agentId, range] as const),
+  evalCompare: (a: string | null | undefined, b: string | null | undefined) => ["eval-compare", a, b] as const,
   runTrace: (runId: string | null | undefined) => ["run-trace", runId] as const,
 };

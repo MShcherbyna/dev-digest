@@ -14,6 +14,13 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-15** — Eval case routes set a per-route `bodyLimit` (4 MiB) on
+  purpose: Fastify's default 1 MiB limit would reject a max-size diff
+  (`DIFF_MAX_CHARS` = 1M chars, multi-byte) with a bare 413 before the
+  service runs, so clients never see the typed 422 `diff_too_large`. Keep
+  `CASE_BODY_LIMIT_BYTES` above the char cap x bytes/char when raising it.
+  `server/src/modules/eval/constants.ts:22`
+
 - **2026-10-12** — Seed data for PR #482 (pr_files patches, extra findings)
   is inserted only inside `if (!pr)`, so an existing dev DB never gets it;
   the `pr_brief` row is a separate `onConflictDoNothing` insert and DOES land

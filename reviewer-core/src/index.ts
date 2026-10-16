@@ -27,7 +27,16 @@ export {
 } from './prompt.js';
 
 // Citation grounding — the mandatory mechanical gate for diff findings.
-export { groundFindings, groundingSummary, type GroundingResult } from './grounding.js';
+export {
+  groundFindings,
+  groundingSummary,
+  buildLineIndex,
+  isFullFileKind,
+  type GroundingResult,
+} from './grounding.js';
+
+// Per-run task instruction line (shared by PR reviews and eval runs).
+export { buildTaskLine, type TaskLineInput } from './task.js';
 
 // Structured-output helpers (Zod → JSON Schema + parse-with-repair).
 export {

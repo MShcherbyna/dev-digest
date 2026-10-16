@@ -119,6 +119,18 @@ jobs:
           npm ci
           npm test
 
+      - name: Dump diagnostics
+        if: failure()
+        run: |
+          echo "--- pr_brief rows ---"
+          docker exec devdigest-postgres psql -U devdigest -d devdigest -c "select pr_id, length(json::text) as json_len from pr_brief" || true
+          echo "--- GET /pulls/:id/brief for PR #482 ---"
+          RID=$(curl -fsS http://localhost:3001/repos | python3 -c "import sys,json;print(json.load(sys.stdin)[0]['id'])") || true
+          PID=$(curl -fsS "http://localhost:3001/repos/$RID/pulls" | python3 -c "import sys,json;print([p for p in json.load(sys.stdin) if p['number']==482][0]['id'])") || true
+          curl -sS -w "\nHTTP %{http_code}\n" "http://localhost:3001/pulls/$PID/brief" | head -c 1500 || true
+          echo "--- api.log ---"; tail -n 200 "$RUNNER_TEMP/api.log" || true
+          echo "--- web.log ---"; tail -n 200 "$RUNNER_TEMP/web.log" || true
+
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
@@ -126,4 +138,6 @@ jobs:
           name: e2e-failure
           path: |
             e2e/test-results/**
+            ${{ runner.temp }}/api.log
+            ${{ runner.temp }}/web.log
           if-no-files-found: ignore

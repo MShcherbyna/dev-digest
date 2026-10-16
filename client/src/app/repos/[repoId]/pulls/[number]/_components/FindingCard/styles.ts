@@ -2,19 +2,20 @@ import type { CSSProperties } from "react";
 
 /** Co-located styles for FindingCard (extracted from inline styles). */
 export const s = {
-  card: (focused: boolean, sevColor: string, muted: boolean): CSSProperties => ({
+  card: (focused: boolean, sevColor: string): CSSProperties => ({
     borderRadius: 8,
-    // All-longhand (never mix `border` shorthand with `borderLeft` — React warns
-    // about updating shorthand + non-shorthand on the same rerender).
+    // Per-side longhands only: `borderColor` is a shorthand of `borderLeftColor`, and
+    // React warns when one changes on a rerender while the other is set.
     borderStyle: "solid",
-    borderColor: focused ? sevColor : "var(--border)",
+    borderTopColor: focused ? sevColor : "var(--border)",
+    borderRightColor: focused ? sevColor : "var(--border)",
+    borderBottomColor: focused ? sevColor : "var(--border)",
     borderWidth: 1,
     borderLeftWidth: 3,
     borderLeftColor: sevColor,
     background: "var(--bg-elevated)",
     overflow: "hidden",
-    opacity: muted ? 0.6 : 1,
-    transition: "opacity .2s, border-color .12s, box-shadow .12s",
+    transition: "border-color .12s, box-shadow .12s",
     boxShadow: focused ? "0 0 0 1px " + sevColor : "none",
   }),
   header: {
@@ -24,6 +25,8 @@ export const s = {
     padding: "14px 16px",
     cursor: "pointer",
   } satisfies CSSProperties,
+  /** Decided findings dim their content hard (0.6) and the action row only slightly, so the buttons still read as clickable. */
+  dim: (muted: boolean, level = 0.6): CSSProperties => ({ opacity: muted ? level : 1, transition: "opacity .2s" }),
   badgeWrap: { paddingTop: 1 } satisfies CSSProperties,
   headerMain: { flex: 1, minWidth: 0 } satisfies CSSProperties,
   titleRow: {

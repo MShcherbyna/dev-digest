@@ -17,7 +17,9 @@ import {
   type Severity,
   type Category,
 } from "@devdigest/ui";
-import type { FindingRecord, FindingActionKind } from "@devdigest/shared";
+import type { FindingActionKind } from "@devdigest/shared";
+import type { EvalAwareFinding } from "@/lib/hooks/eval";
+import { EvalCaseButton } from "./_components/EvalCaseButton";
 import { SEV_COLOR, SEV_COLOR_FALLBACK } from "./constants";
 import { lineLabel } from "./helpers";
 import { useTranslateFinding, type TranslatedFinding } from "@/lib/hooks/translation";
@@ -32,14 +34,19 @@ export function FindingCard({
   pending,
   repoFullName,
   headSha,
+  prId,
+  agentId,
 }: {
-  f: FindingRecord;
+  f: EvalAwareFinding;
   focused?: boolean;
   defaultExpanded?: boolean;
   onAction?: (action: FindingActionKind, reply?: string) => void;
   pending?: boolean;
   repoFullName?: string | null;
   headSha?: string | null;
+  /** When set, the "Turn into eval case" action is shown. */
+  prId?: string;
+  agentId?: string | null;
 }) {
   const t = useTranslations("prReview");
   const [expanded, setExpanded] = React.useState(defaultExpanded ?? false);
@@ -71,8 +78,8 @@ export function FindingCard({
   const suggestion = shown ? shown.suggestion : f.suggestion;
 
   return (
-    <div data-finding-id={f.id} style={s.card(!!focused, sevColor, muted)}>
-      <div onClick={() => setExpanded((e) => !e)} style={s.header}>
+    <div data-finding-id={f.id} style={s.card(!!focused, sevColor)}>
+      <div onClick={() => setExpanded((e) => !e)} style={{ ...s.header, ...s.dim(muted) }}>
         <div style={s.badgeWrap}>
           <SeverityBadge severity={f.severity as Severity} compact />
         </div>
@@ -95,11 +102,11 @@ export function FindingCard({
 
       {expanded && (
         <div style={s.body}>
-          <div style={s.prose}>
+          <div style={{ ...s.prose, ...s.dim(muted) }}>
             <Markdown>{rationale}</Markdown>
           </div>
           {suggestion && (
-            <div style={s.suggestionWrap}>
+            <div style={{ ...s.suggestionWrap, ...s.dim(muted) }}>
               <div style={s.suggestionLabel}>{t("finding.suggestedFix")}</div>
               <div style={s.prose}>
                 <Markdown>{suggestion}</Markdown>
@@ -107,7 +114,7 @@ export function FindingCard({
             </div>
           )}
 
-          <div style={s.actions}>
+          <div style={{ ...s.actions, ...s.dim(muted, 0.8) }}>
             <Button
               kind="secondary"
               size="sm"
@@ -119,7 +126,7 @@ export function FindingCard({
               {t("finding.accept")}
             </Button>
             <Button
-              kind="ghost"
+              kind="secondary"
               size="sm"
               icon="X"
               disabled={pending}
@@ -128,8 +135,9 @@ export function FindingCard({
             >
               {t("finding.dismiss")}
             </Button>
+            {prId && <EvalCaseButton finding={f} prId={prId} agentId={agentId} />}
             <Button
-              kind="ghost"
+              kind="secondary"
               size="sm"
               icon="Globe"
               loading={translate.isPending}

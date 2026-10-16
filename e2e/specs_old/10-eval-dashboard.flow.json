@@ -1,0 +1,13 @@
+{
+  "name": "Eval Dashboard is reachable from the sidebar and shows its empty state",
+  "description": "From the app shell, clicks the WORKSPACE 'Eval Dashboard' sidebar item and confirms the /eval route, the all-agents subtitle and the empty state ('No eval cases yet': the hermetic stack seeds agents but no eval cases, and the dashboard lists only agents with at least one case). Read-only: never clicks the empty-state CTA, creates a case or runs an eval, so no model call or API key is needed. The active-item highlight is style-only (no aria-current on NavItem) and agent-browser has no verified attribute query, so it is left to the activeKeyFor unit test in client/src/components/app-shell/helpers.test.ts. Not executed yet: agent-browser must be installed to run the hermetic stack (see e2e/README.md).",
+  "steps": [
+    { "cmd": ["open", "{BASE}/"], "label": "load the app root" },
+    { "cmd": ["wait", "--url", "/pulls"], "label": "root redirects to a repo's PRs" },
+    { "cmd": ["find", "text", "Eval Dashboard", "click"], "label": "click the Eval Dashboard sidebar item" },
+    { "cmd": ["wait", "--url", "/eval"], "label": "eval dashboard route reached" },
+    { "cmd": ["wait", "--load", "networkidle"], "label": "dashboard fetch settles" },
+    { "cmd": ["wait", "--text", "Regression harness across all reviewer agents"], "label": "all-agents subtitle renders" },
+    { "cmd": ["wait", "--text", "No eval cases yet"], "label": "empty state renders (no eval cases in the seed)" }
+  ]
+}

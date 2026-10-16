@@ -12,7 +12,22 @@
     "replyToAuthor": "Reply to author",
     "replyPlaceholder": "Reply to the author about this finding…",
     "sendReply": "Send reply",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "evalCase": {
+      "button": "Turn into eval case",
+      "inSet": "In eval set",
+      "needsDecision": "Accept or dismiss this finding first",
+      "created": "Eval case created",
+      "viewInEvals": "View in Evals",
+      "errors": {
+        "undecided": "Accept or dismiss this finding first",
+        "diff_unavailable": "The diff for this file is no longer available",
+        "range_outside_diff": "The finding's lines are outside the diff",
+        "agent_missing": "The agent that produced this finding no longer exists",
+        "network": "Could not reach the DevDigest engine",
+        "generic": "Could not create the eval case"
+      }
+    }
   },
   "trifecta": {
     "lethal": "LETHAL TRIFECTA — ALL 3 PRESENT",

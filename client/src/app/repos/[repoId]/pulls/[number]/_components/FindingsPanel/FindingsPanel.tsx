@@ -6,7 +6,7 @@ import React from "react";
 import { useTranslations } from "next-intl";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Toggle, Chip, EmptyState, SEV } from "@devdigest/ui";
-import type { FindingRecord } from "@devdigest/shared";
+import type { EvalAwareFinding } from "@/lib/hooks/eval";
 import { FindingCard } from "../FindingCard";
 import { useFindingAction } from "@/lib/hooks/reviews";
 import { KEY_TO_ACTION, FILTERABLE_SEVERITIES } from "./constants";
@@ -18,11 +18,13 @@ export function FindingsPanel({
   prId,
   repoFullName,
   headSha,
+  agentId,
 }: {
-  findings: FindingRecord[];
+  findings: EvalAwareFinding[];
   prId: string;
   repoFullName?: string | null;
   headSha?: string | null;
+  agentId?: string | null;
 }) {
   const t = useTranslations("prReview");
   const action = useFindingAction();
@@ -116,6 +118,8 @@ export function FindingsPanel({
               pending={action.isPending}
               repoFullName={repoFullName}
               headSha={headSha}
+              prId={prId}
+              agentId={agentId}
               onAction={(act) => action.mutate({ findingId: f.id, action: act, prId })}
             />
           ))
