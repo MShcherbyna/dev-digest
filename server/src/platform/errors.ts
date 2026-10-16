@@ -4,6 +4,7 @@
  * stable structured body (ApiErrorBody): { error: { code, message, details } }.
  */
 
+/** Base class for every error that maps to a structured API error body. */
 export class AppError extends Error {
   constructor(
     public readonly code: string,
@@ -16,24 +17,28 @@ export class AppError extends Error {
   }
 }
 
+/** 404 — the requested resource does not exist in the caller's workspace. */
 export class NotFoundError extends AppError {
   constructor(message = 'Not found', details?: unknown) {
     super('not_found', message, 404, details);
   }
 }
 
+/** 422 — request input failed validation. */
 export class ValidationError extends AppError {
   constructor(message = 'Validation failed', details?: unknown) {
     super('validation_error', message, 422, details);
   }
 }
 
+/** 502 — an upstream service (GitHub, an LLM provider) failed or timed out. */
 export class ExternalServiceError extends AppError {
   constructor(message: string, details?: unknown) {
     super('external_service_error', message, 502, details);
   }
 }
 
+/** 500 — the server is missing required configuration (e.g. a secret). */
 export class ConfigError extends AppError {
   constructor(message: string, details?: unknown) {
     super('config_error', message, 500, details);
