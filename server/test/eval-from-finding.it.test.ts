@@ -41,8 +41,10 @@ d('eval: create case from finding (Testcontainers pg)', () => {
       },
     });
 
-  const post = (app: Awaited<ReturnType<typeof makeApp>>, id: string) =>
-    app.inject({ method: 'POST', url: `/findings/${id}/eval-case` });
+  const post = (app: Awaited<ReturnType<typeof makeApp>>, id: string, body?: unknown) =>
+    app.inject({ method: 'POST', url: `/findings/${id}/eval-case`, payload: body });
+  const preview = (app: Awaited<ReturnType<typeof makeApp>>, id: string) =>
+    app.inject({ method: 'GET', url: `/findings/${id}/eval-case/preview` });
 
   it('accepted -> must_find, dismissed -> must_not_flag; stores diff, PR meta, slug name, source links', async () => {
     // Regression: AC-3..AC-6, the case must freeze exactly what the reviewer decided.
@@ -141,6 +143,66 @@ d('eval: create case from finding (Testcontainers pg)', () => {
     const foreign = await seedFinding(pg.handle.db, foreignWs!.id, fpr.prId, foreignAgent!.id);
     expect(await code(foreign.findingId)).toEqual([404, 'not_found']);
     expect(await pg.handle.db.select().from(t.evalCases).where(eq(t.evalCases.sourceFindingId, foreign.findingId))).toHaveLength(0);
+    await app.close();
+  });
+
+  it('GET preview returns the draft without persisting it, matching what POST would create', async () => {
+    // Regression: the confirm-before-save modal must see exactly what POST would store, with no side effect.
+    const app = await makeApp();
+    const agent = await createAgent(app);
+    const { prId } = await seedPr(pg.handle.db, workspaceId, { title: 'Add rate limiting', body: 'Throttles the API.' });
+    const acc = await seedFinding(pg.handle.db, workspaceId, prId, agent.id, { decision: 'accepted' });
+
+    const pre = await preview(app, acc.findingId);
+    expect(pre.statusCode).toBe(200);
+    expect(pre.json()).toMatchObject({
+      name: 'hardcoded-stripe-secret-key',
+      input_diff: CONFIG_DIFF,
+      input_meta: { title: 'Add rate limiting', body: 'Throttles the API.' },
+      expected_output: [{ expect: 'must_find', file: 'src/config.ts', start_line: 11, end_line: 11, severity: 'CRITICAL' }],
+    });
+    expect(await pg.handle.db.select().from(t.evalCases).where(eq(t.evalCases.sourceFindingId, acc.findingId))).toHaveLength(0);
+
+    const created = await post(app, acc.findingId);
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject(pre.json());
+    await app.close();
+  });
+
+  it('POST override renames the case and replaces its expectations, but the diff/PR meta stay the finding\'s own', async () => {
+    // Regression: the modal must be able to edit name/expected_output, but never the diff/meta.
+    const app = await makeApp();
+    const agent = await createAgent(app);
+    const { prId } = await seedPr(pg.handle.db, workspaceId, { title: 'Add rate limiting', body: 'Throttles the API.' });
+    const acc = await seedFinding(pg.handle.db, workspaceId, prId, agent.id, { decision: 'accepted' });
+
+    const res = await post(app, acc.findingId, {
+      name: 'renamed-case',
+      expected_output: [{ expect: 'must_find', file: 'src/config.ts', start_line: 11 }],
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({
+      name: 'renamed-case',
+      input_diff: CONFIG_DIFF,
+      input_meta: { title: 'Add rate limiting', body: 'Throttles the API.' },
+      expected_output: [{ expect: 'must_find', file: 'src/config.ts', start_line: 11 }],
+    });
+    await app.close();
+  });
+
+  it('POST override.expected_output pointing outside the finding\'s own diff is rejected (422, not silently stored)', async () => {
+    // Regression: the override must not let a client persist assertions unrelated to the stored diff.
+    const app = await makeApp();
+    const agent = await createAgent(app);
+    const { prId } = await seedPr(pg.handle.db, workspaceId);
+    const acc = await seedFinding(pg.handle.db, workspaceId, prId, agent.id, { decision: 'accepted' });
+
+    const res = await post(app, acc.findingId, {
+      expected_output: [{ expect: 'must_find', file: 'src/config.ts', start_line: 400 }],
+    });
+    expect(res.statusCode).toBe(422);
+    expect(res.json().error.code).toBe('expectation_outside_diff');
+    expect(await pg.handle.db.select().from(t.evalCases).where(eq(t.evalCases.sourceFindingId, acc.findingId))).toHaveLength(0);
     await app.close();
   });
 });

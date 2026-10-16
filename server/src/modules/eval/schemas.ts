@@ -57,6 +57,17 @@ export const EvalCaseBody = z
   .strict();
 export type EvalCaseBody = z.infer<typeof EvalCaseBody>;
 
+/** POST /findings/:id/eval-case body: lets the confirm-before-save modal rename the draft case or
+ *  tweak its expectations before it's persisted. `input_diff`/`input_meta` always come from the
+ *  finding's own stored diff, never from the client. */
+export const EvalCaseFindingOverride = z
+  .object({
+    name: EvalCaseBody.shape.name.optional(),
+    expected_output: ExpectedOutput.optional(),
+  })
+  .strict();
+export type EvalCaseFindingOverride = z.infer<typeof EvalCaseFindingOverride>;
+
 export const EvalCaseStatus = z.enum(['running', 'passed', 'failed', 'error']);
 export type EvalCaseStatus = z.infer<typeof EvalCaseStatus>;
 

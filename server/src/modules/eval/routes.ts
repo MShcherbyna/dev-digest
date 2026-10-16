@@ -15,6 +15,7 @@ import {
   RunAllResponse,
   EvalCase,
   EvalCaseBody,
+  EvalCaseFindingOverride,
   EvalCaseSummary,
   EvalRunDetailResponse,
   ListRunsQuery,
@@ -27,6 +28,7 @@ import {
  * Eval module (part 1). Routes only parse, call one `container.eval` method and
  * set the status code; business rules and error mapping live in the service.
  *   POST   /findings/:id/eval-case      create a case from a decided finding
+ *   GET    /findings/:id/eval-case/preview  preview that case without persisting it
  *   GET    /agents/:id/eval-cases       list cases (newest first)
  *   POST   /agents/:id/eval-cases       create a manual case
  *   GET    /eval-cases/:id              one case
@@ -56,13 +58,22 @@ export default async function evalRoutes(appBase: FastifyInstance) {
   app.post(
     '/findings/:id/eval-case',
     {
-      schema: { params: IdParams, response: { 201: EvalCase } },
+      schema: { params: IdParams, body: EvalCaseFindingOverride.nullish(), response: { 201: EvalCase } },
       config: { rateLimit: RATE_LIMIT },
     },
     async (req, reply) => {
       const { workspaceId } = await getContext(container, req);
-      const created = await container.eval.createFromFinding(workspaceId, req.params.id);
+      const created = await container.eval.createFromFinding(workspaceId, req.params.id, req.body);
       return reply.code(201).send(created);
+    },
+  );
+
+  app.get(
+    '/findings/:id/eval-case/preview',
+    { schema: { params: IdParams, response: { 200: EvalCaseBody } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      return container.eval.previewFromFinding(workspaceId, req.params.id);
     },
   );
 

@@ -76,6 +76,20 @@ read by the `engineering-insights` skill.
 - Conventions confidence bar turns amber below `CONFIDENCE_WARN_BELOW` (0.85,
   `ConventionCard/constants.ts`): the design shows 90% neutral and 80% amber.
 
+- **2026-10-16** — `EvalCaseButton`'s "Turn into eval case" no longer posts on
+  click: it fetches a no-persist draft (`useEvalCaseDraftFromFinding`,
+  `GET /findings/:id/eval-case/preview`) and the finding's `Agent`
+  (`useAgent`), then opens `EvalCaseModal` (cross-route import from
+  `app/agents/.../EvalCaseModal`, same pattern as `RunHistory` ->
+  `SeverityFindingsBreakdown`) with `draft`/`findingId`/`prId` props. In that
+  mode the modal's Diff and PR-meta tabs render read-only (new `readOnly` prop
+  on `DiffInput`/`PrMetaInput` — the vendored `Textarea` has no `readOnly`, so
+  `PrMetaInput`'s body falls back to a plain `<div>` when read-only); Name and
+  Expected output stay editable and are sent as an override body on
+  `POST /findings/:id/eval-case`. A 409 race (case already created elsewhere)
+  is treated as success (closes + `onSaved`), matching the old button's
+  behavior. `EvalCaseModal.tsx`, `EvalCaseButton.tsx`.
+
 ## Tool & Library Notes
 
 - **2026-10-15** — Focus-return tests need manual focus/blur: the `fireEvent`

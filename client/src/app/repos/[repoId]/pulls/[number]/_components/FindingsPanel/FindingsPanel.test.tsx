@@ -7,6 +7,10 @@ import messages from "../../../../../../../../messages/en/prReview.json";
 const createCase = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/hooks/eval", () => ({
   useCreateCaseFromFinding: () => ({ mutate: createCase, isPending: false }),
+  useEvalCaseDraftFromFinding: () => ({ data: undefined, isLoading: false, isError: false, error: undefined }),
+}));
+vi.mock("@/lib/hooks/agents", () => ({
+  useAgent: () => ({ data: undefined, isLoading: false }),
 }));
 vi.mock("@/lib/hooks/translation", () => ({
   useTranslateFinding: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
@@ -125,9 +129,10 @@ describe("FindingsPanel translation", () => {
 });
 
 describe("FindingsPanel eval-case action", () => {
-  it("threads prId/agentId into the card: undecided is disabled, decided creates a case and links to that agent's Evals tab, eval_case_id shows 'In eval set'", () => {
-    // Catches: callers (panel -> card) dropping prId (button missing) or agentId (toast link to the wrong/no agent).
-    createCase.mockImplementation((_id: string, opts: { onSuccess: () => void }) => opts.onSuccess());
+  // Catches: callers (panel -> card) dropping prId (button missing) or agentId (button stuck disabled).
+  // The full open-modal-and-save flow (prId/agentId actually reaching the create request) is
+  // EvalCaseButton's own test; this only checks the panel threads both props through to the card.
+  it("threads prId/agentId into the card: undecided is disabled, decided + agentId is clickable", () => {
     const { rerender } = renderWithIntl(<FindingsPanel findings={FINDINGS} prId="pr1" agentId="ag9" />);
     expect(screen.getByRole("button", { name: "Turn into eval case" })).toBeDisabled();
 
@@ -138,10 +143,7 @@ describe("FindingsPanel eval-case action", () => {
         </ToastProvider>
       </NextIntlClientProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Turn into eval case" }));
-    expect(createCase).toHaveBeenCalledWith("f1", expect.anything());
-    expect(screen.getByRole("link", { name: "View in Evals" })).toHaveAttribute("href", "/agents/ag9?tab=evals");
-    expect(screen.getByRole("button", { name: "In eval set" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Turn into eval case" })).toBeEnabled();
   });
 
   it("a finding that already has eval_case_id renders 'In eval set' disabled", () => {

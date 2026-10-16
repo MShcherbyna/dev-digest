@@ -11,6 +11,10 @@ vi.mock("@/lib/hooks/translation", () => ({
 
 vi.mock("@/lib/hooks/eval", () => ({
   useCreateCaseFromFinding: () => ({ mutate: vi.fn(), isPending: false }),
+  useEvalCaseDraftFromFinding: () => ({ data: undefined, isLoading: false, isError: false, error: undefined }),
+}));
+vi.mock("@/lib/hooks/agents", () => ({
+  useAgent: () => ({ data: undefined, isLoading: false }),
 }));
 
 import { FindingCard } from "./FindingCard";

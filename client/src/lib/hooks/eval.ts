@@ -38,6 +38,12 @@ export interface EvalCaseBody {
   notes?: string | null;
 }
 
+/** Body of POST /findings/:id/eval-case: the diff/meta always come from the finding itself. */
+export interface EvalCaseFindingOverride {
+  name?: string;
+  expected_output?: ExpectedOutput;
+}
+
 export type EvalCaseStatus = "running" | "passed" | "failed" | "error";
 export type EvalCaseOrigin = "finding" | "manual";
 
@@ -401,12 +407,25 @@ export function useStartEvalRun(agentId: string) {
   });
 }
 
-/** "Turn into eval case" on a finding. 201 and 409 both refetch the PR's reviews so `eval_case_id` shows up. */
+/** Preview of what "Turn into eval case" would create, so the modal can show the diff before persisting it. */
+export function useEvalCaseDraftFromFinding(findingId: string | null | undefined) {
+  return useQuery({
+    queryKey: queryKeys.evalCaseDraftFromFinding(findingId),
+    queryFn: () => api.get<EvalCaseBody>(`/findings/${findingId}/eval-case/preview`),
+    enabled: !!findingId,
+    gcTime: 0,
+  });
+}
+
+/** "Turn into eval case" on a finding, from the confirm-before-save modal. `override` carries any
+ *  edits made to the draft's name/expected output; 201 and 409 both refetch the PR's reviews so
+ *  `eval_case_id` shows up. */
 export function useCreateCaseFromFinding(prId: string) {
   const qc = useQueryClient();
   const refresh = () => qc.invalidateQueries({ queryKey: queryKeys.reviews(prId) });
   return useMutation({
-    mutationFn: (findingId: string) => api.post<EvalCase>(`/findings/${findingId}/eval-case`),
+    mutationFn: ({ findingId, override }: { findingId: string; override?: EvalCaseFindingOverride }) =>
+      api.post<EvalCase>(`/findings/${findingId}/eval-case`, override),
     onSuccess: refresh,
     onError: (e) => {
       if ((e as { status?: number }).status === 409) refresh();

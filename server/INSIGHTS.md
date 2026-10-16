@@ -133,7 +133,22 @@ read by the `engineering-insights` skill.
   workspace picked a model (`getFeatureModelOverride`). Real run on this repo:
   ~50s, 28 verified candidates.
 
+- **2026-10-16** — `POST /findings/:id/eval-case` now takes an optional body
+  (name/expected_output overrides for the confirm-before-save modal); the
+  diff/PR meta always come from `buildCaseFromFinding` (split out of
+  `createFromFinding`), never the client. `GET /findings/:id/eval-case/preview`
+  reuses the same builder to show a no-persist draft first.
+  `server/src/modules/eval/service.ts`.
+
 ## Tool & Library Notes
+
+- **2026-10-16** — A Fastify zod `body` schema that must tolerate "no body
+  sent" needs `.nullish()`, not `.optional()`: with no payload and no
+  Content-Type, `req.body` comes through as `null`, not `undefined`, so
+  `.optional()` 400s with `FST_ERR_VALIDATION` ("Expected object, received
+  null") for every caller that posts with no body (`app.inject({method:
+  'POST', url})`, `api.post(path)` with no second arg). Confirmed by
+  reproducing against a bare Fastify+zod instance.
 
 - **2026-10-12** — Two test-harness facts: (1) `server/tsconfig.json` has
   `include: ["src/**/*.ts"]`, so `pnpm typecheck` never type-checks

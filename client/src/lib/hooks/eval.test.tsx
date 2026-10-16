@@ -126,16 +126,16 @@ describe("eval hooks", () => {
     const { result } = renderHook(() => useCreateCaseFromFinding("pr1"), { wrapper });
 
     post.mockResolvedValueOnce({ id: "case1" });
-    await act(() => result.current.mutateAsync("f1"));
+    await act(() => result.current.mutateAsync({ findingId: "f1" }));
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenLastCalledWith({ queryKey: ["reviews", "pr1"] });
 
     post.mockRejectedValueOnce(new ApiError("dup", 409, "eval_case_exists"));
-    await act(() => result.current.mutateAsync("f1").catch(() => undefined));
+    await act(() => result.current.mutateAsync({ findingId: "f1" }).catch(() => undefined));
     expect(spy).toHaveBeenCalledTimes(2);
 
     post.mockRejectedValueOnce(new ApiError("bad", 422, "undecided"));
-    await act(() => result.current.mutateAsync("f1").catch(() => undefined));
+    await act(() => result.current.mutateAsync({ findingId: "f1" }).catch(() => undefined));
     expect(spy).toHaveBeenCalledTimes(2);
   });
 });

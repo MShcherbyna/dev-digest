@@ -12,6 +12,7 @@ import type {
   RunAllResponse,
   RunAllSkipReason,
   EvalCaseBody,
+  EvalCaseFindingOverride,
   EvalCaseSummary,
   EvalRunDetailResponse,
   ExpectedItem,
@@ -54,7 +55,8 @@ export class EvalService {
 
   // ---- cases ----------------------------------------------------------------
 
-  async createFromFinding(workspaceId: string, findingId: string): Promise<EvalCase> {
+  /** Builds the case draft for a decided finding and checks for a pre-existing case, without persisting. */
+  private async buildCaseFromFinding(workspaceId: string, findingId: string) {
     const d = this.deps;
     const src = await d.findings.findingForCase(workspaceId, findingId);
     if (!src) throw new NotFoundError('Finding not found');
@@ -97,16 +99,57 @@ export class EvalService {
       ...(src.category ? { category: src.category.slice(0, CATEGORY_MAX) } : {}),
       ...(src.title ? { title: src.title.slice(0, TITLE_MAX) } : {}),
     };
-    const res = await d.cases.insertCase(workspaceId, {
+    return {
       agentId: src.agentId,
       name: slugify(src.title),
-      origin: 'finding',
       inputDiff,
       inputMeta: { title: src.prTitle, body: src.prBody ?? '' },
       expectedOutput: [item],
-      notes: null,
       sourceFindingId: src.findingId,
       sourcePrId: src.prId,
+    };
+  }
+
+  /** Read-only preview of what "Turn into eval case" would create, for the confirm-before-save modal. */
+  async previewFromFinding(workspaceId: string, findingId: string): Promise<EvalCaseBody> {
+    const draft = await this.buildCaseFromFinding(workspaceId, findingId);
+    return {
+      name: draft.name,
+      input_diff: draft.inputDiff,
+      input_meta: draft.inputMeta,
+      expected_output: draft.expectedOutput,
+    };
+  }
+
+  /** `override` lets the confirm-before-save modal rename the case or tweak its expectations; the
+   *  diff and PR metadata always come from the finding's own stored diff, never from the client. */
+  async createFromFinding(
+    workspaceId: string,
+    findingId: string,
+    override?: EvalCaseFindingOverride | null,
+  ): Promise<EvalCase> {
+    const draft = await this.buildCaseFromFinding(workspaceId, findingId);
+    const expectedOutput = override?.expected_output ?? draft.expectedOutput;
+    if (override?.expected_output) {
+      const outside = firstExpectationOutsideDiff(expectedOutput, this.deps.lineIndex(this.deps.parseDiff(draft.inputDiff)));
+      if (outside !== null) {
+        throw unprocessable(
+          EVAL_ERROR.expectationOutsideDiff,
+          `Expected item ${outside + 1} is outside the diff`,
+          { index: outside },
+        );
+      }
+    }
+    const res = await this.deps.cases.insertCase(workspaceId, {
+      agentId: draft.agentId,
+      name: override?.name?.trim() || draft.name,
+      origin: 'finding',
+      inputDiff: draft.inputDiff,
+      inputMeta: draft.inputMeta,
+      expectedOutput,
+      notes: null,
+      sourceFindingId: draft.sourceFindingId,
+      sourcePrId: draft.sourcePrId,
     });
     if (res.kind === 'exists') {
       throw new AppError(EVAL_ERROR.caseExists, 'An eval case already exists for this finding', 409, {
