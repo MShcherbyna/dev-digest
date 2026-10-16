@@ -21,9 +21,13 @@ describe("formatCost", () => {
     expect(formatCost(0.0013)).toBe("$0.0013");
   });
 
-  it("uses 3 decimals at and above one cent", () => {
+  it("uses 3 decimals from one cent up to one dollar", () => {
     expect(formatCost(0.01)).toBe("$0.010");
     expect(formatCost(0.014)).toBe("$0.014");
-    expect(formatCost(1.5)).toBe("$1.500");
+  });
+
+  it("uses 2 decimals from one dollar up", () => {
+    expect(formatCost(1)).toBe("$1.00");
+    expect(formatCost(1.5)).toBe("$1.50");
   });
 });

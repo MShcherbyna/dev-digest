@@ -4,5 +4,6 @@
 export function formatCost(usd: number | null | undefined): string {
   if (usd == null || !Number.isFinite(usd)) return "—";
   if (usd === 0) return "$0.00";
-  return usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(3)}`;
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return usd < 1 ? `$${usd.toFixed(3)}` : `$${usd.toFixed(2)}`;
 }
