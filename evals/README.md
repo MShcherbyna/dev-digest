@@ -399,10 +399,19 @@ How each `kind` asserts:
 |--------|------|-------------|
 | `dispatch` | `workflowTask` | `result.subagents` contains `expectSubagent` |
 | `activation` | `workflowTask` | `activated(result, skill) === shouldActivate` (positive **and** near-miss negative) |
-| `contrast` | treatment (real repo) **and** control (empty tmpdir, `settingSources:[]`) | `expectFileRead` read in treatment, NOT in control |
+| `contrast` | treatment (real repo) **and** control (harness-free copy of the repo at HEAD — `git archive` into a tmpdir minus `CLAUDE.md`/`AGENTS.md`/`.claude/`, `settingSources:[]`) | `expectFileRead` read and/or `expectOutputIncludes` present in treatment, NOT in control |
 
 Workflow records carry an empty `practices[]` (no judge) but a full trace; `contrast` writes two
 records — `<label>:treatment` and `<label>:control`.
+
+Why the control is a *copy* and not the repo itself: with `cwd: REPO_ROOT` the control still
+picked up repo rules by path (the branch-prefix rule, via the path-keyed auto-memory) even with
+`settingSources:[]`, so it matched the treatment. An empty tmpdir is no better — the expected file
+does not exist there, so "control did not read it" holds trivially. A contrast test passes only when the
+treatment meets the expectation AND the control does not, so its pass rate is the discrimination
+rate. Re-run it with `pnpm eval:repeat workflow -t "only with CLAUDE.md loaded"` (capped at 2 runs);
+on a failure, check which side broke — a control that meets the expectation means the case proves
+nothing about the harness and must be rewritten.
 
 ## Commands & parameters
 

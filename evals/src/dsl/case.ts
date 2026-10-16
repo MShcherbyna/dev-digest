@@ -5,7 +5,8 @@
  * marked spot below, in this one file).
  */
 
-import { mkdtempSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, expect } from "vitest";
@@ -48,10 +49,16 @@ export type WorkflowCase =
       maxTurns?: number;
     }
   | {
+      // Control vs treatment: the SAME prompt in the SAME repo, once with the on-disk harness
+      // (treatment) and once without it (control, settingSources:[]). Only the harness differs,
+      // so an expectation met in treatment but not in control is the harness's doing, not the
+      // model's general knowledge. Give at least one of expectFileRead / expectOutputIncludes.
       kind: "contrast";
       name: string;
       prompt: string;
-      expectFileRead: string;
+      expectFileRead?: string;
+      /** Case-insensitive substrings the treatment answer must ALL contain and the control must not. */
+      expectOutputIncludes?: string[];
       tools?: string[];
       maxTurns?: number;
     }
@@ -84,6 +91,31 @@ export function activated(result: Result, skill: string): boolean {
   const byRead = result.filesRead.some((f) => f.includes(`skills/${skill}/SKILL.md`));
   return bySkill || byRead;
 }
+
+/**
+ * Control cwd for `contrast`: the repo's tracked files at HEAD, extracted to a tmpdir with the
+ * harness (CLAUDE.md, AGENTS.md, .claude/) removed. Running the control in REPO_ROOT itself is NOT
+ * clean even with settingSources:[] — rules still leak in by path (observed: the branch-prefix rule
+ * from the path-keyed auto-memory), so the control matched the treatment. A different path with
+ * the same docs/code keeps the only variable the harness. Built once per process.
+ */
+let controlRepoDir: string | undefined;
+function controlRepo(): string {
+  if (controlRepoDir) return controlRepoDir;
+  const dir = mkdtempSync(join(tmpdir(), "eval-control-"));
+  const archive = execFileSync("git", ["-C", REPO_ROOT, "archive", "HEAD"], { maxBuffer: 1 << 28 });
+  execFileSync("tar", ["-x", "-C", dir], { input: archive });
+  const harness = execFileSync("find", [dir, "(", "-name", "CLAUDE.md", "-o", "-name", "AGENTS.md", "-o", "-name", ".claude", ")", "-prune"], {
+    encoding: "utf8",
+  });
+  for (const p of harness.split("\n").filter(Boolean)) rmSync(p, { recursive: true, force: true });
+  controlRepoDir = dir;
+  return dir;
+}
+
+/** Map a control-run path back onto REPO_ROOT so wasRead() compares like with like. */
+const fromControl = (files: string[]) =>
+  files.map((f) => (controlRepoDir && f.startsWith(controlRepoDir) ? join(REPO_ROOT, f.slice(controlRepoDir.length)) : f));
 
 // --- Runners ----------------------------------------------------------------
 
@@ -192,23 +224,30 @@ export function runWorkflowCases(cases: WorkflowCase[]): void {
           record(c.name, { result });
         }
       } else {
-        // contrast: treatment (real harness) vs control (empty tmpdir, no on-disk config).
+        // contrast: treatment (real harness) vs control (harness-free copy of the repo, see
+        // controlRepo). The control used to run in an empty tmpdir, where the expected file does not
+        // exist — "control did not read it" then held trivially and the case proved nothing.
         const tools = c.tools ?? ["Read", "Grep", "Glob"];
         const treatment = await workflowTask(c.prompt, { allowedTools: tools, maxTurns: c.maxTurns });
-        const emptyCwd = mkdtempSync(join(tmpdir(), "eval-control-"));
         const control = await runClaude(c.prompt, {
           allowedTools: tools,
           maxTurns: c.maxTurns,
-          cwd: emptyCwd,
+          cwd: controlRepo(),
           settingSources: [],
         });
         logTrace(`${c.name} [treatment]`, treatment);
         logTrace(`${c.name} [control]`, control);
+        const mentions = (text: string) =>
+          (c.expectOutputIncludes ?? []).every((s) => text.toLowerCase().includes(s.toLowerCase()));
         try {
-          const treatmentRead = wasRead(treatment.filesRead, c.expectFileRead);
-          const controlRead = wasRead(control.filesRead, c.expectFileRead);
-          expect(treatmentRead, `treatment reads: ${treatment.filesRead.join(", ")}`).toBe(true);
-          expect(controlRead, `control reads: ${control.filesRead.join(", ")}`).toBe(false);
+          if (c.expectFileRead) {
+            expect(wasRead(treatment.filesRead, c.expectFileRead), `treatment reads: ${treatment.filesRead.join(", ")}`).toBe(true);
+            expect(wasRead(fromControl(control.filesRead), c.expectFileRead), `control reads: ${control.filesRead.join(", ")}`).toBe(false);
+          }
+          if (c.expectOutputIncludes?.length) {
+            expect(mentions(treatment.text), `treatment output:\n${treatment.text}`).toBe(true);
+            expect(mentions(control.text), `control output:\n${control.text}`).toBe(false);
+          }
         } finally {
           record(`${c.name} [treatment]`, { result: treatment });
           record(`${c.name} [control]`, { result: control });

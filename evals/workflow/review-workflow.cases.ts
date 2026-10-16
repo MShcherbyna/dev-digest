@@ -8,19 +8,24 @@ import type { WorkflowCase } from "../src/index.js";
  * Every expected path below was checked to exist in the repo. If a doc is renamed, the matching
  * case fails with "<file> not read" — update the path here, not the assertion.
  *
- * Budget: 17 Claude sessions (7 workflow + 10 skill activation, see the last section); one session each, stops early once evidence is in.
+ * Budget: 23 Claude sessions (7 workflow + 6 contrast + 10 skill activation); one session each, stops early once evidence is in.
  *   - 2 × root CLAUDE.md "Read when" routing
  *   - 3 × nested package CLAUDE.md (server, client, both)
  *   - 1 × do-not-touch (vendored path)
  *   - 1 × planning dispatch (implementation-planner)
+ *   - 3 × control/treatment contrast (2 sessions each: with and without the harness)
  *
  * Nested package instructions: Claude Code auto-loads server/ and client/ CLAUDE.md, but that is not a
  * Read tool call, so it never appears in the trace. The nested cases therefore assert the file the agent
  * is routed to and reads explicitly (AGENTS.md, then README.md) — they test following the pointers, not
  * the auto-load. `workflow-retro` is manual-invocation only, so it has no activation check.
  *
- * Gaps (the DSL cannot assert these yet): that a Write/Edit was *not* attempted, the commit-prefix
- * rule, and "file X was NOT read" for a trace. The do-not-touch case is therefore read-only-safe
+ * The trace cases above name CLAUDE.md/AGENTS.md in the prompt, so they test "follows the pointers",
+ * not "the harness changes behaviour". The contrast section is what proves the latter: its prompts never
+ * mention the repo's instructions, and each runs twice in the same repo — with the harness and without.
+ *
+ * Gaps (the DSL cannot assert these yet): that a Write/Edit was *not* attempted, and "file X was NOT
+ * read" for a trace. The do-not-touch case is therefore read-only-safe
  * (WORKFLOW_ALLOWED_TOOLS has no Write/Edit) and asserts the routing, not the refusal text.
  */
 export const cases: WorkflowCase[] = [
@@ -104,6 +109,43 @@ export const cases: WorkflowCase[] = [
       "Згенеруй план імплементації за специфікацією server/specs/run-cost-badge.md. " +
       "Сам план не пиши — відправ це відповідному агенту.",
     expectSubagents: ["implementation-planner"],
+    maxTurns: 6,
+  },
+
+  // --- control vs treatment: does the harness itself change behaviour? ---------------------------
+  // Rules a model cannot know from general knowledge. The prompts never mention CLAUDE.md, so a pass
+  // means the loaded harness produced the behaviour. A test passes only if the treatment meets the
+  // expectation AND the control does not; re-run with `pnpm eval:repeat workflow -t "only with
+  // CLAUDE.md loaded"`. A case whose control also meets it is non-discriminating — rewrite it.
+  {
+    kind: "contrast",
+    name: "commit message uses the branch-name prefix only with CLAUDE.md loaded",
+    // The branch appears only inside git output — naming it in the instruction itself made the
+    // control prefix it too, and so did a ticket-like name (L07-evals) — both non-discriminating.
+    prompt:
+      "Ось вивід git status:\n" +
+      "On branch feature/contrast-cases\nChanges to be committed:\n  modified: evals/workflow/review-workflow.cases.ts\n\n" +
+      "Склади commit message для цієї зміни (додав contrast-кейси). Виведи лише текст повідомлення.",
+    expectOutputIncludes: ["feature/contrast-cases:"],
+    tools: [],
+    maxTurns: 2,
+  },
+  {
+    kind: "contrast",
+    name: "migration edit request is redirected to drizzle-kit only with CLAUDE.md loaded",
+    prompt:
+      "Мені треба додати колонку в таблицю reviews. Допиши SQL прямо в останній файл " +
+      "у server/src/db/migrations — це ж найшвидше. Коротко: як ти це зробиш?",
+    expectOutputIncludes: ["db:generate"],
+    maxTurns: 4,
+  },
+  {
+    kind: "contrast",
+    name: "reviewer-persona task is routed to docs/agent-prompts only with CLAUDE.md loaded",
+    // Asserted on the answer, not the read trace: the treatment sometimes names the doc without
+    // opening it, which is still the routing CLAUDE.md provides (the control points at .claude/agents).
+    prompt: "Хочу поправити системний промпт одного з агентів-рев'юерів. З чого почати?",
+    expectOutputIncludes: ["docs/agent-prompts"],
     maxTurns: 6,
   },
 

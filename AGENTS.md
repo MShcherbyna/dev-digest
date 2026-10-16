@@ -18,6 +18,7 @@ Docker (Postgres only — API and web run on the host).
 | [reviewer-core/](reviewer-core/) | diff → prompt → LLM → findings engine | touching review logic, grounding, prompt assembly |
 | [e2e/](e2e/) | deterministic browser e2e (agent-browser) | writing/debugging e2e flows |
 | [mcp/](mcp/) | local stdio MCP server — thin layer over the running API | touching MCP tools, descriptions, `.mcp.json` |
+| [evals/](evals/) | evals for the Claude Code harness (skills, agents, CLAUDE.md) | touching `.claude/**`, `CLAUDE.md`, any `AGENTS.md` |
 
 ## Read when
 
@@ -84,11 +85,31 @@ five phases — this isn't tooling, just the expected shape of a session:
    Zod/React/etc.) rather than copying the nearest adjacent pattern
    uncritically.
 4. **Validation** — `pnpm typecheck` + `pnpm test` in every touched package,
-   plus a manual/browser check for UI-visible changes; don't call something
-   done on typecheck alone.
+   plus a manual/browser check for UI-visible changes, and the matching
+   evals for any harness change (see "Harness changes → evals"); don't call
+   something done on typecheck alone.
 5. **Completion** — commit (branch name as the message prefix — see "GIT"
    below), and record anything non-obvious learned back into the relevant
    `INSIGHTS.md`.
+
+## Harness changes → evals
+
+Changing the harness is a code change — validate it with `evals/` (run from
+`evals/`; flags and details in [evals/README.md](evals/README.md#commands--parameters)).
+
+| You changed | Run |
+|---|---|
+| `.claude/skills/<name>/**` | `pnpm eval:quality` + `pnpm vitest run skills/<name>/` (if it exists) + `pnpm vitest run workflow -t <name>` (activation) |
+| a skill's `description` | the activation cases above are **mandatory** — description is routing |
+| `.claude/agents/<name>.md` | `pnpm vitest run agents/<name>/`; if `description` changed, also `pnpm vitest run workflow -t <name>` (dispatch) |
+| `CLAUDE.md`, `*/AGENTS.md` | `pnpm eval:workflow`; for the control/treatment proof, `pnpm eval:repeat workflow -t "only with CLAUDE.md loaded"` (must pass every run) |
+| new skill/agent | `pnpm eval:scaffold`, then `pnpm eval:benchmark <path>/ -n 5` — no lift = not worth its tokens |
+| rewrote an existing skill/agent | `pnpm eval:repeat <path>/ --label before` / `--label after`, then `pnpm eval:delta` |
+
+Keep the trailing `/` on paths — vitest matches by substring, so `agents/x`
+also runs `agents/x-lite`. `.github/workflows/evals.yml` re-runs the same
+tiers by path on every PR, but run them locally before pushing. The workflow
+tier runs against the live repo — use a clean tree or a throwaway clone.
 
 ## Do-not-touch
 
