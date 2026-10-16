@@ -105,6 +105,8 @@ function CaseForm({
 
   const create = useCreateEvalCase(agent.id);
   const update = useUpdateEvalCase(agent.id);
+  // `prId ?? ""` is an unused sentinel outside finding mode: the mutation below is only ever
+  // invoked from `save()`'s `if (findingId)` branch, where `prId` is always set by the caller.
   const createFromFinding = useCreateCaseFromFinding(prId ?? "");
   const run = useRunEvalCase(agent.id);
   const live = useEvalCase(savedId).data;

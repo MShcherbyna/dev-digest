@@ -126,16 +126,27 @@ export class EvalService {
   async createFromFinding(
     workspaceId: string,
     findingId: string,
-    override?: EvalCaseFindingOverride,
+    override?: EvalCaseFindingOverride | null,
   ): Promise<EvalCase> {
     const draft = await this.buildCaseFromFinding(workspaceId, findingId);
+    const expectedOutput = override?.expected_output ?? draft.expectedOutput;
+    if (override?.expected_output) {
+      const outside = firstExpectationOutsideDiff(expectedOutput, this.deps.lineIndex(this.deps.parseDiff(draft.inputDiff)));
+      if (outside !== null) {
+        throw unprocessable(
+          EVAL_ERROR.expectationOutsideDiff,
+          `Expected item ${outside + 1} is outside the diff`,
+          { index: outside },
+        );
+      }
+    }
     const res = await this.deps.cases.insertCase(workspaceId, {
       agentId: draft.agentId,
       name: override?.name?.trim() || draft.name,
       origin: 'finding',
       inputDiff: draft.inputDiff,
       inputMeta: draft.inputMeta,
-      expectedOutput: override?.expected_output ?? draft.expectedOutput,
+      expectedOutput,
       notes: null,
       sourceFindingId: draft.sourceFindingId,
       sourcePrId: draft.sourcePrId,

@@ -143,4 +143,19 @@ describe("EvalCaseButton", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Turn into eval case" })).toBeEnabled();
   });
+
+  it("on an agent-fetch failure toasts and keeps the button clickable, without opening a modal", async () => {
+    // Catches: the draft loading fine but the agent fetch failing leaves the button stuck with no feedback.
+    apiGet.mockImplementation(async (path: string) => {
+      if (path === "/findings/f1/eval-case/preview") return DRAFT;
+      if (path === "/agents/ag1") throw new ApiError("down", 0);
+      throw new Error(`unexpected GET ${path}`);
+    });
+    mount(accepted);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Turn into eval case" }));
+    expect(await screen.findByText("The agent that produced this finding no longer exists")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Turn into eval case" })).toBeEnabled();
+  });
 });

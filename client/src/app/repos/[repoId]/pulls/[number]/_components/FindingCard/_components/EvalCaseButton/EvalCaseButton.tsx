@@ -38,8 +38,11 @@ export function EvalCaseButton({
     if (open && draft.isError) {
       notify.error(t(`finding.evalCase.errors.${errorKey(draft.error)}`));
       setOpen(false);
+    } else if (open && agent.isError) {
+      notify.error(t("finding.evalCase.errors.agent_missing"));
+      setOpen(false);
     }
-  }, [open, draft.isError, draft.error, t]);
+  }, [open, draft.isError, draft.error, agent.isError, t]);
 
   const onCreated = () => {
     setCreated(true);
