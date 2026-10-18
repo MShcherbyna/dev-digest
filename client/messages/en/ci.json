@@ -2,26 +2,59 @@
   "runs": {
     "emptyTitle": "No CI runs yet",
     "emptyBody": "Once you export an agent to CI, every automated review shows up here.",
+    "emptyCta": "Set up CI for an agent",
+    "loadError": "Couldn't load CI runs",
+    "retry": "Retry",
+    "refreshError": "Couldn't refresh CI runs",
     "title": "CI Runs",
     "subtitle": "Agent reviews executed inside CI · not local runs",
     "autoRefresh": "auto-refresh on",
     "refresh": "Refresh",
     "refreshing": "Refreshing…",
     "filters": {
+      "last24Hours": "Last 24 hours",
       "last7Days": "Last 7 days",
+      "last30Days": "Last 30 days",
       "allAgents": "All agents",
       "allRepos": "All repos",
-      "allStatuses": "All statuses"
+      "allStatuses": "All statuses",
+      "allSources": "All sources",
+      "timeLabel": "Time range",
+      "agentLabel": "Agent",
+      "repoLabel": "Repository",
+      "statusLabel": "Status",
+      "sourceLabel": "Source"
     },
     "table": {
+      "label": "CI runs",
       "timestamp": "Timestamp",
+      "repository": "Repository",
       "pullRequest": "Pull request",
+      "agent": "Agent",
       "source": "Source",
+      "duration": "Dur.",
       "findings": "Findings",
+      "verdict": "Verdict",
       "cost": "Cost",
-      "status": "Status"
+      "status": "Status",
+      "job": "Job"
+    },
+    "source": {
+      "ci": "GitHub Actions"
+    },
+    "verdict": {
+      "approve": "Approve",
+      "comment": "Comment",
+      "request_changes": "Request changes"
+    },
+    "severity": {
+      "critical": "{count} critical",
+      "warning": "{count} warning",
+      "suggestion": "{count} suggestion"
     },
     "view": "View",
+    "viewJob": "Open the GitHub job for PR #{pr}",
+    "viewJobNoPr": "Open the GitHub job",
     "status": {
       "succeeded": "Succeeded",
       "noFindings": "No findings",
@@ -37,11 +70,13 @@
     "continue": "Continue",
     "install": "Install",
     "installing": "Installing…",
+    "retry": "Retry",
     "steps": {
       "target": "Target",
       "preview": "Preview",
       "configure": "Configure",
-      "install": "Install"
+      "install": "Install",
+      "label": "Export steps"
     },
     "targets": {
       "gha": "GitHub Actions",
@@ -51,38 +86,150 @@
       "ghaDesc": "Runs on pull_request events",
       "circleDesc": "config.yml job",
       "jenkinsDesc": "Pipeline stage",
-      "cliDesc": "devdigest review --pr"
+      "cliDesc": "devdigest review --pr",
+      "groupLabel": "CI target"
     },
+    "comingSoon": "Coming soon",
     "recommended": "recommended",
     "repoLabel": "Target repository",
     "repoHint": "owner/name — the repo to add the workflow to",
     "repoPlaceholder": "acme/payments-api",
+    "repoSelectPlaceholder": "Select a repository…",
+    "repoNone": "Every connected repository already has this agent.",
+    "noRepo": "Connect a repository first",
     "filesToCreate": "FILES TO CREATE",
     "generating": "Generating…",
+    "previewFailed": "Couldn't generate the preview",
     "editable": "editable",
+    "generatedNotEditable": "generated, not editable",
+    "openRouterNote": "Runs via OpenRouter as {id}",
+    "workflowInvalid": "Invalid YAML — line {line}: {message}",
+    "workflowInvalidNoLine": "Invalid YAML — {message}",
+    "editorLabel": "Edit {path}",
+    "paneLabel": "Contents of {path}",
     "triggerLabel": "Trigger",
+    "triggersRequired": "Select at least one trigger",
+    "workflowEditedWarning": "Workflow edited manually — trigger changes not applied",
+    "secretsLabel": "Secrets expected",
+    "secretsNote": "Add these to your repo's Actions secrets before the workflow runs.",
+    "secretDesc": {
+      "OPENROUTER_API_KEY": "Your OpenRouter key — same BYO key from L06",
+      "GITHUB_TOKEN": "Auto-provided by Actions"
+    },
+    "secretStatus": {
+      "ready": "ready",
+      "not_set": "not set",
+      "unknown": "unknown"
+    },
+    "secretUnknownHint": "Can't check secrets with this GitHub token",
     "postResultsLabel": "Post results as",
     "postAs": {
       "githubReview": "GitHub review",
       "prComment": "PR comment",
       "none": "None (exit code only)"
     },
+    "blockMergeNote": "To block merges: set <b>Fail CI on</b> (CI tab) so the run exits non-zero, then add a <b>required status check</b> in the repo's GitHub branch protection. No GitHub App needed.",
     "blockMergeTitle": "Block merge on findings",
     "blockMergeDesc": "Requires a GitHub App — not available with PAT in local mode",
     "installCardTitle": "Open a PR with these files",
-    "installCardBody": "DevDigest opens a PR in {repo} titled “Add DevDigest CI review” with the {count} generated files.",
+    "installCardBody": "DevDigest opens a PR in <mono>{repo}</mono> titled “Add DevDigest CI review” with the {count} generated files.",
+    "installCardBodyUpdate": "DevDigest commits to devdigest/ci in <mono>{repo}</mono> and updates the open PR, or opens one titled “Update DevDigest CI review”, with the {count} generated files.",
+    "zipTitle": "Copy files as a zip",
+    "zipHint": "add them manually",
+    "installGroupLabel": "How to install",
+    "docsPrefix": "Need help? See the",
+    "docsLink": "GitHub Action setup docs",
+    "installBlocked": {
+      "multi_agent_unsupported": "Multi-agent CI support is not available yet",
+      "agent_slug_conflict": "Another agent in this repository uses the same name — rename this agent to continue"
+    },
+    "prOpenedTitle": "PR opened",
+    "prOpenedBody": "DevDigest opened a pull request in {repo} with the {count} generated files.",
+    "viewPr": "View pull request",
+    "zipDoneTitle": "Files downloaded",
+    "zipDoneBody": "{name} was downloaded. Add the files to {repo} manually.",
+    "close": "Close",
     "ownerRepo": "owner/repo",
     "secretNote": "Add {key} to the repo's Actions secrets before the workflow runs."
   },
   "ciTab": {
     "heading": "Continuous Integration",
+    "deploymentHeading": "CI deployment",
     "subtitle": "Run this agent automatically on pull requests in a target repo.",
     "exportToCi": "Export to CI",
+    "emptyTitle": "Not exported to CI",
+    "emptyBody": "Run this agent automatically on pull requests in CI.",
+    "activeIn": "Active in {count, plural, one {# repo} other {# repos}}",
+    "updateConfig": "Update CI config",
+    "addToCi": "Add to CI",
+    "addRepository": "Add repository",
+    "loadError": "Couldn't load CI installations",
+    "retry": "Retry",
     "publish": "Publish to CI",
     "update": "Update CI",
     "noRepo": "Connect a repository first",
     "empty": "Not deployed to CI yet. Use “Publish to CI” to open a PR that adds the workflow + agent config.",
-    "installed": "installed {date}"
+    "installed": "installed {date}",
+    "failCiOn": "Fail CI on",
+    "failCiOnSaved": "Saved — agent is now v{version}",
+    "recentRuns": "Recent CI runs",
+    "viewAll": "View all",
+    "recentEmpty": "No CI runs for this agent yet.",
+    "row": {
+      "githubActions": "GitHub Actions",
+      "manifestVersion": "manifest v{version}",
+      "pending": "pending",
+      "manualPending": "manual pending",
+      "outdated": "outdated",
+      "removing": "removing",
+      "removalPr": "removal PR",
+      "remove": "Remove",
+      "removeLabel": "Remove {agent} from {repo}",
+      "lastRun": "Last run {time}",
+      "justNow": "just now",
+      "minutesAgo": "{count}m ago",
+      "hoursAgo": "{count}h ago",
+      "daysAgo": "{count}d ago",
+      "status": {
+        "succeeded": "succeeded",
+        "no_findings": "no findings",
+        "failed": "failed",
+        "running": "running"
+      }
+    },
+    "removeDialog": {
+      "title": "Remove {agent} from {repo}?",
+      "body": "DevDigest opens a PR in {repo} titled “Remove DevDigest CI review” that deletes this agent's CI files. Past CI runs stay in DevDigest.",
+      "cancel": "Cancel",
+      "confirm": "Remove",
+      "removing": "Removing…",
+      "retry": "Retry",
+      "doneToast": "Removal PR opened",
+      "viewPr": "View pull request"
+    }
+  },
+  "ciErrors": {
+    "github_token_missing": "Add a GitHub token in Settings",
+    "github_permission": "Your GitHub token is missing the {permission} write permission",
+    "github_permission_any": "Your GitHub token is missing a write permission (Contents, Pull requests and Workflows are required)",
+    "github_error": "GitHub or the network failed — try again",
+    "agent_slug_conflict": "Another agent in this repository uses the same name — rename this agent",
+    "multi_agent_unsupported": "Multi-agent CI support is not available yet",
+    "target_not_supported": "Only GitHub Actions is supported for now",
+    "workflow_invalid": "The workflow is not valid YAML",
+    "manifest_invalid": "This agent can't be exported as a valid manifest",
+    "file_too_large": "A generated file is larger than 5 MB",
+    "secret_in_export": "A file to export looks like it contains a secret",
+    "repo_not_connected": "This repository isn't connected to DevDigest",
+    "runner_bundle_missing": "The CI runner bundle is missing — build agent-runner first",
+    "rate_limited": "Too many requests — wait a minute and retry",
+    "network": "Cannot reach the DevDigest engine — is the API running?",
+    "generic": "Something went wrong — try again",
+    "permission": {
+      "contents": "Contents",
+      "pull_requests": "Pull requests",
+      "workflows": "Workflows"
+    }
   },
   "publishDialog": {
     "title": "Publish to CI",

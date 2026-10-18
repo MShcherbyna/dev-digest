@@ -132,6 +132,36 @@ deadline passes), 502 `invalid_output`. One generation per repository at a time
 (in-process lock); a closed connection does not cancel it. `ONBOARDING_TIMEOUT_MS`
 (default `120000`) is the deadline.
 
+### Export to CI endpoints
+
+Exports an agent to GitHub Actions: `.devdigest/agents/<slug>.yaml`, its skills,
+`.devdigest/memory.jsonl`, the bundled runner (`.devdigest/runner/index.js`) and
+`.github/workflows/devdigest-review.yml`, installed through a `devdigest/ci` PR
+(or recorded as a manual zip install). Results come back **pull-only**: a
+refresh lists the workflow's runs through the GitHub API and ingests each
+`devdigest-result-<slug>` artifact (nothing in CI calls the studio). Module:
+`src/modules/ci/` (`ports.ts` has the narrow GitHub port, `adapters/github/ci.ts`
+the Octokit implementation). Needs migration `0018` (applied manually with the
+usual db migrate script).
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /agents/:id/ci/preview` | generated files + `OPENROUTER_API_KEY` secret status + `install_block`; never fails because of GitHub |
+| `POST /agents/:id/export-ci` | `mode: "pr"` commits to `devdigest/ci` and opens/reuses the PR; `mode: "manual"` only records the install (no GitHub call) |
+| `GET /agents/:id/ci/installations` | installations with a derived `status` (`pending` / `active` / `outdated` / `removing`) |
+| `POST /ci/installations/:id/remove` | removal PR (deletes this agent's files; workflow/runner/memory only when it is the last agent) |
+| `GET /ci-runs` | CI runs, newest first (`?agent=&repo=&status=&source=&since=&limit=`) |
+| `POST /ci-runs/refresh` | ingest result artifacts now (`{agent_id?}`); at most 50 runs per installation, one ingest per installation at a time |
+
+Errors: 404 `not_found`; 409 `agent_slug_conflict` / `multi_agent_unsupported`;
+422 `target_not_supported` / `repo_not_connected` / `manifest_invalid` /
+`workflow_invalid` / `file_too_large` / `secret_in_export` /
+`github_token_missing`; 403 `github_permission` (`details.permission`); 502
+`github_error`; 500 `runner_bundle_missing`. Preview, export, remove and
+refresh are limited to 10 requests/minute. The export body limit is 6 MiB.
+The runner bundle is read from `CI_RUNNER_BUNDLE_PATH` (default
+`../agent-runner/dist/index.js`, so build `agent-runner/` first).
+
 ## Environment
 
 `server/.env` (copied from `.env.example`):
@@ -147,6 +177,7 @@ deadline passes), 502 `invalid_output`. One generation per repository at a time
 | `DEVDIGEST_CLONE_DIR` | `~/.devdigest/workspace` (code default, `config.ts`); `.env.example` sets `./clones` | imported-repo checkouts |
 | `PROJECT_CONTEXT_GLOB` | `**/{specs,docs,insights}/**/*.md` | Project Context discovery glob; invalid values fall back to the default with a warning (see [docs/project-context.md](docs/project-context.md)) |
 | `ONBOARDING_TIMEOUT_MS` | `120000` | deadline of one onboarding tour generation; on expiry the POST fails with 502 `provider_error` and nothing is stored |
+| `CI_RUNNER_BUNDLE_PATH` | `../agent-runner/dist/index.js` | built agent-runner `index.js` embedded in CI exports; missing → 500 `runner_bundle_missing` |
 | `LOG_LEVEL` | `info` (`silent` in test) | pino level |
 | `NODE_ENV` | `development` | `test` → silent logs + global rate-limit disabled |
 

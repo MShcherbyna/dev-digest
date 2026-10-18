@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { z } from 'zod';
 import { homedir } from 'node:os';
 import { join, isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Central, zod-validated environment config. Loaded once at startup.
@@ -34,6 +35,9 @@ const EnvSchema = z.object({
   PROJECT_CONTEXT_GLOB: z.string().optional(),
   // Onboarding tour generation deadline in ms (default 120000).
   ONBOARDING_TIMEOUT_MS: z.string().optional(),
+  // Export to CI: the built agent-runner bundle that is embedded in exports.
+  // Relative paths resolve against the process cwd; default is the sibling package build.
+  CI_RUNNER_BUNDLE_PATH: z.string().optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   // `.env` (and .env.example) ship `LOG_LEVEL=` empty; an empty string is not a
   // valid enum member, so coerce '' → undefined to fall through to the default.
@@ -68,7 +72,17 @@ export type AppConfig = {
   projectContextGlob: string | undefined;
   /** Deadline of one onboarding tour generation, in ms. */
   onboardingTimeoutMs: number;
+  /** Absolute path of the built agent-runner `index.js` (CI_RUNNER_BUNDLE_PATH or ../agent-runner/dist/index.js). */
+  ciRunnerBundlePath: string;
 };
+
+/** The server package directory (`config.ts` lives in `<pkg>/src/platform` and `<pkg>/dist/platform`). */
+const SERVER_DIR = fileURLToPath(new URL('../../', import.meta.url));
+
+function resolveRunnerBundlePath(raw: string | undefined): string {
+  if (raw) return isAbsolute(raw) ? raw : resolve(process.cwd(), raw);
+  return resolve(SERVER_DIR, '../agent-runner/dist/index.js');
+}
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const parsed = EnvSchema.parse(env);
@@ -88,5 +102,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     repoIntelEnabled: parsed.REPO_INTEL_ENABLED !== 'false',
     projectContextGlob: parsed.PROJECT_CONTEXT_GLOB,
     onboardingTimeoutMs: Number(parsed.ONBOARDING_TIMEOUT_MS) || 120_000,
+    ciRunnerBundlePath: resolveRunnerBundlePath(parsed.CI_RUNNER_BUNDLE_PATH),
   };
 }
