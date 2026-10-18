@@ -87,7 +87,7 @@ describe("MultiAgentRunView", () => {
   it("AC-26: a fully done run shows a plain total; one still-running column marks it 'partial'", () => {
     runData = run({ total_duration_ms: 5000, total_cost_usd: 0.08 });
     renderRun();
-    expect(screen.getByText("2 agents · parallel fan-out · 5.0s total · $0.08")).toBeInTheDocument();
+    expect(screen.getByText("2 agents · parallel fan-out · 5.0s total · $0.080")).toBeInTheDocument();
     cleanup();
 
     runData = run({
@@ -95,7 +95,7 @@ describe("MultiAgentRunView", () => {
       columns: [column({ run_id: "r1" }), column({ run_id: "r2", status: "queued", score: null, cost_usd: null })],
     });
     renderRun();
-    expect(screen.getByText("2 agents · parallel fan-out · 5.0s total · $0.08 · partial")).toBeInTheDocument();
+    expect(screen.getByText("2 agents · parallel fan-out · 5.0s total · $0.080 · partial")).toBeInTheDocument();
   });
 
   it("AC-27/AC-30: the Columns/Tabs toggle and the 'Show only conflicts' toggle both survive a mode switch and persist across a reload", async () => {

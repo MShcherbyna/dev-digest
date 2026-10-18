@@ -123,6 +123,36 @@ d('POST /agents/:id/export-ci (Testcontainers pg)', () => {
     expect(gh.prs[1]!.title).toBe('Update DevDigest CI review'); // installation already exists (AC-28)
   });
 
+  it('a devdigest/ci left behind by a merged PR is restarted from main: remove + re-add never builds on stale files', async () => {
+    // Catches: the remove/re-add PR rewriting the workflow from the old branch (conflicting with
+    // later edits on main) and a re-added agent's job failing on its own install PR.
+    const gh = new MockCiGitHub();
+    app = await buildCiApp(pg.handle.db, gh);
+    const repo = await seedCiRepo(pg.handle.db, workspaceId);
+    const a = await newAgent(app, 'Keep Agent');
+    const b = await newAgent(app, 'Cycle Agent');
+    expect((await exportCi(a.id, exportBody(repo.fullName))).statusCode).toBe(200);
+    expect((await exportCi(b.id, exportBody(repo.fullName))).statusCode).toBe(200);
+    gh.mergeBranch('devdigest/ci');
+
+    const [instB] = (await installations(b.id)) as { id: string }[];
+    const removed = await app.inject({ method: 'POST', url: `/ci/installations/${instB!.id}/remove` });
+    expect(removed.statusCode).toBe(200);
+    const mainHead = gh.commits.at(-1)!.parent.commitSha;
+    expect(gh.filesOf(mainHead)).toEqual(gh.filesOf('main')); // built on main, not the stale branch
+    expect(gh.commits.at(-1)!.createBranch).toBe(false); // fast-forward of the old branch
+    expect(gh.filesOf('devdigest/ci')['.devdigest/agents/cycle-agent.yaml']).toBeUndefined();
+    gh.mergeBranch('devdigest/ci');
+
+    const readd = await exportCi(b.id, exportBody(repo.fullName));
+    expect(readd.statusCode).toBe(200);
+    expect(gh.filesOf(gh.commits.at(-1)!.parent.commitSha)).toEqual(gh.filesOf('main'));
+    expect(gh.prs.filter((p) => p.state === 'open')).toHaveLength(1);
+    const wf = gh.filesOf('devdigest/ci')[WORKFLOW_PATH]!;
+    expect(wf).toContain('  keep-agent:');
+    expect(wf).not.toContain('head_ref');
+  });
+
   it('AC-28: an update reuses the open PR from devdigest/ci', async () => {
     const gh = new MockCiGitHub();
     app = await buildCiApp(pg.handle.db, gh);
