@@ -13,7 +13,8 @@ export const s = {
     marginBottom: 8,
     flexWrap: "wrap",
   } satisfies CSSProperties,
-  repo: { fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } satisfies CSSProperties,
+  // flex-basis keeps "owner/repo" readable; the badges wrap to the next line instead.
+  repo: { fontSize: 13, fontWeight: 600, flex: "1 1 180px", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } satisfies CSSProperties,
   time: { fontSize: 11.5, color: "var(--text-muted)" } satisfies CSSProperties,
   prLink: { color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 } satisfies CSSProperties,
 } as const;
