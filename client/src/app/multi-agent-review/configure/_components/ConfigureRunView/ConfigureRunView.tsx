@@ -74,7 +74,9 @@ export function ConfigureRunView() {
     });
   };
 
-  const selectAll = () => setSelected(enabledIds.slice(0, MAX_AGENTS));
+  const cappedEnabledIds = React.useMemo(() => enabledIds.slice(0, MAX_AGENTS), [enabledIds]);
+  const allSelected = cappedEnabledIds.length > 0 && cappedEnabledIds.every((id) => selected.includes(id));
+  const toggleSelectAll = () => setSelected(allSelected ? [] : cappedEnabledIds);
 
   const runReview = useRunReview();
   const startMulti = useStartMultiAgentRun();
@@ -133,8 +135,8 @@ export function ConfigureRunView() {
             <span style={s.stepTitle(!prId)}>{t("configure.step2")}</span>
           </div>
           {prId && enabled.length > 0 && (
-            <button type="button" style={s.selectAll} onClick={selectAll}>
-              {t("configure.selectAll")}
+            <button type="button" style={s.selectAll} onClick={toggleSelectAll}>
+              {allSelected ? t("configure.unselectAll") : t("configure.selectAll")}
             </button>
           )}
         </div>

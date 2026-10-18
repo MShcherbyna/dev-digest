@@ -185,7 +185,7 @@ describe("ConfigureRunView", () => {
     expect(screen.getByText("#7 · Add dark mode")).toBeInTheDocument();
   });
 
-  it("Select all respects the 8-agent cap", async () => {
+  it("Select all respects the 8-agent cap; the button reads 'Unselect all' once every (capped) agent is checked", async () => {
     const agents = Array.from({ length: 10 }, (_, i) => agent({ id: `a${i}`, name: `Agent ${i}` }));
     serve({ agents, pulls: [pr({})] });
     renderConfigure();
@@ -194,9 +194,22 @@ describe("ConfigureRunView", () => {
     await userEvent.click(await screen.findByText("#42 · Fix the thing"));
     await screen.findByText("Agent 0");
 
+    // Default selection already pre-checks the first 8 (AC-10, capped) — all
+    // of them are checked, so the button starts as "Unselect all".
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Run multi-agent review (8)" })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Unselect all" })).toBeInTheDocument();
+
+    // Uncheck one: no longer all (capped) agents are selected -> "Select all".
+    await userEvent.click(screen.getByRole("checkbox", { name: /Agent 0/ }));
+    expect(screen.getByRole("button", { name: "Select all" })).toBeInTheDocument();
+
+    // Click it: back to all 8, capped at 8 even though 10 agents exist.
     await userEvent.click(screen.getByRole("button", { name: "Select all" }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Run multi-agent review (8)" })).toBeInTheDocument(),
     );
+    expect(screen.getByRole("button", { name: "Unselect all" })).toBeInTheDocument();
   });
 });

@@ -20,5 +20,11 @@ export const s = {
     }) satisfies CSSProperties,
   metaRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 } satisfies CSSProperties,
   prTitle: { fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)" } satisfies CSSProperties,
-  metaMono: { fontSize: 12, color: "var(--text-muted)" } satisfies CSSProperties,
+  metaMono: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 12,
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
 };

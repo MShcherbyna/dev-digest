@@ -5,15 +5,14 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Tabs } from "@devdigest/ui";
 import type { EvalAwareFinding } from "@/lib/hooks/eval";
 import { useFindingAction } from "@/lib/hooks/reviews";
 import { FindingCard } from "@/app/repos/[repoId]/pulls/[number]/_components/FindingCard";
 import type { AgentColumnView } from "@/lib/types";
-import { agentLook } from "@/lib/agent-look";
 import { similarMembers } from "../../helpers";
 import { AgentSummaryCard } from "../AgentSummaryCard";
 import { SimilarFindings } from "../SimilarFindings";
+import { AgentTabBar } from "./_components/AgentTabBar";
 
 export function TabsView({
   columns,
@@ -31,20 +30,11 @@ export function TabsView({
   const activeColumn = columns.find((c) => c.run_id === active) ?? columns[0];
   const findingAction = useFindingAction();
 
-  const tabs = columns.map((c) => {
-    const look = agentLook({ name: c.agent_name });
-    return {
-      key: c.run_id,
-      label: c.status === "done" && c.score != null ? `${c.agent_name} ${c.score}` : c.agent_name,
-      icon: look.icon,
-    };
-  });
-
   if (!activeColumn) return null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <Tabs tabs={tabs} value={activeColumn.run_id} onChange={setActive} pad="0" />
+      <AgentTabBar columns={columns} active={activeColumn.run_id} onChange={setActive} />
       <AgentSummaryCard column={activeColumn} onOpenTrace={() => onOpenTrace(activeColumn.run_id, activeColumn.agent_name)} />
 
       {activeColumn.status !== "done" ? null : activeColumn.findings.length === 0 ? (

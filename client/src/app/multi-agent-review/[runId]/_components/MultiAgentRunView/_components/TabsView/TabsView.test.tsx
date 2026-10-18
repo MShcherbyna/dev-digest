@@ -1,7 +1,7 @@
 /* TabsView — S5 Tabs + detail view (AC-22, AC-29, AC-33). */
 import React from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { screen, cleanup } from "@testing-library/react";
+import { screen, within, cleanup } from "@testing-library/react";
 import userEvent from "@/test/user";
 import { renderWithIntl } from "@/test/render-intl";
 import type { EvalAwareFinding } from "@/lib/hooks/eval";
@@ -152,10 +152,12 @@ describe("TabsView", () => {
     const findingsById = new Map<string, EvalAwareFinding>([["f1", fullFinding({})]]);
     renderWithIntl(<TabsView columns={columns} prId="pr1" findingsById={findingsById} onOpenTrace={noop} />);
 
-    expect(screen.getByText("Similar findings")).toBeInTheDocument();
-    expect(screen.getByText("Performance")).toBeInTheDocument();
-    expect(screen.getByText("Perf take")).toBeInTheDocument();
-    expect(screen.getByText("Mentor")).toBeInTheDocument();
-    expect(screen.getByText("Mentor take")).toBeInTheDocument();
+    // Agent names also appear as tabs now (AgentTabBar), so scope these
+    // assertions to the "Similar findings" section specifically.
+    const similar = screen.getByText("Similar findings").parentElement!;
+    expect(within(similar).getByText("Performance")).toBeInTheDocument();
+    expect(within(similar).getByText("Perf take")).toBeInTheDocument();
+    expect(within(similar).getByText("Mentor")).toBeInTheDocument();
+    expect(within(similar).getByText("Mentor take")).toBeInTheDocument();
   });
 });
