@@ -39099,10 +39099,7 @@ function loadMemory(devdigestDir, readFile = external_node_fs_namespaceObject.re
  * manifest's `skills` slugs, in order. These are RESOLVED skill bodies (not
  * slugs) — `reviewPullRequest` (reviewer-core) takes `PromptSkill[]`, exactly like the
  * studio resolves slugs to DB rows before calling the same engine (AC-36
- * parity: both callers hand the engine already-resolved bodies).
- *
- * `trusted: false`: the files come from the PR checkout, so a PR author can
- * edit them — the engine wraps untrusted bodies in `<untrusted>` delimiters.
+ * parity: both callers hand the engine already-resolved `PromptSkill`s).
  */
 function loadSkillBodies(devdigestDir, slugs, readFile = external_node_fs_namespaceObject.readFileSync) {
     return slugs.map((slug) => {
@@ -39315,16 +39312,56 @@ function authHeaders(token, accept) {
         'User-Agent': USER_AGENT,
     };
 }
-/** Fetch the PR's unified diff via the GitHub API's diff media type. */
+/**
+ * Fetch the PR's unified diff via the GitHub API's diff media type. GitHub
+ * refuses that media type for a diff over 20 000 lines (406 `too_large`); the
+ * diff is then rebuilt from the paginated `/files` list instead.
+ */
 async function fetchPrDiff(ctx, token, fetchImpl = fetch) {
     const url = `${GITHUB_API_BASE}/repos/${ctx.owner}/${ctx.repo}/pulls/${ctx.prNumber}`;
     const res = await fetchImpl(url, {
         headers: authHeaders(token, 'application/vnd.github.v3.diff'),
     });
+    if (res.status === 406)
+        return fetchPrDiffFromFiles(url, token, fetchImpl);
     if (!res.ok) {
         throw new RunnerError(`GitHub API error fetching PR diff (${url}): ${res.status} ${await res.text().catch(() => '')}`);
     }
     return res.text();
+}
+/** GitHub lists at most 3000 files for a PR, 100 per page. */
+const FILES_PER_PAGE = 100;
+const MAX_FILE_PAGES = 30;
+/**
+ * Rebuild a unified diff (one `diff --git a/<old> b/<new>` section per file, the
+ * shape `stripIgnoredFiles` / `parseUnifiedDiff` expect) from `GET /pulls/{n}/files`.
+ * Files without a `patch` (binary, or too large on their own) are skipped: nothing
+ * in them can be cited anyway.
+ */
+async function fetchPrDiffFromFiles(prUrl, token, fetchImpl) {
+    const sections = [];
+    for (let page = 1; page <= MAX_FILE_PAGES; page++) {
+        const url = `${prUrl}/files?per_page=${FILES_PER_PAGE}&page=${page}`;
+        const res = await fetchImpl(url, { headers: authHeaders(token, 'application/vnd.github+json') });
+        if (!res.ok) {
+            throw new RunnerError(`GitHub API error listing PR files (${url}): ${res.status} ${await res.text().catch(() => '')}`);
+        }
+        const files = (await res.json());
+        for (const f of files) {
+            if (!f.patch)
+                continue;
+            const oldPath = f.previous_filename ?? f.filename;
+            sections.push([
+                `diff --git a/${oldPath} b/${f.filename}`,
+                f.status === 'added' ? '--- /dev/null' : `--- a/${oldPath}`,
+                f.status === 'removed' ? '+++ /dev/null' : `+++ b/${f.filename}`,
+                f.patch,
+            ].join('\n'));
+        }
+        if (files.length < FILES_PER_PAGE)
+            break;
+    }
+    return sections.length > 0 ? `${sections.join('\n')}\n` : '';
 }
 /** Post a full review (body + event + optional inline comments) — `post_as: 'github_review'`. */
 async function postGithubReview(ctx, token, payload, fetchImpl = fetch) {
