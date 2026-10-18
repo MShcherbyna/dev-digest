@@ -32,7 +32,11 @@ export const s = {
     width: 16,
     height: 16,
     borderRadius: 99,
-    border: "1.5px solid var(--border-strong)",
+    // Longhands, not `border`: the checked state overrides borderColor only, and React
+    // warns when a shorthand and its longhand are mixed across rerenders.
+    borderWidth: 1.5,
+    borderStyle: "solid",
+    borderColor: "var(--border-strong)",
     display: "grid",
     placeItems: "center",
     flexShrink: 0,
