@@ -1,7 +1,7 @@
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
-import type { Finding, RunSummary, RunTrace } from '@devdigest/shared';
-import type { RunTraceWithContext } from '../project-context/schemas.js';
+import type { Finding, RunTrace } from '@devdigest/shared';
+import type { RunSummaryWithParent, RunTraceStored } from './schemas.js';
 
 /**
  * A2 — review data-access. The ONLY layer touching the DB for the review
@@ -84,7 +84,7 @@ export class ReviewRepository {
   }
 
   /** All runs for a PR (any status), newest first — the PR run history. */
-  listRunsForPull(workspaceId: string, prId: string): Promise<RunSummary[]> {
+  listRunsForPull(workspaceId: string, prId: string): Promise<RunSummaryWithParent[]> {
     return runRepo.listRunsForPull(this.db, workspaceId, prId);
   }
 
@@ -133,15 +133,25 @@ export class ReviewRepository {
 
   // ---- observability: agent_runs + run_traces ----------------------------
 
-  /** Create an agent_runs row in `running` state; returns its id (= the runId). */
+  /** Create an agent_runs row. Defaults to `running`/no parent (single-agent
+   *  call sites unchanged); the multi-agent-run module passes `status` and
+   *  `multiAgentRunId`. Returns the row id (= the runId). */
   createAgentRun(values: {
     workspaceId: string;
     agentId: string | null;
     prId: string;
     provider: string | null;
     model: string | null;
+    status?: 'queued' | 'running';
+    multiAgentRunId?: string | null;
   }): Promise<string> {
     return runRepo.createAgentRun(this.db, values);
+  }
+
+  /** Promote a `queued` child to `running` as a limiter slot frees (R9).
+   *  Returns `true` only when the row was still `queued`. */
+  markRunningIfQueued(runId: string): Promise<boolean> {
+    return runRepo.markRunningIfQueued(this.db, runId);
   }
 
   completeAgentRun(
@@ -172,7 +182,7 @@ export class ReviewRepository {
   }
 
   /** Persist the WHOLE run log as ONE document. PK = runId → agent_runs. */
-  saveRunTrace(runId: string, trace: RunTraceWithContext): Promise<void> {
+  saveRunTrace(runId: string, trace: RunTraceStored): Promise<void> {
     return runRepo.saveRunTrace(this.db, runId, trace);
   }
 

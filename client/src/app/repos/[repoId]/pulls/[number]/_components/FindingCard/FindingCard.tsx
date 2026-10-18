@@ -36,6 +36,7 @@ export function FindingCard({
   headSha,
   prId,
   agentId,
+  showTranslate = true,
 }: {
   f: EvalAwareFinding;
   focused?: boolean;
@@ -47,6 +48,10 @@ export function FindingCard({
   /** When set, the "Turn into eval case" action is shown. */
   prId?: string;
   agentId?: string | null;
+  /** Hide the Translate action (AC-33: the Multi-Agent Review Tabs view shows
+   * only Accept / Dismiss / Turn into eval case). Defaults to true so every
+   * existing caller is unchanged. */
+  showTranslate?: boolean;
 }) {
   const t = useTranslations("prReview");
   const [expanded, setExpanded] = React.useState(defaultExpanded ?? false);
@@ -136,17 +141,21 @@ export function FindingCard({
               {t("finding.dismiss")}
             </Button>
             {prId && <EvalCaseButton finding={f} prId={prId} agentId={agentId} />}
-            <Button
-              kind="secondary"
-              size="sm"
-              icon="Globe"
-              loading={translate.isPending}
-              active={showTranslated}
-              onClick={onTranslate}
-            >
-              {showTranslated ? t("finding.showOriginal") : t("finding.translate")}
-            </Button>
-            {translate.isError && <span style={s.translateError}>{t("finding.translateFailed")}</span>}
+            {showTranslate && (
+              <Button
+                kind="secondary"
+                size="sm"
+                icon="Globe"
+                loading={translate.isPending}
+                active={showTranslated}
+                onClick={onTranslate}
+              >
+                {showTranslated ? t("finding.showOriginal") : t("finding.translate")}
+              </Button>
+            )}
+            {showTranslate && translate.isError && (
+              <span style={s.translateError}>{t("finding.translateFailed")}</span>
+            )}
           </div>
         </div>
       )}

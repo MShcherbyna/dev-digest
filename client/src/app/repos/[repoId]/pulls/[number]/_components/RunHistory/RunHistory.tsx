@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Badge, Icon, CircularScore, type IconName } from "@devdigest/ui";
-import type { RunSummary, PrCommit, ReviewRecord } from "@devdigest/shared";
+import type { PrCommit, ReviewRecord } from "@devdigest/shared";
+import type { RunSummaryWithParent } from "@/lib/types";
 import { formatCost } from "@/lib/format";
 import { SeverityFindingsBreakdown } from "@/app/repos/[repoId]/pulls/_components/SeverityFindingsBreakdown";
 import { countBySeverity } from "@/app/repos/[repoId]/pulls/_components/SeverityFindingsBreakdown/helpers";
@@ -22,8 +24,10 @@ import { countBySeverity } from "@/app/repos/[repoId]/pulls/_components/Severity
 
 type Outcome = { key: string; color: string; bg: string; icon: IconName };
 
-function outcomeOf(run: RunSummary): Outcome {
+function outcomeOf(run: RunSummaryWithParent): Outcome {
   const status = run.status ?? "";
+  if (status === "queued")
+    return { key: "queued", color: "var(--text-muted)", bg: "var(--bg-hover)", icon: "Clock" };
   if (status === "running")
     return { key: "running", color: "var(--accent)", bg: "var(--accent-bg)", icon: "RefreshCw" };
   if (status === "failed")
@@ -77,7 +81,7 @@ const commitRowStyle: React.CSSProperties = {
 };
 
 type TimelineItem =
-  | { kind: "run"; ts: number; run: RunSummary }
+  | { kind: "run"; ts: number; run: RunSummaryWithParent }
   | { kind: "commit"; ts: number; commit: PrCommit };
 
 /** Epoch ms for sorting; unparseable / missing timestamps sort last. */
@@ -95,7 +99,7 @@ export function RunHistory({
   onGoToReview,
   onDelete,
 }: {
-  runs: RunSummary[];
+  runs: RunSummaryWithParent[];
   commits?: PrCommit[];
   /** Persisted reviews (each run's findings) — keyed by `run_id` below so
    *  each Timeline row can show its OWN severity breakdown + hover popover,
@@ -108,6 +112,7 @@ export function RunHistory({
   onDelete?: (runId: string) => void;
 }) {
   const t = useTranslations("prReview");
+  const router = useRouter();
   if (runs.length === 0 && commits.length === 0) return null;
 
   const reviewByRunId = new Map(
@@ -188,6 +193,29 @@ export function RunHistory({
                 >
                   {r.agent_name ?? "Agent"}
                 </button>{" "}
+                {r.multi_agent_run_id && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/multi-agent-review/${r.multi_agent_run_id}`)}
+                    title={t("timeline.partOfMultiRun")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      font: "inherit",
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      textDecoration: "underline",
+                      textDecorationStyle: "dotted",
+                      textUnderlineOffset: 2,
+                      marginRight: 6,
+                    }}
+                  >
+                    {t("timeline.partOfMultiRun")}
+                  </button>
+                )}
                 <span className="mono" style={{ fontSize: 12, fontWeight: 400, color: "var(--text-muted)" }}>
                   {r.provider}/{r.model}
                 </span>

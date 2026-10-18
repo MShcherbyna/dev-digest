@@ -82,6 +82,8 @@ export interface ReviewInput {
   task?: string;
   /** Override the structured-output retry budget. */
   maxRetries?: number;
+  /** Per-call output-token cap. Undefined → the adapter/provider default. */
+  maxTokens?: number;
   /** Override the map-reduce line threshold. */
   mapThresholdLines?: number;
   /**
@@ -185,6 +187,7 @@ export async function reviewPullRequest(input: ReviewInput): Promise<ReviewOutco
       schemaName: 'Review',
       messages: a.messages,
       maxRetries,
+      ...(input.maxTokens ? { maxTokens: input.maxTokens } : {}),
       ...(input.sessionId ? { sessionId: input.sessionId } : {}),
     });
     tokensIn += res.tokensIn;

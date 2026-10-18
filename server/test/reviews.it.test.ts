@@ -388,6 +388,106 @@ d('A2 reviews + agents (Testcontainers pg)', () => {
     await app.close();
   });
 
+  it('AC-5: a single-agent run leaves agent_runs.multi_agent_run_id null', async () => {
+    // Regression: the new nullable FK must not creep a value onto the
+    // single-agent path by accident (e.g. a default argument elsewhere).
+    const app = await appWith(REVIEW_FIXTURE);
+    const { pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'SingleAgentFK', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+    const body = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+
+    const runId = body.runs[0].run_id;
+    const [run] = await pg.handle.db.select().from(t.agentRuns).where(eq(t.agentRuns.id, runId));
+    expect(run!.multiAgentRunId).toBeNull();
+    await app.close();
+  });
+
+  it('AC-32: 2 grounding-dropped findings are persisted and served by GET /runs/:id/trace', async () => {
+    // Regression: `outcome.dropped` must be read explicitly (it is NOT part of
+    // the `{ tokensIn, ... } = outcome` destructure) and mapped into the
+    // trace's `grounding_dropped` list, with title/file/lines/reason, so the
+    // RunTraceDrawer (AC-31) has something to render.
+    const TWO_DROPS_REVIEW: Review = {
+      verdict: 'request_changes',
+      summary: 'One valid finding, two hallucinated.',
+      score: 42,
+      findings: [
+        {
+          id: 'f-valid-2drops',
+          severity: 'CRITICAL',
+          category: 'security',
+          title: 'Hardcoded Stripe secret key',
+          file: 'src/config.ts',
+          start_line: 11,
+          end_line: 11,
+          rationale: 'A live Stripe key is committed in source.',
+          confidence: 0.95,
+          kind: 'finding',
+        },
+        {
+          id: 'f-drop-1',
+          severity: 'WARNING',
+          category: 'bug',
+          title: 'Phantom finding on a non-existent line',
+          file: 'src/config.ts',
+          start_line: 999,
+          end_line: 999,
+          rationale: 'Not in the diff.',
+          confidence: 0.5,
+          kind: 'finding',
+        },
+        {
+          id: 'f-drop-2',
+          severity: 'SUGGESTION',
+          category: 'style',
+          title: 'Phantom finding in an unknown file',
+          file: 'src/does-not-exist.ts',
+          start_line: 1,
+          end_line: 1,
+          rationale: 'File not in the diff.',
+          confidence: 0.3,
+          kind: 'finding',
+        },
+      ],
+    };
+    const app = await appWith(TWO_DROPS_REVIEW);
+    const { pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const agent = (
+      await app.inject({
+        method: 'POST',
+        url: '/agents',
+        payload: { name: 'GroundingDropAgent', provider: 'openai', model: 'gpt-4.1', system_prompt: 's' },
+      })
+    ).json();
+    const body = (
+      await app.inject({ method: 'POST', url: `/pulls/${pr.id}/review`, payload: { agentId: agent.id } })
+    ).json();
+    await waitForPrRuns(pg.handle.db, pr.id, { expected: 1 });
+
+    const runId = body.runs[0].run_id;
+    const trace = (await app.inject({ method: 'GET', url: `/runs/${runId}/trace` })).json();
+    expect(trace.grounding_dropped).toHaveLength(2);
+    const byTitle = new Map(trace.grounding_dropped.map((d: { title: string; reason: string }) => [d.title, d]));
+    const droppedOnNonexistentLine = byTitle.get('Phantom finding on a non-existent line') as
+      | { file: string; start_line: number; end_line: number; reason: string }
+      | undefined;
+    expect(droppedOnNonexistentLine?.file).toBe('src/config.ts');
+    expect(droppedOnNonexistentLine?.start_line).toBe(999);
+    expect(typeof droppedOnNonexistentLine?.reason).toBe('string');
+    expect(droppedOnNonexistentLine?.reason.length).toBeGreaterThan(0);
+    expect(byTitle.has('Phantom finding in an unknown file')).toBe(true);
+    await app.close();
+  });
+
   it('GET /pulls/:id/smart-diff: 404 for an unknown PR, 422 for a non-uuid id', async () => {
     const app = await appWith(REVIEW_FIXTURE);
 

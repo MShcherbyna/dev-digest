@@ -34,6 +34,14 @@ import { RunnerError } from './errors.js';
  * grounded review" produces NOTHING (no synthetic review skeleton).
  */
 
+/**
+ * Output-token cap per review call. Without an explicit `max_tokens`,
+ * OpenRouter reserves the model's full output window (e.g. 131072) against
+ * the context length, so a large diff fails with "maximum context length"
+ * even though a structured review never needs that many output tokens.
+ */
+export const CI_REVIEW_MAX_TOKENS = 16384;
+
 export type PostAs = 'github_review' | 'pr_comment' | 'none';
 
 export interface RunCiDeps {
@@ -137,6 +145,7 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
       memory: memory.map((m) => wrapUntrusted('memory', m.content)),
       prDescription: ctx.body,
       task: `Review PR #${ctx.prNumber}: ${ctx.title}`,
+      maxTokens: CI_REVIEW_MAX_TOKENS,
     });
     const durationMs = now() - start;
 

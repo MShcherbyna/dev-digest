@@ -72,6 +72,17 @@ read by the `engineering-insights` skill.
   Dashboard" item right after "Project Context" (`key: "eval"`, icon `Gauge`,
   href `/eval`, no `gKey`); `activeKeyFor` (`/eval*`) and `shell.nav.eval`
   already existed.
+  Port all three edits to the sync source.
+  **Refined 2026-10-17:** a fourth local edit (GLOBAL section, "Multi-Agent
+  Review" item, `key: "multi-agent"`, icon `Users`, href `/multi-agent-review`,
+  no `gKey`) was pre-approved by the implementation plan (Q-5) but could NOT be
+  applied in an `implementer`-driven session: `.claude/hooks/implementer-guard.sh`
+  matches any `client/src/vendor/ui/` path unconditionally and blocks the
+  `Edit`/`Write` tool call (exit 2) regardless of what the plan or a prior
+  agent message says — a plan's/user's written approval for a vendored-path
+  edit is not itself a bypass for this hook. The edit still needs doing: either
+  at the sync source in the main (non-worktree) checkout, or by a session not
+  running under the `implementer` agent's guard.
   **Refined 2026-10-17:** a fourth local edit adds a GLOBAL group with "CI Runs"
   (`key: "ci-runs"`, icon `Workflow`, href `/ci-runs`); applied by the main
   session with user sanction (Export to CI, D-1/D-4); `activeKeyFor` and
@@ -94,6 +105,36 @@ read by the `engineering-insights` skill.
   behavior. `EvalCaseModal.tsx`, `EvalCaseButton.tsx`.
 
 ## Tool & Library Notes
+
+- **2026-10-17** — `src/test/render-intl.tsx` was missing the `runs` namespace
+  (`messages/en/runs.json`) even though most of Multi-Agent Review
+  (`AgentColumn`, `TabsView`, `DisagreementBlock`, `MultiAgentRunView`,
+  `ConfigureRunView`, `MultiAgentLanding`) calls `useTranslations("runs")` —
+  every key rendered literally (`"runs.configure.step2"`) instead of throwing,
+  so the failure only shows up as a text-match miss, not an intl error. Added
+  `runs` to the provider's `messages` object; any new `renderWithIntl` test
+  for a `runs`-namespaced component needs this import. Also two more RTL
+  query traps alongside the existing `Tabs`/`ToastProvider` ones: the vendored
+  `Checkbox` is a `<button role="checkbox" aria-checked>` (query via
+  `getByRole("checkbox", { name })`) and `Toggle` is a bare
+  `<button role="switch" aria-checked>` with **no** accessible name (the label
+  is a sibling `<span>`, not `aria-label`/`aria-labelledby`) — query it via
+  `getByRole("switch")` without `{ name }`.
+  **Refined 2026-10-17 (multi-agent-review-01x94 NFR-5 fix):** the vendored
+  `Checkbox`'s own `<label>` wraps only its `role="checkbox"` button plus its
+  `label` prop content — any sibling text rendered *outside* that `<label>`
+  (e.g. a `<span>` next to `<Checkbox>` in the same row) is excluded from the
+  checkbox's accessible name even though it's visually adjacent; move it
+  inside the `label` prop instead. The same fix works for the bare `Toggle`
+  (no `aria-label` prop at all): since `<button>` is an HTML "labelable"
+  element, wrapping `<Toggle>` + its text in a plain `<label>` at the call
+  site gives it an accessible name with no vendor change — see
+  `DisagreementBlock.tsx`'s "Show only conflicts" row. Gotcha when adding a
+  wrapping element for layout (e.g. to stretch the `<label>` to full width so
+  trailing text can right-align): use a `<span style={{ display: "block" }}>`,
+  not a `<div>`, if any test does `el.closest("div")` to reach an ancestor —
+  an extra `<div>` becomes the new nearest match and breaks that lookup
+  (`AgentPicker.test.tsx`'s "Up to 8 agents per run" title assertion).
 
 - **2026-10-15** — Focus-return tests need manual focus/blur: the `fireEvent`
   `userEvent.click` shim never focuses the target, and jsdom does not blur a
@@ -141,6 +182,19 @@ read by the `engineering-insights` skill.
   checkout's, run `npx tsc --noEmit` / `npx vitest run` / `npx eslint src`
   directly (`pnpm <script>` re-runs install and fails on ignored builds, and
   drops a stray `pnpm-workspace.yaml` you must not commit).
+
+## Tool & Library Notes
+
+- **2026-10-17** — Passing next-intl's `t` into a plain (non-component)
+  `helpers.ts` function as a parameter needs
+  `t: ReturnType<typeof useTranslations>` (imported as a type-only import from
+  `next-intl`) — a hand-written signature like
+  `(key: string, vars?: Record<string, unknown>) => string` fails `tsc` with
+  `Types of parameters 'values' and 'vars' are incompatible` because next-intl's
+  real `values` param type (`TranslationValues`) isn't a supertype of
+  `Record<string, unknown>`. See
+  `app/multi-agent-review/[runId]/_components/MultiAgentRunView/helpers.ts`
+  (`headerMeta`).
 
 ## Recurring Errors & Fixes
 

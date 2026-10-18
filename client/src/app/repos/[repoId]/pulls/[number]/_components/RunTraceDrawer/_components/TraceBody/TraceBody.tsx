@@ -58,6 +58,24 @@ export function TraceBody({ trace, findings }: { trace: RunTraceView; findings: 
           <Stat label={t("trace.stat.cost")} val={formatCost(stats.cost_usd)} />
           <Stat label={t("trace.stat.findings")} val={stats.findings} />
         </div>
+        {trace.grounding_dropped != null && trace.grounding_dropped.length > 0 && (
+          <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", color: "var(--text-muted)" }}>
+              {t("trace.groundingDropped.title")}
+            </div>
+            {trace.grounding_dropped.map((d, i) => (
+              <div key={i} style={{ fontSize: 12.5, color: "var(--text-secondary)" }}>
+                <span style={{ fontWeight: 600 }}>{d.title}</span>{" "}
+                <span className="mono" style={{ color: "var(--text-muted)" }}>
+                  {d.file}:{d.start_line}
+                  {d.end_line !== d.start_line ? `-${d.end_line}` : ""}
+                </span>
+                {" — "}
+                <span style={{ color: "var(--text-muted)" }}>{d.reason}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </TraceSection>
 
       <FindingsSection findings={findings} />

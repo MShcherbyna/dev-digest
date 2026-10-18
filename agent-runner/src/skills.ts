@@ -8,7 +8,10 @@ import { RunnerError } from './errors.js';
  * manifest's `skills` slugs, in order. These are RESOLVED skill bodies (not
  * slugs) — `reviewPullRequest` (reviewer-core) takes `PromptSkill[]`, exactly like the
  * studio resolves slugs to DB rows before calling the same engine (AC-36
- * parity: both callers hand the engine already-resolved `PromptSkill`s).
+ * parity: both callers hand the engine already-resolved bodies).
+ *
+ * `trusted: false`: the files come from the PR checkout, so a PR author can
+ * edit them — the engine wraps untrusted bodies in `<untrusted>` delimiters.
  */
 export function loadSkillBodies(
   devdigestDir: string,

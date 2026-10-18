@@ -152,7 +152,53 @@ read by the `engineering-insights` skill.
   reuses the same builder to show a no-persist draft first.
   `server/src/modules/eval/service.ts`.
 
+- **2026-10-17** — Multi-agent-run's limiter gate (`run.repo.ts`
+  `markRunningIfQueued`) must pass through rows ALREADY `running`, not only
+  promote `queued` ones: the executor's bounded-parallel path (AC-15) sends
+  EVERY child job through `limiter.run(...)`, including the first
+  `concurrency_limit` children the repository created as `running` so they
+  start immediately — a gate that only matches `status='queued'` would
+  wrongly `runBus.complete()` them without ever executing. Fixed by matching
+  `status IN ('queued','running')` and only resetting `ran_at` via a SQL
+  `CASE WHEN status='queued'` (so an already-running row's `ran_at` isn't
+  disturbed). `server/src/modules/reviews/repository/run.repo.ts`.
+
+- **2026-10-17** — `multi-agent-run/domain/grouping.ts`'s "a finding touching
+  two others joins only the first group, never both" (AC-20) is NOT a
+  guarantee that the second group stays isolated from the straddling finding
+  — it is mathematically impossible for a genuinely bridging finding to
+  avoid later also pulling the second group's member in (if `a` and `b` are
+  non-overlapping and `c` overlaps both, interval math forces
+  `c.start < b.start`, so `b` is always processed after `c` joins `a`'s
+  group, and `b` then legitimately overlaps `c` too). The AC only guarantees
+  a single `group_id` per finding at the moment it is placed; test the
+  "isolated singleton" case with a 4th, unrelated finding that the straddler
+  does NOT reach, not with a true 2-group bridge.
+
 ## Tool & Library Notes
+
+- **2026-10-17** — `src/adapters/mocks.ts`'s `MockLLMProvider` has no per-call
+  delay or forced-failure knob, so `multi-agent-run.it.test.ts` (AC-15/16/17)
+  defines its own test-local `LLMProvider` keyed by `req.model` (`{ delayMs,
+  fail }`), not a change to the shared mock. A bonus: the `openrouter` slot
+  used for intent derivation can be given a provider whose `completeStructured`
+  throws/mismatches the intent schema and the run still completes — `
+  IntentService.intentForRun` is fail-open (`server/src/modules/intent/
+  service.ts:122` catches and returns `undefined`), so tests that only care
+  about AC-15/16/17/19 don't need a real intent fixture at all.
+
+- **2026-10-17** — A fresh `server/` worktree has no `node_modules` at all
+  (`pnpm db:generate`/`tsc` both fail: `drizzle-kit: command not found` /
+  `Cannot find module`), the same gap `client/INSIGHTS.md` already documents
+  for `client/`. Symlinking the main checkout's `server/node_modules` fixes
+  `drizzle-kit`/`tsc` directly (bypass `pnpm db:generate`, run
+  `npx drizzle-kit generate` instead — `pnpm` itself also needs
+  `node_modules/.bin` present to resolve its own script). `server/tsc --noEmit`
+  additionally pulls in `../reviewer-core/src/**` via the `@devdigest/
+  reviewer-core` path alias, so `reviewer-core/node_modules` (for `openai`,
+  `zod`) must be symlinked too, or unrelated-looking errors appear in
+  `reviewer-core/src/llm/*.ts` that have nothing to do with the change being
+  typechecked.
 
 - **2026-10-16** — A Fastify zod `body` schema that must tolerate "no body
   sent" needs `.nullish()`, not `.optional()`: with no payload and no

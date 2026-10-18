@@ -13,12 +13,16 @@ import brief from "../../messages/en/brief.json";
 import prReview from "../../messages/en/prReview.json";
 import shell from "../../messages/en/shell.json";
 import evalMessages from "../../messages/en/eval.json";
+import runs from "../../messages/en/runs.json";
 import ci from "../../messages/en/ci.json";
 import { ToastProvider } from "@/lib/toast";
 
 export function renderWithIntl(ui: React.ReactElement): RenderResult {
   return render(
-    <NextIntlClientProvider locale="en" messages={{ skills, agents, conventions, common, context, onboarding, brief, prReview, shell, eval: evalMessages, ci }}>
+      <NextIntlClientProvider
+          locale="en"
+          messages={{ skills, agents, conventions, common, context, onboarding, brief, prReview, shell, eval: evalMessages, ci, runs}}
+      >
       <ToastProvider>{ui}</ToastProvider>
     </NextIntlClientProvider>,
   );
