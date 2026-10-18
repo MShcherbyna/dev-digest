@@ -32,3 +32,30 @@ jobs:
           name: devdigest-result-performance-reviewer
           path: devdigest-result-performance-reviewer.json
           if-no-files-found: ignore
+  api-contract-reviewer:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'devdigest/ci'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run DevDigest review
+        run: node .devdigest/runner/index.js
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEVDIGEST_POST_AS: github_review
+          DEVDIGEST_AGENT: api-contract-reviewer
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: devdigest-result-api-contract-reviewer
+          path: devdigest-result-api-contract-reviewer.json
+          if-no-files-found: ignore
