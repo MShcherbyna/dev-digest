@@ -29,9 +29,9 @@ describe('generated workflow (AC-8)', () => {
     expect(job.permissions).toEqual({ contents: 'read', 'pull-requests': 'write' });
   });
 
-  it('checks out the PR head, uses Node 22 and runs the bundled runner', () => {
+  it('checks out the PR base (a branch cut before the CI merge has no .devdigest/), uses Node 22 and runs the bundled runner', () => {
     expect(job.steps[0].uses).toBe('actions/checkout@v4');
-    expect(job.steps[0].with.ref).toBe('${{ github.event.pull_request.head.sha }}');
+    expect(job.steps[0].with.ref).toBe('${{ github.event.pull_request.base.sha }}');
     expect(job.steps[1].with['node-version']).toBe(22);
     expect(job.steps[2].run).toBe('node .devdigest/runner/index.js');
   });
