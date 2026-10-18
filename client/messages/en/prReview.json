@@ -154,6 +154,6 @@
     "openTrace": "Open run trace & logs",
     "deleteRun": "Delete run",
     "partOfMultiRun": "part of multi-run",
-    "latestMultiRun": "Latest multi-agent run"
+    "latestMultiRun": "Multi-Agent Review"
   }
 }
