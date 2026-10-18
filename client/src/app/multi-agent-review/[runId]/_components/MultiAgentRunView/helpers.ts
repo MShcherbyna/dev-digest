@@ -1,5 +1,6 @@
 import type { ReviewRecord } from "@devdigest/shared";
 import type { useTranslations } from "next-intl";
+import { formatCost } from "@/lib/format";
 import type { EvalAwareFinding } from "@/lib/hooks/eval";
 import type {
   AgentColumnFindingView,
@@ -40,7 +41,7 @@ export function cellFor(column: AgentColumnView | undefined, take: ConflictTake 
  * with a "partial" suffix when any column isn't done or has a null cost (AC-26). */
 export function headerMeta(run: MultiAgentRunViewType, t: ReturnType<typeof useTranslations>): string {
   const durationS = (run.total_duration_ms / 1000).toFixed(1);
-  const cost = run.total_cost_usd != null ? `$${run.total_cost_usd.toFixed(2)}` : "$0";
+  const cost = formatCost(run.total_cost_usd);
   const partial = run.columns.some((c) => c.status !== "done" || c.cost_usd == null);
   const key = partial ? "page.metaPartial" : "page.meta";
   return t(key, { count: run.agent_count, duration: durationS, cost });
