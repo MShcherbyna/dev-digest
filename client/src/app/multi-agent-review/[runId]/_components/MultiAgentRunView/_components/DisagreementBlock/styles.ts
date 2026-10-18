@@ -47,5 +47,4 @@ export const s = {
       marginTop: 4,
     }) satisfies CSSProperties,
   cellNote: { fontSize: 12, color: "var(--text-muted)", marginTop: 3 } satisfies CSSProperties,
-  empty: { fontSize: 12.5, color: "var(--text-muted)" } satisfies CSSProperties,
 };

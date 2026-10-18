@@ -38,6 +38,37 @@ function conflict(o: Partial<Conflict>): Conflict {
 }
 
 describe("DisagreementBlock", () => {
+  it("renders the full EmptyState pattern (icon + title + body) when no agent has a verdict yet", () => {
+    const columns = [column({ run_id: "r1", agent_id: "a1", status: "running", score: null })];
+    renderWithIntl(
+      <DisagreementBlock conflicts={[]} columns={columns} onlyConflicts={false} onToggleOnlyConflicts={() => {}} />,
+    );
+    expect(screen.getByText("No verdicts yet")).toBeInTheDocument();
+    expect(screen.getByText("No agent has produced a verdict for this run yet.")).toBeInTheDocument();
+  });
+
+  it("renders the full EmptyState pattern when agents agree on every flagged location", () => {
+    const columns = [
+      column({ run_id: "r1", agent_id: "a1", agent_name: "Security" }),
+      column({ run_id: "r2", agent_id: "a2", agent_name: "Performance" }),
+    ];
+    const conflicts = [
+      conflict({
+        file: "agree.ts",
+        takes: [
+          { agent_id: "a1", persona: "security", verdict: "WARNING", note: "" },
+          { agent_id: "a2", persona: "performance", verdict: "WARNING", note: "" },
+        ],
+      }),
+    ];
+    renderWithIntl(
+      <DisagreementBlock conflicts={conflicts} columns={columns} onlyConflicts={true} onToggleOnlyConflicts={() => {}} />,
+    );
+    expect(screen.getByText("No overlapping findings")).toBeInTheDocument();
+    expect(screen.getByText("No two agents flagged the same location in this run.")).toBeInTheDocument();
+  });
+
+
   it("AC-24: a failed agent's cell always reads 'failed, no verdict', never 'did not flag', at every location", () => {
     const columns = [
       column({ run_id: "r1", agent_id: "a1", agent_name: "Security" }),
