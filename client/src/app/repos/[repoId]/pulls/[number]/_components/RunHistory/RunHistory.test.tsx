@@ -4,16 +4,25 @@
  * a settled run is colored/labelled by its denormalized blocker/finding counts,
  * and shows the review score ring.
  */
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import type { RunSummary, ReviewRecord } from "@devdigest/shared";
+import type { ReviewRecord } from "@devdigest/shared";
+import type { RunSummaryWithParent } from "@/lib/types";
 import messages from "../../../../../../../../messages/en/prReview.json";
 import { RunHistory } from "./RunHistory";
 
-afterEach(cleanup);
+const push = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace: vi.fn() }),
+}));
 
-function run(o: Partial<RunSummary>): RunSummary {
+afterEach(() => {
+  cleanup();
+  push.mockReset();
+});
+
+function run(o: Partial<RunSummaryWithParent>): RunSummaryWithParent {
   return {
     run_id: "run-1",
     agent_id: "a1",
@@ -31,11 +40,12 @@ function run(o: Partial<RunSummary>): RunSummary {
     ran_at: "2026-06-11T18:44:34.000Z",
     score: null,
     blockers: null,
+    multi_agent_run_id: null,
     ...o,
   };
 }
 
-function renderRuns(runs: RunSummary[], reviews: ReviewRecord[] = []) {
+function renderRuns(runs: RunSummaryWithParent[], reviews: ReviewRecord[] = []) {
   return render(
     <NextIntlClientProvider locale="en" messages={{ prReview: messages }}>
       <RunHistory runs={runs} reviews={reviews} onOpenTrace={() => {}} />
@@ -140,5 +150,22 @@ describe("RunHistory — cost badge (Run Cost Badge)", () => {
   it("a failed run shows no cost element at all", () => {
     renderRuns([run({ status: "failed", error: "boom", score: null, blockers: null, cost_usd: null })]);
     expect(screen.queryByText("—")).not.toBeInTheDocument();
+  });
+});
+
+describe("RunHistory — multi-run tag + link (AC-6)", () => {
+  it("a multi-run child row shows the 'part of multi-run' tag, which navigates to the parent run; a single-agent row shows no tag", () => {
+    // Catches: a multi-run child being indistinguishable from a single-agent
+    // run in the PR's Agent runs tab, and a dead/missing link to the parent.
+    renderRuns([
+      run({ run_id: "run-1", status: "done", multi_agent_run_id: "multi-abc" }),
+      run({ run_id: "run-2", status: "done", multi_agent_run_id: null }),
+    ]);
+
+    const tags = screen.getAllByText("part of multi-run");
+    expect(tags).toHaveLength(1);
+
+    fireEvent.click(tags[0]!);
+    expect(push).toHaveBeenCalledWith("/multi-agent-review/multi-abc");
   });
 });

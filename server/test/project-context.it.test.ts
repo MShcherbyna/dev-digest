@@ -199,8 +199,14 @@ d('project context (Testcontainers pg, tmp-dir clone)', () => {
     const runId = res.json().runs[0].run_id as string;
     const runs = await waitForPrRuns(pg.handle.db, prId, { expected: 1 });
     expect(runs[0]!.status).toBe(expectedRunStatus);
-    const trace = (await app.inject({ method: 'GET', url: `/runs/${runId}/trace` })).json();
-    return trace;
+    // The executor marks the run `done` BEFORE it persists the trace, so under load
+    // the first GET can still see the pre-completion trace: poll until the final one
+    // (the only one carrying `specs_read`) is there.
+    for (let i = 0; ; i++) {
+      const trace = (await app.inject({ method: 'GET', url: `/runs/${runId}/trace` })).json();
+      if (trace?.specs_read !== undefined || i >= 200) return trace;
+      await new Promise((r) => setTimeout(r, 25));
+    }
   }
   const reviewPrompts = (llm: MockLLMProvider): string[] =>
     llm.calls

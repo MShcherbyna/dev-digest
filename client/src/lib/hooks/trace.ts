@@ -7,7 +7,7 @@
 
 import { queryKeys } from "./keys";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import type { RunTraceView } from "../types";
 
 export function useRunTrace(runId: string | null | undefined, enabled = true) {
@@ -15,6 +15,12 @@ export function useRunTrace(runId: string | null | undefined, enabled = true) {
     queryKey: queryKeys.runTrace(runId),
     queryFn: () => api.get<RunTraceView>(`/runs/${runId}/trace`),
     enabled: !!runId && enabled,
-    retry: false,
+    // The trace row can lag the run's `done`/`failed` status by a beat
+    // (R7/trace-before-status closes most of this, but not all of it) — retry
+    // once, after ~1s, ONLY on a 404 ("trace not ready yet"). Any other error
+    // fails immediately.
+    retry: (failureCount, error) =>
+      failureCount < 1 && error instanceof ApiError && error.status === 404,
+    retryDelay: 1000,
   });
 }

@@ -43,6 +43,9 @@ flowchart LR
   API -->|"run review"| ENGINE
   ENGINE --> LLM
 
+  GHA["GitHub Actions<br/>devdigest-result-#lt;slug#gt; artifacts"]
+  API -->|"pull ingest (user's GitHub token)"| GHA
+
   SHARED["@devdigest/shared<br/>Zod contracts"]
   SHARED -.->|"one schema, every package"| WEB
   SHARED -.-> API
@@ -60,6 +63,14 @@ run adds the PR repo's docs to the prompt as
 untrusted reference text and lists them in the run trace
 ([details](server/docs/project-context.md)). All local; the only outbound calls are to GitHub (PR data)
 and the LLM (via OpenRouter).
+
+**Export to CI** adds one pull-based boundary: an exported agent runs inside
+the user's GitHub Actions workflow, which uploads a `devdigest-result-<slug>`
+artifact; the studio server never receives a push, it pulls those artifacts
+from GitHub using the user's `GITHUB_TOKEN` when the UI calls
+`POST /ci-runs/refresh`
+([`server/src/modules/ci/ingest.ts`](server/src/modules/ci/ingest.ts),
+[`server/src/adapters/github/ci.ts`](server/src/adapters/github/ci.ts)).
 
 Each package has its own README with deeper diagrams:
 [`client`](client/README.md) (UI route map) ·

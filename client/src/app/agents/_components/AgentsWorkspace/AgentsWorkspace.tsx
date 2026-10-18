@@ -114,14 +114,14 @@ export function AgentsWorkspace({ id }: { id?: string }) {
           </div>
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 28px 0", flexShrink: 0 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, padding: "16px 28px 0", flexShrink: 0 }}>
               <Icon.Cpu size={18} style={{ color: "var(--accent)" }} />
               <h1 style={{ fontSize: 18, fontWeight: 700 }}>{agent.name}</h1>
               <Badge color="var(--text-secondary)" mono>
                 {agent.provider}/{agent.model}
               </Badge>
               {!agent.enabled && <Badge color="var(--text-muted)">disabled</Badge>}
-              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <Button kind="secondary" size="sm" icon="Play" disabled title={t("editor.comingSoon")}>
                   {t("editor.runOnEvals")}
                 </Button>
