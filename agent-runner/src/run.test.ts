@@ -423,21 +423,65 @@ describe('runCi (T8 agent-runner orchestrator)', () => {
         manifest_version: null,
         provider: 'openrouter',
         model: 'deepseek/deepseek-v4-flash',
-        runner_version: '2',
+        runner_version: '3',
         commit_sha: 'abc123',
         repo: 'acme/widgets',
       });
       expect(a.dependencies?.node).toBe(process.version);
     });
 
-    it('DEVDIGEST_AGENT overrides the slug; resultPath overrides the whole path', async () => {
+    it('resultPath overrides the whole path', async () => {
       const stub = makeStubLlm(ALL_HALLUCINATED_REVIEW);
       const base = baseDeps({ llm: stub.llm, fetchDiff: async () => FIXTURE_DIFF_RAW });
-      await runCi({ ...base, env: { ...base.env, DEVDIGEST_AGENT: 'other' } });
-      expect(existsSync(path.join(dir, 'devdigest-result-other.json'))).toBe(true);
       const custom = path.join(dir, 'custom.json');
       await runCi({ ...base, resultPath: custom });
       expect(existsSync(custom)).toBe(true);
+    });
+  });
+
+  describe('several agents in one repository (D-MA-1, AC-18)', () => {
+    // Catches: the runner refusing a multi-agent repo, reviewing with the wrong
+    // manifest, or reading `DEVDIGEST_AGENT` as a path.
+    function addSecondAgent(): void {
+      writeFileSync(
+        path.join(dir, 'agents', 'perf-reviewer.yaml'),
+        VALID_MANIFEST_YAML.replace('Security Reviewer', 'Perf Reviewer'),
+      );
+    }
+
+    it('reviews with the manifest DEVDIGEST_AGENT selects and writes its slug-named result', async () => {
+      addSecondAgent();
+      const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+      const base = baseDeps({ llm: stub.llm, fetchDiff: async () => FIXTURE_DIFF_RAW });
+      const result = await runCi({ ...base, env: { ...base.env, DEVDIGEST_AGENT: 'perf-reviewer' } });
+      expect(result.error).toBeUndefined();
+      const a = CiResultArtifactSchema.parse(
+        JSON.parse(readFileSync(path.join(dir, 'devdigest-result-perf-reviewer.json'), 'utf8')),
+      );
+      expect(a.agent_slug).toBe('perf-reviewer');
+      expect(existsSync(resultPath)).toBe(false);
+    });
+
+    it('a missing or non-slug DEVDIGEST_AGENT fails with exit 1, posts nothing and writes no result', async () => {
+      addSecondAgent();
+      for (const selected of ['ghost-reviewer', '../agents/perf-reviewer']) {
+        const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+        const { fetchImpl, calls } = makeFetchRecorder();
+        const base = baseDeps({ llm: stub.llm, fetchImpl, fetchDiff: async () => FIXTURE_DIFF_RAW });
+        const result = await runCi({ ...base, env: { ...base.env, DEVDIGEST_AGENT: selected } });
+        expect(result.exitCode).toBe(1);
+        expect(result.artifact).toBeNull();
+        expect(calls).toHaveLength(0);
+        expect(stub.capturedMessages).toHaveLength(0);
+      }
+    });
+
+    it('without DEVDIGEST_AGENT, two manifests are an error that names the env var', async () => {
+      addSecondAgent();
+      const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+      const result = await runCi(baseDeps({ llm: stub.llm, fetchDiff: async () => FIXTURE_DIFF_RAW }));
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toMatch(/DEVDIGEST_AGENT/);
     });
   });
 });

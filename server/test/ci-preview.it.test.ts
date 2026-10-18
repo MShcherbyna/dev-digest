@@ -160,7 +160,7 @@ d('POST /agents/:id/ci/preview (Testcontainers pg)', () => {
     expect(res.json().secrets[0].status).toBe('unknown');
   });
 
-  it('AC-4: the workflow pane shows the whole file incl. another agent’s job, unchanged; install_block set', async () => {
+  it('AC-4: the workflow pane shows the whole file incl. another agent’s job, unchanged; no install block (AC-31 retired)', async () => {
     const existing = workflowWith('alpha');
     const gh = new MockCiGitHub({ files: { [WORKFLOW_PATH]: existing } });
     app = await buildCiApp(pg.handle.db, gh);
@@ -173,7 +173,7 @@ d('POST /agents/:id/ci/preview (Testcontainers pg)', () => {
     const wf = body.files.find((f: { path: string }) => f.path === WORKFLOW_PATH).contents as string;
     expect(wf).toContain(existing.slice(existing.indexOf('  alpha:')).trimEnd());
     expect(wf).toContain('  beta:');
-    expect(body.install_block).toBe('multi_agent_unsupported');
+    expect(body.install_block).toBeNull();
   });
 
   it('install_block is agent_slug_conflict when another agent already uses the slug', async () => {

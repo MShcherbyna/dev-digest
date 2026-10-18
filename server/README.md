@@ -153,7 +153,7 @@ usual db migrate script).
 | `GET /ci-runs` | CI runs, newest first (`?agent=&repo=&status=&source=&since=&limit=`) |
 | `POST /ci-runs/refresh` | ingest result artifacts now (`{agent_id?}`); at most 50 runs per installation, one ingest per installation at a time |
 
-Errors: 404 `not_found`; 409 `agent_slug_conflict` / `multi_agent_unsupported`;
+Errors: 404 `not_found`; 409 `agent_slug_conflict` (several agents per repository are supported);
 422 `target_not_supported` / `repo_not_connected` / `manifest_invalid` /
 `workflow_invalid` / `file_too_large` / `secret_in_export` /
 `github_token_missing`; 403 `github_permission` (`details.permission`); 502

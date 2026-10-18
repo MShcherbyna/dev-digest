@@ -508,7 +508,8 @@ team's repositories on GitHub.
 
 ### Several agents in one repository
 
-- **AC-31:** WHILE the external dependency D-MA-1..4 has not landed, IF the
+- **AC-31 (retired 2026-10-18, D-MA-1..4 delivered — Install into a repository
+  with other agents is allowed; kept for history):** WHILE the external dependency D-MA-1..4 has not landed, IF the
   target repository already has an installation of a different agent, THEN
   Install (both "Open a PR" and zip) (shall) be blocked: the server responds
   `409 multi_agent_unsupported`, and the wizard shows "Multi-agent CI support
@@ -814,6 +815,11 @@ stateDiagram-v2
   removed by a failed refresh.
 
 ### External dependency: multi-manifest runner (separate user worktree)
+
+**Status (2026-10-18): delivered.** agent-runner (`RUNNER_VERSION` 3) loads only
+`.devdigest/agents/<DEVDIGEST_AGENT>.yaml` (D-MA-1); D-MA-2..4 were already
+produced by the generator and the runner. AC-31 is retired; AC-15 and AC-18
+apply end to end.
 
 Export to CI does not assume one agent per repository (US-7, AC-15, AC-18).
 The runner at bb16a35 fails when `.devdigest/agents/` holds more than one
