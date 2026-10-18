@@ -168,7 +168,7 @@ describe('runCi (T8 agent-runner orchestrator)', () => {
         },
       }),
     );
-    resultPath = path.join(dir, 'devdigest-result.json');
+    resultPath = path.join(dir, 'devdigest-result-security-reviewer.json');
   });
 
   afterEach(() => {
@@ -189,7 +189,7 @@ describe('runCi (T8 agent-runner orchestrator)', () => {
       },
       llm: makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW).llm,
       postAs: 'github_review',
-      resultPath,
+      resultDir: dir,
       fetchImpl: okFetch,
       ...overrides,
     };
@@ -360,5 +360,84 @@ describe('runCi (T8 agent-runner orchestrator)', () => {
     });
 
     expect(result.posted!.payload).toEqual(directPayload);
+  });
+
+  describe('memory (AC-19)', () => {
+    it('wraps each memory item as <untrusted source="memory"> in the prompt', async () => {
+      writeFileSync(
+        path.join(dir, 'memory.jsonl'),
+        '{"kind":"convention","scope":"repo","content":"Use snake_case columns"}\n\n{"kind":"gotcha","scope":"global","content":"Never log tokens"}\n',
+      );
+      const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+      await runCi(baseDeps({ llm: stub.llm, fetchDiff: async () => FIXTURE_DIFF_RAW }));
+      const user = stub.capturedMessages[0]!.find((m) => m.role === 'user')!.content;
+      expect(user).toContain('<untrusted source="memory">\nUse snake_case columns\n</untrusted>');
+      expect(user).toContain('Never log tokens');
+    });
+
+    it('adds no memory section when memory.jsonl is missing, empty or whitespace', async () => {
+      for (const content of [null, '', '  \n\n']) {
+        if (content !== null) writeFileSync(path.join(dir, 'memory.jsonl'), content);
+        const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+        const result = await runCi(baseDeps({ llm: stub.llm, fetchDiff: async () => FIXTURE_DIFF_RAW }));
+        expect(result.error).toBeUndefined();
+        const user = stub.capturedMessages[0]!.find((m) => m.role === 'user')!.content;
+        expect(user).not.toContain('Relevant memory');
+        expect(user).not.toContain('source="memory"');
+      }
+    });
+
+    it('a malformed line N hard-fails: exit 1, no artifact, nothing posted, error names the line', async () => {
+      writeFileSync(
+        path.join(dir, 'memory.jsonl'),
+        '{"kind":"a","scope":"repo","content":"ok"}\n{"kind":"b","scope":"nowhere","content":"x"}\n',
+      );
+      const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+      const { fetchImpl, calls } = makeFetchRecorder();
+      const result = await runCi(baseDeps({ llm: stub.llm, fetchImpl, fetchDiff: async () => FIXTURE_DIFF_RAW }));
+      expect(result.exitCode).toBe(1);
+      expect(result.artifact).toBeNull();
+      expect(result.error).toMatch(/memory\.jsonl line 2/);
+      expect(calls).toHaveLength(0);
+      expect(stub.capturedMessages).toHaveLength(0);
+      expect(existsSync(resultPath)).toBe(false);
+    });
+  });
+
+  describe('result file + extended artifact (AC-20)', () => {
+    it('writes devdigest-result-<slug>.json (slug = manifest file name) with every extended field', async () => {
+      writeFileSync(
+        path.join(dir, 'event.json'),
+        JSON.stringify({ pull_request: { number: 42, title: 't', body: 'b', head: { sha: 'abc123', repo: { fork: false } } } }),
+      );
+      const stub = makeStubLlm(GROUNDED_PLUS_HALLUCINATED_REVIEW);
+      const result = await runCi(baseDeps({ llm: stub.llm, fetchDiff: async () => FIXTURE_DIFF_RAW }));
+      expect(result.error).toBeUndefined();
+      expect(existsSync(path.join(dir, 'devdigest-result-security-reviewer.json'))).toBe(true);
+      const a = CiResultArtifactSchema.parse(JSON.parse(readFileSync(resultPath, 'utf8')));
+      expect(a).toMatchObject({
+        verdict: 'request_changes',
+        blockers: 1,
+        agent_slug: 'security-reviewer',
+        agent_id: null,
+        manifest_version: null,
+        provider: 'openrouter',
+        model: 'deepseek/deepseek-v4-flash',
+        runner_version: '2',
+        commit_sha: 'abc123',
+        repo: 'acme/widgets',
+      });
+      expect(a.dependencies?.node).toBe(process.version);
+    });
+
+    it('DEVDIGEST_AGENT overrides the slug; resultPath overrides the whole path', async () => {
+      const stub = makeStubLlm(ALL_HALLUCINATED_REVIEW);
+      const base = baseDeps({ llm: stub.llm, fetchDiff: async () => FIXTURE_DIFF_RAW });
+      await runCi({ ...base, env: { ...base.env, DEVDIGEST_AGENT: 'other' } });
+      expect(existsSync(path.join(dir, 'devdigest-result-other.json'))).toBe(true);
+      const custom = path.join(dir, 'custom.json');
+      await runCi({ ...base, resultPath: custom });
+      expect(existsSync(custom)).toBe(true);
+    });
   });
 });

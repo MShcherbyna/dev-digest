@@ -83,6 +83,10 @@ read by the `engineering-insights` skill.
   edit is not itself a bypass for this hook. The edit still needs doing: either
   at the sync source in the main (non-worktree) checkout, or by a session not
   running under the `implementer` agent's guard.
+  **Refined 2026-10-17:** a fourth local edit adds a GLOBAL group with "CI Runs"
+  (`key: "ci-runs"`, icon `Workflow`, href `/ci-runs`); applied by the main
+  session with user sanction (Export to CI, D-1/D-4); `activeKeyFor` and
+  `shell.nav.ci-runs` already existed. Port all four edits to the sync source.
 - Conventions confidence bar turns amber below `CONFIDENCE_WARN_BELOW` (0.85,
   `ConventionCard/constants.ts`): the design shows 90% neutral and 80% amber.
 
@@ -194,6 +198,9 @@ read by the `engineering-insights` skill.
 
 ## Recurring Errors & Fixes
 
+- **2026-10-17** — `fireEvent.click` on a `disabled` radio still fires React's
+  `onChange` in jsdom (browsers do not), so a "cannot be selected" test passes
+  only if the handler itself guards on `disabled`. `RadioOption.tsx`.
 - **2026-10-15** — A modal that mounts after an async step (e.g. Compare
   fetch) restores focus to `<body>` on close: `useFocusTrap` captures
   `document.activeElement` at mount, by which time the busy trigger button

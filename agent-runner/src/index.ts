@@ -29,7 +29,8 @@ function resolvePostAs(value: string | undefined): PostAs {
 
 export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number> {
   const devdigestDir = env.DEVDIGEST_DIR ?? path.join(process.cwd(), '.devdigest');
-  const resultPath = env.DEVDIGEST_RESULT_PATH ?? path.join(process.cwd(), 'devdigest-result.json');
+  // Optional full-path override; otherwise `runCi` writes devdigest-result-<slug>.json into cwd.
+  const resultPath = env.DEVDIGEST_RESULT_PATH;
   const postAs = resolvePostAs(env.DEVDIGEST_POST_AS);
 
   // No global LLM client — always injected (reviewer-core invariant). An empty
@@ -43,7 +44,8 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<number
     env,
     llm,
     postAs,
-    resultPath,
+    resultDir: process.cwd(),
+    ...(resultPath ? { resultPath } : {}),
     readFile: readFileSync,
     readDir: readdirSync,
     writeFile: writeFileSync,
