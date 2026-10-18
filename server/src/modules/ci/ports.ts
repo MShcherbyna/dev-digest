@@ -88,6 +88,8 @@ export interface CiGitHub {
   secretStatus(repo: string, name: string): Promise<CiSecretStatus>;
   commit(repo: string, input: CiCommitInput): Promise<{ commitSha: string }>;
   findOpenPr(repo: string, headBranch: string): Promise<CiPr | null>;
+  /** true when every commit of `head` is already in `base` (e.g. a merged `devdigest/ci`). */
+  isMerged(repo: string, base: string, head: string): Promise<boolean>;
   openPr(repo: string, input: { title: string; head: string; base: string; body: string }): Promise<CiPr>;
   prState(repo: string, number: number): Promise<CiPrState>;
   listWorkflowRuns(repo: string, workflowFile: string, sinceIso: string, limit: number): Promise<CiWorkflowRun[]>;

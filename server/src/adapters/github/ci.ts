@@ -181,6 +181,12 @@ export class OctokitCiGitHub implements CiGitHub {
     return pr ? { url: pr.html_url, number: pr.number } : null;
   }
 
+  async isMerged(repo: string, base: string, head: string): Promise<boolean> {
+    const r = split(repo);
+    const res = await this.read('git', () => this.octokit.rest.repos.compareCommits({ ...r, base, head, per_page: 1 }));
+    return res.data.status === 'behind' || res.data.status === 'identical';
+  }
+
   async openPr(repo: string, input: { title: string; head: string; base: string; body: string }): Promise<CiPr> {
     const r = split(repo);
     return this.write('pulls', async () => {

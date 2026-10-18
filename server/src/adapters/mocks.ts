@@ -477,6 +477,7 @@ export type MockCiOp =
   | 'secretStatus'
   | 'commit'
   | 'findOpenPr'
+  | 'isMerged'
   | 'openPr'
   | 'prState'
   | 'listWorkflowRuns'
@@ -509,6 +510,7 @@ export class MockCiGitHub implements CiGitHub {
 
   private snapshots = new Map<string, Map<string, string>>();
   private branches = new Map<string, string>();
+  private parents = new Map<string, string>();
   private runs: CiWorkflowRun[] = [];
   private artifacts = new Map<number, { runId: number; ref: CiArtifactRef; artifact: MockCiArtifact }>();
   private seq = 0;
@@ -595,6 +597,7 @@ export class MockCiGitHub implements CiGitHub {
     for (const d of input.deletes) files.delete(d);
     const sha = `c${this.seq++}`;
     this.snapshots.set(sha, files);
+    this.parents.set(sha, input.parent.commitSha);
     if (!input.createBranch && !this.branches.has(input.branch)) throw new CiGitHubError('unexpected', 'branch missing');
     this.branches.set(input.branch, sha);
     return { commitSha: sha };
@@ -604,6 +607,22 @@ export class MockCiGitHub implements CiGitHub {
     this.enter('findOpenPr', headBranch);
     const pr = this.prs.find((p) => p.head === headBranch && p.state === 'open');
     return pr ? { url: pr.url, number: pr.number } : null;
+  }
+
+  async isMerged(_repo: string, base: string, head: string): Promise<boolean> {
+    this.enter('isMerged', base, head);
+    const target = this.branches.get(head);
+    for (let sha = this.branches.get(base); sha; sha = this.parents.get(sha)) if (sha === target) return true;
+    return false;
+  }
+
+  /** Simulate merging `branch` into `into` on GitHub (a merge commit with the branch's files). */
+  mergeBranch(branch: string, into = 'main'): void {
+    const sha = `c${this.seq++}`;
+    this.snapshots.set(sha, new Map(this.snapshots.get(this.branches.get(branch)!)));
+    this.parents.set(sha, this.branches.get(branch)!);
+    this.branches.set(into, sha);
+    for (const pr of this.prs) if (pr.head === branch && pr.state === 'open') pr.state = 'merged';
   }
 
   async openPr(_repo: string, input: { title: string; head: string; base: string; body: string }): Promise<CiPr> {
