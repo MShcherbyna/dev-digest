@@ -38,7 +38,7 @@ describe('buildResultArtifact (AC-20)', () => {
       commit_sha: 'deadbeef',
       repo: 'acme/widgets',
     });
-    expect(RUNNER_VERSION).toBe('2');
+    expect(RUNNER_VERSION).toBe('3');
   });
 
   it('maps events to verdicts', () => {

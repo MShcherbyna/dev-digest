@@ -15,6 +15,7 @@ import {
   linkSkill,
   newAgent,
   seedCiRepo,
+  workflowWith,
   WORKFLOW_PATH,
 } from './helpers/ci.js';
 
@@ -170,20 +171,34 @@ d('POST /agents/:id/export-ci (Testcontainers pg)', () => {
     expect(res.json().installation).toMatchObject({ mode: 'manual', status: 'pending', pr_url: null, removal_pr_url: null });
   });
 
-  it('AC-31: another agent installed in the repo blocks both PR and zip (409 multi_agent_unsupported)', async () => {
-    const gh = new MockCiGitHub();
+  it('AC-15: exporting agent B next to agent A adds only B, keeps A byte-identical (PR and zip)', async () => {
+    // Catches: a second export overwriting/deleting another agent's manifest or job,
+    // or the retired AC-31 gate still blocking a multi-agent repo.
+    const alphaManifest = 'name: Alpha\n';
+    const alphaWorkflow = workflowWith('alpha');
+    const gh = new MockCiGitHub({
+      files: { '.devdigest/agents/alpha.yaml': alphaManifest, [WORKFLOW_PATH]: alphaWorkflow },
+    });
     app = await buildCiApp(pg.handle.db, gh);
     const repo = await seedCiRepo(pg.handle.db, workspaceId);
-    const a = await newAgent(app, 'Gate A');
-    const b = await newAgent(app, 'Gate B');
-    await installDirect(pg.handle.db, { agentId: a.id, repo: repo.fullName, slug: 'gate-a' });
-    for (const mode of ['pr', 'manual']) {
-      const res = await exportCi(b.id, exportBody(repo.fullName, { mode }));
-      expect(res.statusCode).toBe(409);
-      expect(res.json().error.code).toBe('multi_agent_unsupported');
-    }
-    expect(gh.calls).toHaveLength(0);
-    expect(await installations(b.id)).toHaveLength(0);
+    const a = await newAgent(app, 'Alpha');
+    const b = await newAgent(app, 'Beta');
+    await installDirect(pg.handle.db, { agentId: a.id, repo: repo.fullName, slug: 'alpha' });
+
+    const res = await exportCi(b.id, exportBody(repo.fullName));
+    expect(res.statusCode).toBe(200);
+    const upserts = gh.commits[0]!.upserts.map((u: { path: string }) => u.path);
+    expect(upserts).toContain('.devdigest/agents/beta.yaml');
+    expect(upserts).not.toContain('.devdigest/agents/alpha.yaml');
+    expect(gh.commits[0]!.deletes).toEqual([]);
+    const wf = gh.filesOf('devdigest/ci')[WORKFLOW_PATH]!;
+    expect(wf).toContain(alphaWorkflow.slice(alphaWorkflow.indexOf('  alpha:')).trimEnd());
+    expect(wf).toContain('DEVDIGEST_AGENT: beta');
+
+    const zip = await exportCi(b.id, exportBody(repo.fullName, { mode: 'manual' }));
+    expect(zip.statusCode).toBe(200);
+    expect(await installations(a.id)).toHaveLength(1);
+    expect(await installations(b.id)).toHaveLength(1);
   });
 
   it('AC-32: the same slug on another agent is 409 agent_slug_conflict', async () => {

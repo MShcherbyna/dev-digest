@@ -3,7 +3,7 @@ import { CiResultArtifact } from '@devdigest/shared';
 import { RunnerError } from './errors.js';
 
 /** Runner version string embedded in every artifact (informational only). */
-export const RUNNER_VERSION = '2';
+export const RUNNER_VERSION = '3';
 
 /** Mirrors `reviewer-core/package.json` `version`; `artifact.test.ts` asserts they match. */
 export const REVIEWER_CORE_VERSION = '0.0.0';

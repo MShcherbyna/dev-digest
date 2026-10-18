@@ -94,14 +94,13 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
 
   try {
     // 1. Load + validate the manifest BEFORE it is used for anything (AC-20).
-    // NOTE: selecting the manifest by `DEVDIGEST_AGENT` is D-MA-1, external to
-    // this plan; today exactly one manifest is expected, so the file name is the
-    // fallback slug when `DEVDIGEST_AGENT` is unset.
-    const { manifest, slug: manifestSlug } = loadManifestWithSlug(deps.devdigestDir, {
-      readFile,
-      readDir,
-    });
-    const slug = deps.env.DEVDIGEST_AGENT || manifestSlug;
+    // The workflow job selects its agent with `DEVDIGEST_AGENT` (D-MA-1/2, AC-18);
+    // other agents' manifests in `.devdigest/agents/` are never read.
+    const { manifest, slug } = loadManifestWithSlug(
+      deps.devdigestDir,
+      { readFile, readDir },
+      deps.env.DEVDIGEST_AGENT || undefined,
+    );
     const skills = loadSkillBodies(deps.devdigestDir, manifest.skills, readFile);
     // A malformed memory.jsonl throws -> hard-fail like an invalid manifest.
     const memory = loadMemory(deps.devdigestDir, readFile);

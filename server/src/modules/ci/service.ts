@@ -163,9 +163,6 @@ export class CiService {
     if (block === 'agent_slug_conflict') {
       throw new AppError('agent_slug_conflict', 'Another agent in this repository already uses this slug; rename the agent', 409);
     }
-    if (block === 'multi_agent_unsupported') {
-      throw new AppError('multi_agent_unsupported', 'Multi-agent CI support is not available yet', 409);
-    }
 
     let gh: CiGitHub | undefined;
     let target: Head | undefined;
@@ -332,11 +329,14 @@ export class CiService {
     return buildFileBundle({ agent, skills, memory, runner });
   }
 
-  /** AC-31 / AC-32, from the database only (no GitHub call). */
+  /**
+   * AC-32, from the database only (no GitHub call). Other agents in the repo are
+   * fine since the multi-manifest runner landed (D-MA-1..4): the AC-31 gate is retired,
+   * so `multi_agent_unsupported` is never returned.
+   */
   private installBlock(installations: InstallationRecord[], agentId: string, slug: string): CiInstallBlock | null {
     const others = installations.filter((i) => i.agentId !== agentId);
     if (others.some((i) => i.agentSlug === slug)) return 'agent_slug_conflict';
-    if (others.length > 0) return 'multi_agent_unsupported';
     return null;
   }
 
