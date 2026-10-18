@@ -6,7 +6,7 @@ on:
       - synchronize
 jobs:
   performance-reviewer:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'devdigest/ci'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -33,7 +33,7 @@ jobs:
           path: devdigest-result-performance-reviewer.json
           if-no-files-found: ignore
   api-contract-reviewer:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'devdigest/ci'
     runs-on: ubuntu-latest
     permissions:
       contents: read
