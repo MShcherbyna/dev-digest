@@ -1,13 +1,15 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Db } from '../../../db/client.js';
 import * as t from '../../../db/schema.js';
-import type { RunSummary, RunTrace } from '@devdigest/shared';
-import type { RunTraceWithContext } from '../../project-context/schemas.js';
+import type { RunTrace } from '@devdigest/shared';
+import type { RunSummaryWithParent, RunTraceStored } from '../schemas.js';
 
 // ---- in-flight / history --------------------------------------------------
 
-/** In-flight runs for a PR (status='running') — the server-side source of
- *  truth for "which agents are running now". Joined with the agent name. */
+/** In-flight runs for a PR (status IN ('running','queued')) — the server-side
+ *  source of truth for "which agents are running now". Joined with the agent
+ *  name. `queued` counts as active so AC-37's 409 guard and the UI's polling
+ *  both see a multi-run's not-yet-started children. */
 export async function activeRunsForPull(
   db: Db,
   workspaceId: string,
@@ -26,7 +28,7 @@ export async function activeRunsForPull(
       and(
         eq(t.agentRuns.workspaceId, workspaceId),
         eq(t.agentRuns.prId, prId),
-        eq(t.agentRuns.status, 'running'),
+        inArray(t.agentRuns.status, ['running', 'queued']),
       ),
     );
   return rows.map((r) => ({
@@ -42,7 +44,7 @@ export async function listRunsForPull(
   db: Db,
   workspaceId: string,
   prId: string,
-): Promise<RunSummary[]> {
+): Promise<RunSummaryWithParent[]> {
   const rows = await db
     .select({ run: t.agentRuns, agentName: t.agents.name })
     .from(t.agentRuns)
@@ -66,6 +68,9 @@ export async function listRunsForPull(
     ran_at: run.ranAt ? run.ranAt.toISOString() : null,
     score: run.score,
     blockers: run.blockers,
+    // Module-local extension (RunSummaryWithParent on the client, Q-1): null
+    // for a single-agent run, the parent multi_agent_runs id for a child row.
+    multi_agent_run_id: run.multiAgentRunId,
   }));
 }
 
@@ -91,30 +96,39 @@ export async function deleteAgentRun(
   return rows.length > 0;
 }
 
-/** Mark a still-running run as cancelled (no-op if it already finished). */
+/** Mark a still-running (or still-queued) run as cancelled (no-op if it
+ *  already reached a terminal state). `queued` matters for AC-19: cancelling
+ *  a multi-run must also cancel children that never got a slot. */
 export async function cancelRunIfRunning(db: Db, runId: string): Promise<boolean> {
   const rows = await db
     .update(t.agentRuns)
     .set({ status: 'cancelled' })
-    .where(and(eq(t.agentRuns.id, runId), eq(t.agentRuns.status, 'running')))
+    .where(and(eq(t.agentRuns.id, runId), inArray(t.agentRuns.status, ['running', 'queued'])))
     .returning({ id: t.agentRuns.id });
   return rows.length > 0;
 }
 
-/** On boot: any run still 'running' is orphaned (its process died / restarted),
- *  so mark it failed. Prevents permanently stuck "running" runs in the UI. */
+/** On boot: any run still 'running' OR 'queued' is orphaned (its process died
+ *  / restarted — the in-memory limiter that would have promoted it is gone
+ *  too), so mark it failed. Without reaping `queued` too, an orphaned child
+ *  would keep the parent PR "non-terminal" and AC-37's 409 guard would never
+ *  clear after a restart. */
 export async function reapStaleRunningRuns(db: Db): Promise<number> {
   const rows = await db
     .update(t.agentRuns)
     .set({ status: 'failed' })
-    .where(eq(t.agentRuns.status, 'running'))
+    .where(inArray(t.agentRuns.status, ['running', 'queued']))
     .returning({ id: t.agentRuns.id });
   return rows.length;
 }
 
 // ---- observability: agent_runs + run_traces -------------------------------
 
-/** Create an agent_runs row in `running` state; returns its id (= the runId). */
+/** Create an agent_runs row. Defaults to `running`/no parent so the existing
+ *  single-agent call sites are unchanged; the multi-agent-run repository
+ *  passes `status: 'queued'` for children beyond the concurrency bound and
+ *  `multiAgentRunId` to link the child to its parent. Returns the row id
+ *  (= the runId). */
 export async function createAgentRun(
   db: Db,
   values: {
@@ -123,6 +137,8 @@ export async function createAgentRun(
     prId: string;
     provider: string | null;
     model: string | null;
+    status?: 'queued' | 'running';
+    multiAgentRunId?: string | null;
   },
 ): Promise<string> {
   const [row] = await db
@@ -133,11 +149,36 @@ export async function createAgentRun(
       prId: values.prId,
       provider: values.provider,
       model: values.model,
-      status: 'running',
+      status: values.status ?? 'running',
+      multiAgentRunId: values.multiAgentRunId ?? null,
       source: 'local',
     })
     .returning({ id: t.agentRuns.id });
   return row!.id;
+}
+
+/**
+ * Promote a `queued` child to `running` as a limiter slot frees, resetting
+ * `ran_at` so the wall-clock total (AC-16) measures from when the agent
+ * actually started, not when the multi-run was created (R9). A row already
+ * `running` (the first `concurrency_limit` children, created running so they
+ * can start immediately) is a no-op pass-through — `ran_at` is left alone —
+ * so the SAME gate works uniformly for every job the executor's limiter
+ * schedules, whatever its initial state. Returns `false` only when the row is
+ * in neither state (cancelled before a slot opened) — the executor treats
+ * that as "do not run", gated from the DB rather than `runBus.isCancelled`,
+ * because `runBus.complete()` clears the cancel flag before this could run.
+ */
+export async function markRunningIfQueued(db: Db, runId: string): Promise<boolean> {
+  const rows = await db
+    .update(t.agentRuns)
+    .set({
+      status: 'running',
+      ranAt: sql`case when ${t.agentRuns.status} = 'queued' then now() else ${t.agentRuns.ranAt} end`,
+    })
+    .where(and(eq(t.agentRuns.id, runId), inArray(t.agentRuns.status, ['queued', 'running'])))
+    .returning({ id: t.agentRuns.id });
+  return rows.length > 0;
 }
 
 export async function completeAgentRun(
@@ -160,6 +201,9 @@ export async function completeAgentRun(
     error?: string | null;
   },
 ): Promise<void> {
+  // Status-guarded: never overwrite a row a run-wide cancel already moved to
+  // 'cancelled' (the multi-agent pre-work `failAll` path can race a cancel —
+  // the cancel's terminal state must win).
   await db
     .update(t.agentRuns)
     .set({
@@ -174,11 +218,11 @@ export async function completeAgentRun(
       blockers: values.blockers ?? null,
       error: values.error ?? null,
     })
-    .where(eq(t.agentRuns.id, runId));
+    .where(and(eq(t.agentRuns.id, runId), ne(t.agentRuns.status, 'cancelled')));
 }
 
 /** Persist the WHOLE run log as ONE document. PK = runId → agent_runs. */
-export async function saveRunTrace(db: Db, runId: string, trace: RunTraceWithContext): Promise<void> {
+export async function saveRunTrace(db: Db, runId: string, trace: RunTraceStored): Promise<void> {
   await db
     .insert(t.runTraces)
     .values({ runId, trace })

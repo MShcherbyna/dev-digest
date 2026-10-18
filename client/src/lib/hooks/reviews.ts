@@ -14,9 +14,9 @@ import type {
   ReviewRecord,
   ReviewRunResponse,
   RunEvent,
-  RunSummary,
   SmartDiffResponse,
 } from "@devdigest/shared";
+import type { RunSummaryWithParent } from "../types";
 
 // ---- Active (in-flight) runs — server-side source of truth ----
 export interface ActiveRun {
@@ -38,15 +38,17 @@ export function usePrActiveRuns(prId: string | null | undefined) {
 }
 
 // ---- Full run history for a PR (every agent_runs row, any status) ----
-/** All runs for a PR — done, failed (with error), cancelled, running. Survives
-   reload (DB-backed). Polls while anything is running so it self-updates. */
+/** All runs for a PR — done, failed (with error), cancelled, running/queued
+   (multi-agent children may sit `queued`). Survives reload (DB-backed). Polls
+   while anything is running or queued so it self-updates. Each row also
+   carries `multi_agent_run_id` (AC-6, module-local extension). */
 export function usePrRuns(prId: string | null | undefined) {
   return useQuery({
     queryKey: queryKeys.prRuns(prId),
-    queryFn: () => api.get<RunSummary[]>(`/pulls/${prId}/runs`),
+    queryFn: () => api.get<RunSummaryWithParent[]>(`/pulls/${prId}/runs`),
     enabled: !!prId,
     refetchInterval: (query) =>
-      (query.state.data ?? []).some((r) => r.status === "running") ? 4000 : false,
+      (query.state.data ?? []).some((r) => r.status === "running" || r.status === "queued") ? 4000 : false,
   });
 }
 

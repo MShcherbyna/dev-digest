@@ -19,7 +19,11 @@ See also: `insights/gotchas.md` for known quirks at project start.
 
 ## Tool & Library Notes
 
+2026-10-17 — With `OpenRouterProvider` (openai SDK) bundled, `ncc build` emits `dist/index.js` (~1.7 MB) PLUS a lazy chunk `dist/310.index.js` (node-fetch `fileFromPath`, never reached by the runner), and `grep -c "^import\|require(" dist/index.js` prints `1` (ncc's own `import { createRequire } from "module"` shim on line 1), not `0`. The earlier "0" claim only held for the T7 placeholder. Only `index.js` is embedded in the export PR, so treat "zero imports" as "no `@devdigest/*`/`node_modules` imports": `grep -n "^import" dist/index.js` must show only the `module` shim. ref: agent-runner/package.json:9
+
 2026-07-08 — `@vercel/ncc` versions jump from `0.38.4` straight to `0.43.0`/`0.44.x` on npm (no `0.39`–`0.42` releases). A `^0.38.3` semver range resolves to `0.38.4`, not the newer `0.44.x` line — pin explicitly if the newer major-minor is desired. ref: agent-runner/package.json:15
+
+2026-10-18 — Multi-agent repos (D-MA-1): the runner picks its manifest ONLY from `DEVDIGEST_AGENT` (`agents/<slug>.yaml`), validated against the AC-32 kebab-case slug regex before it is joined into a path, so the env var can never escape `agents/`. Without the env var the old "exactly one manifest" rule still applies — never fall back to "first manifest found", a multi-agent job missing its env var must fail, not silently review as another agent. The server-side AC-31 gate was retired in the same change; `multi_agent_unsupported` stays in the vendored `CiInstallBlock` enum but is never emitted. ref: agent-runner/src/manifest.ts:96
 
 ## Recurring Errors & Fixes
 

@@ -1,0 +1,58 @@
+import type { CSSProperties } from "react";
+
+/** Co-located styles for ConfigureStep (screenshot 5). */
+export const s = {
+  wrap: { maxWidth: 600 } satisfies CSSProperties,
+  group: { marginBottom: 20 } satisfies CSSProperties,
+  label: { fontSize: 13, fontWeight: 600, color: "var(--text-secondary)", marginBottom: 8 } satisfies CSSProperties,
+  chips: { display: "flex", flexWrap: "wrap", gap: 7 } satisfies CSSProperties,
+  chip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "5px 12px",
+    borderRadius: 6,
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: "pointer",
+    border: "1px solid var(--border)",
+    background: "transparent",
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  chipOn: { border: "1px solid var(--accent)", background: "var(--accent-bg)", color: "var(--accent-text)" } satisfies CSSProperties,
+  hint: { fontSize: 12, color: "var(--text-muted)", marginTop: 8, lineHeight: 1.45 } satisfies CSSProperties,
+  warn: { fontSize: 12, color: "var(--warn)", marginTop: 8, lineHeight: 1.45 } satisfies CSSProperties,
+  secrets: { border: "1px solid var(--border)", borderRadius: 7, overflow: "hidden" } satisfies CSSProperties,
+  secretRow: { display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "var(--bg-elevated)" } satisfies CSSProperties,
+  secretName: { fontSize: 12, fontWeight: 600, width: 190, flexShrink: 0 } satisfies CSSProperties,
+  secretDesc: { fontSize: 12, color: "var(--text-muted)", flex: 1 } satisfies CSSProperties,
+  radios: { display: "flex", flexDirection: "column", gap: 7 } satisfies CSSProperties,
+  radio: { display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "var(--text-secondary)" } satisfies CSSProperties,
+  radioDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 99,
+    // Longhands, not `border`: the checked state overrides borderColor only, and React
+    // warns when a shorthand and its longhand are mixed across rerenders.
+    borderWidth: 1.5,
+    borderStyle: "solid",
+    borderColor: "var(--border-strong)",
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0,
+  } satisfies CSSProperties,
+  note: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 10,
+    padding: "11px 13px",
+    borderRadius: 8,
+    border: "1px solid var(--border)",
+    background: "var(--bg-surface)",
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: "var(--text-secondary)",
+  } satisfies CSSProperties,
+  strong: { color: "var(--text-primary)", fontWeight: 600 } satisfies CSSProperties,
+  state: { fontSize: 13, color: "var(--text-secondary)" } satisfies CSSProperties,
+} as const;

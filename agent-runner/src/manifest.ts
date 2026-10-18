@@ -21,7 +21,7 @@ export interface FsDeps {
   readDir?: typeof readdirSync;
 }
 
-/** Find the single agent manifest file under `<devdigestDir>/agents/`. */
+/** Find the single agent manifest file under `<devdigestDir>/agents/` (no `DEVDIGEST_AGENT`). */
 export function findManifestPath(devdigestDir: string, deps: FsDeps = {}): string {
   const readDir = deps.readDir ?? readdirSync;
   const agentsDir = path.join(devdigestDir, 'agents');
@@ -39,7 +39,7 @@ export function findManifestPath(devdigestDir: string, deps: FsDeps = {}): strin
   }
   if (yamlFiles.length > 1) {
     throw new RunnerError(
-      `Expected exactly one agent manifest in ${agentsDir}, found ${yamlFiles.length}: ${yamlFiles.join(', ')}`,
+      `Expected exactly one agent manifest in ${agentsDir}, found ${yamlFiles.length}: ${yamlFiles.join(', ')}; set DEVDIGEST_AGENT to pick one`,
     );
   }
   return path.join(agentsDir, yamlFiles[0]!);
@@ -80,4 +80,33 @@ export function loadAgentManifest(manifestPath: string, deps: FsDeps = {}): Agen
 export function loadManifest(devdigestDir: string, deps: FsDeps = {}): AgentManifest {
   const manifestPath = findManifestPath(devdigestDir, deps);
   return loadAgentManifest(manifestPath, deps);
+}
+
+/** AC-32 agent slug: kebab-case ASCII. Also keeps `DEVDIGEST_AGENT` from escaping `agents/`. */
+const AGENT_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * Locate + load + validate the manifest this job reviews with, and return its
+ * slug (the file name without its extension).
+ *
+ * D-MA-1 / AC-18: with `selected` (the workflow's `DEVDIGEST_AGENT`) only
+ * `agents/<selected>.yaml` is read, so other agents' manifests in the same
+ * directory never cause a failure. Without it, exactly one manifest must exist
+ * (a hand-written single-agent setup).
+ */
+export function loadManifestWithSlug(
+  devdigestDir: string,
+  deps: FsDeps = {},
+  selected?: string,
+): { manifest: AgentManifest; slug: string } {
+  if (selected) {
+    if (!AGENT_SLUG.test(selected)) {
+      throw new RunnerError(`DEVDIGEST_AGENT '${selected}' is not a valid agent slug (kebab-case ASCII)`);
+    }
+    const manifestPath = path.join(devdigestDir, 'agents', `${selected}.yaml`);
+    return { manifest: loadAgentManifest(manifestPath, deps), slug: selected };
+  }
+  const manifestPath = findManifestPath(devdigestDir, deps);
+  const slug = path.basename(manifestPath, path.extname(manifestPath));
+  return { manifest: loadAgentManifest(manifestPath, deps), slug };
 }
