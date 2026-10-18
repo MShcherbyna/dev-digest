@@ -24,8 +24,10 @@ describe('generated workflow (AC-8)', () => {
     expect(Object.keys(wf.jobs)).toEqual(['sec']);
   });
 
-  it('skips fork PRs and limits permissions', () => {
-    expect(job.if).toBe('github.event.pull_request.head.repo.full_name == github.repository');
+  it('skips fork PRs and DevDigest\'s own devdigest/ci PR, limits permissions', () => {
+    expect(job.if).toBe(
+      "github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'devdigest/ci'",
+    );
     expect(job.permissions).toEqual({ contents: 'read', 'pull-requests': 'write' });
   });
 

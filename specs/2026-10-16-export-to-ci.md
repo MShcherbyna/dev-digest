@@ -247,7 +247,9 @@ team's repositories on GitHub.
     chosen on Configure;
   - one job per installed agent, whose job id is the agent slug; export adds
     or replaces only its own job;
-  - the agent's job is skipped for PRs whose head repository is a fork;
+  - the agent's job is skipped for PRs whose head repository is a fork, and
+    for DevDigest's own `devdigest/ci` install/remove PR (its base has no
+    manifest for the agent it adds);
   - job permissions limited to `contents: read` and `pull-requests: write`;
   - checks out the PR's base commit (`pull_request.base.sha`; the diff comes
     from the API, and a PR branch cut before the CI files were merged has no
