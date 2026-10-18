@@ -26,7 +26,11 @@ function authHeaders(token: string, accept: string): Record<string, string> {
   };
 }
 
-/** Fetch the PR's unified diff via the GitHub API's diff media type. */
+/**
+ * Fetch the PR's unified diff via the GitHub API's diff media type. GitHub
+ * refuses that media type for a diff over 20 000 lines (406 `too_large`); the
+ * diff is then rebuilt from the paginated `/files` list instead.
+ */
 export async function fetchPrDiff(
   ctx: Pick<PrContext, 'owner' | 'repo' | 'prNumber'>,
   token: string,
@@ -36,12 +40,59 @@ export async function fetchPrDiff(
   const res = await fetchImpl(url, {
     headers: authHeaders(token, 'application/vnd.github.v3.diff'),
   });
+  if (res.status === 406) return fetchPrDiffFromFiles(url, token, fetchImpl);
   if (!res.ok) {
     throw new RunnerError(
       `GitHub API error fetching PR diff (${url}): ${res.status} ${await res.text().catch(() => '')}`,
     );
   }
   return res.text();
+}
+
+interface PrFile {
+  filename: string;
+  previous_filename?: string;
+  status: string;
+  /** Absent for binary files and for a single file whose patch is too large. */
+  patch?: string;
+}
+
+/** GitHub lists at most 3000 files for a PR, 100 per page. */
+const FILES_PER_PAGE = 100;
+const MAX_FILE_PAGES = 30;
+
+/**
+ * Rebuild a unified diff (one `diff --git a/<old> b/<new>` section per file, the
+ * shape `stripIgnoredFiles` / `parseUnifiedDiff` expect) from `GET /pulls/{n}/files`.
+ * Files without a `patch` (binary, or too large on their own) are skipped: nothing
+ * in them can be cited anyway.
+ */
+async function fetchPrDiffFromFiles(prUrl: string, token: string, fetchImpl: FetchLike): Promise<string> {
+  const sections: string[] = [];
+  for (let page = 1; page <= MAX_FILE_PAGES; page++) {
+    const url = `${prUrl}/files?per_page=${FILES_PER_PAGE}&page=${page}`;
+    const res = await fetchImpl(url, { headers: authHeaders(token, 'application/vnd.github+json') });
+    if (!res.ok) {
+      throw new RunnerError(
+        `GitHub API error listing PR files (${url}): ${res.status} ${await res.text().catch(() => '')}`,
+      );
+    }
+    const files = (await res.json()) as PrFile[];
+    for (const f of files) {
+      if (!f.patch) continue;
+      const oldPath = f.previous_filename ?? f.filename;
+      sections.push(
+        [
+          `diff --git a/${oldPath} b/${f.filename}`,
+          f.status === 'added' ? '--- /dev/null' : `--- a/${oldPath}`,
+          f.status === 'removed' ? '+++ /dev/null' : `+++ b/${f.filename}`,
+          f.patch,
+        ].join('\n'),
+      );
+    }
+    if (files.length < FILES_PER_PAGE) break;
+  }
+  return sections.length > 0 ? `${sections.join('\n')}\n` : '';
 }
 
 /** Post a full review (body + event + optional inline comments) — `post_as: 'github_review'`. */
