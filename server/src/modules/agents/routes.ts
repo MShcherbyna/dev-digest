@@ -34,7 +34,7 @@ const VersionParams = z.object({
 
 /** POST /agents/:id/promote — roll the agent config forward to a copy of `version`. */
 const PromoteBody = z.object({ version: z.number().int().min(1) }).strict();
-const PromoteResponse = z.object({ agent: Agent, version: z.number().int() });
+const PromoteResponse = z.object({ agent: Agent, newVersion: z.number().int() });
 
 const CreateAgentBody = z.object({
   name: z.string().min(1),
@@ -205,7 +205,13 @@ export default async function agentsRoutes(appBase: FastifyInstance) {
     },
     async (req) => {
       const { workspaceId } = await getContext(app.container, req);
-      return service.promote(workspaceId, req.params.id, req.body.version, req.log);
+      const { agent, version } = await service.promote(
+        workspaceId,
+        req.params.id,
+        req.body.version,
+        req.log,
+      );
+      return { agent, newVersion: version };
     },
   );
 

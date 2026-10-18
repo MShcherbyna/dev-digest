@@ -79,7 +79,7 @@ d('POST /agents/:id/promote', () => {
     const res = await promote(app, id, 1);
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.version).toBe(3);
+    expect(body.newVersion).toBe(3);
     expect(body.agent).toMatchObject({
       id,
       version: 3,
