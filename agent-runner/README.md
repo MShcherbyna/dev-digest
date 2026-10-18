@@ -12,7 +12,9 @@ executed by the target repo's workflow as `node .devdigest/runner/index.js`.
 
 1. **Loads + validates** the checked-in manifest `.devdigest/agents/<slug>.yaml`
    and skill bodies `.devdigest/skills/*.md` from the target repo's working tree
-   (validated against `AgentManifest` before use).
+   (validated against `AgentManifest` before use). With several agents in one
+   repo, each workflow job sets `DEVDIGEST_AGENT=<slug>` and only that manifest is
+   read; without it exactly one manifest must exist.
 2. **Resolves the PR context** (owner / repo / number / title / body / fork flag)
    from CI env vars + the `pull_request` event payload.
 3. **Fetches the PR diff** via the GitHub REST API (native `fetch`, no octokit)

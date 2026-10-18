@@ -36,6 +36,19 @@ import { parseUnifiedDiff } from './git/diff-parser.js';
 import type { PriorPrHit, PriorPrQuery, PriorPrSource } from '../modules/blast/ports.js';
 import type { DocFile, DocRead, RepoDocsSource } from '../modules/project-context/ports.js';
 import type { FileRead, FsKind, RepoFile, RepoFiles } from '../modules/onboarding/ports.js';
+import {
+  CiGitHubError,
+  type BranchHead,
+  type CiArtifactDownload,
+  type CiArtifactRef,
+  type CiCommitInput,
+  type CiGitHub,
+  type CiPr,
+  type CiPrState,
+  type CiWorkflowRun,
+  type RunnerBundle,
+} from '../modules/ci/ports.js';
+import type { CiSecretStatus } from '@devdigest/shared';
 
 /**
  * Deterministic MOCK adapters for tests/dev — NO real network. Each mirrors the
@@ -453,5 +466,186 @@ export class MockRepoFiles implements RepoFiles {
       }
     }
     return [...out].sort().slice(0, max);
+  }
+}
+
+// ---------- Mock CI GitHub (Export to CI) ----------
+export type MockCiOp =
+  | 'getBranchHead'
+  | 'listTreePaths'
+  | 'readFile'
+  | 'secretStatus'
+  | 'commit'
+  | 'findOpenPr'
+  | 'openPr'
+  | 'prState'
+  | 'listWorkflowRuns'
+  | 'findArtifact'
+  | 'downloadArtifactJson';
+
+export interface MockCiArtifact {
+  name: string;
+  /** The artifact's JSON text; omit for an artifact the download reports as expired/too large. */
+  text?: string;
+  expired?: boolean;
+  sizeBytes?: number;
+  download?: 'expired' | 'too_large';
+}
+
+/**
+ * In-memory GitHub repository for the ci module: branches with file snapshots,
+ * PRs, workflow runs and artifacts. Records every call (`calls`) and can inject
+ * a `CiGitHubError` per operation (`failOn`). No network.
+ */
+export class MockCiGitHub implements CiGitHub {
+  readonly calls: { op: MockCiOp; args: unknown[] }[] = [];
+  readonly commits: CiCommitInput[] = [];
+  readonly failOn = new Map<MockCiOp, CiGitHubError>();
+  readonly secrets = new Map<string, CiSecretStatus>();
+  /** Open/merged/closed PRs the mock knows about. */
+  readonly prs: (CiPr & { head: string; base: string; title: string; state: CiPrState })[] = [];
+  /** Optional gate awaited by listWorkflowRuns (hold a refresh open in a test). */
+  gate: Promise<void> | null = null;
+
+  private snapshots = new Map<string, Map<string, string>>();
+  private branches = new Map<string, string>();
+  private runs: CiWorkflowRun[] = [];
+  private artifacts = new Map<number, { runId: number; ref: CiArtifactRef; artifact: MockCiArtifact }>();
+  private seq = 0;
+
+  constructor(opts: { defaultBranch?: string; files?: Record<string, string> } = {}) {
+    const base = `c${this.seq++}`;
+    this.snapshots.set(base, new Map(Object.entries(opts.files ?? {})));
+    this.branches.set(opts.defaultBranch ?? 'main', base);
+  }
+
+  count(op: MockCiOp): number {
+    return this.calls.filter((c) => c.op === op).length;
+  }
+
+  /** Files on a branch (or commit sha), for assertions. */
+  filesOf(ref: string): Record<string, string> {
+    return Object.fromEntries(this.snapshots.get(this.branches.get(ref) ?? ref) ?? []);
+  }
+
+  hasBranch(branch: string): boolean {
+    return this.branches.has(branch);
+  }
+
+  addRun(run: Partial<CiWorkflowRun> & { id: number }, artifact?: MockCiArtifact): void {
+    this.runs.push({
+      status: 'completed',
+      conclusion: 'success',
+      htmlUrl: `https://github.com/acme/repo/actions/runs/${run.id}`,
+      headSha: 'abc123',
+      createdAt: new Date().toISOString(),
+      displayTitle: 'PR title',
+      prNumber: null,
+      headRepoIsFork: false,
+      ...run,
+    });
+    if (artifact) {
+      const id = run.id * 10;
+      this.artifacts.set(id, {
+        runId: run.id,
+        ref: { id, sizeBytes: artifact.sizeBytes ?? artifact.text?.length ?? 0, expired: artifact.expired ?? false },
+        artifact,
+      });
+    }
+  }
+
+  private enter(op: MockCiOp, ...args: unknown[]): void {
+    this.calls.push({ op, args });
+    const err = this.failOn.get(op);
+    if (err) throw err;
+  }
+
+  private head(branch: string): BranchHead | null {
+    const sha = this.branches.get(branch);
+    return sha ? { commitSha: sha, treeSha: `tree:${sha}` } : null;
+  }
+
+  async getBranchHead(_repo: string, branch: string): Promise<BranchHead | null> {
+    this.enter('getBranchHead', branch);
+    return this.head(branch);
+  }
+
+  async listTreePaths(_repo: string, treeSha: string): Promise<Set<string>> {
+    this.enter('listTreePaths', treeSha);
+    return new Set(this.snapshots.get(treeSha.replace(/^tree:/, ''))?.keys() ?? []);
+  }
+
+  async readFile(_repo: string, ref: string, path: string): Promise<string | null> {
+    this.enter('readFile', ref, path);
+    const files = this.snapshots.get(ref) ?? this.snapshots.get(this.branches.get(ref) ?? '');
+    return files?.get(path) ?? null;
+  }
+
+  async secretStatus(_repo: string, name: string): Promise<CiSecretStatus> {
+    this.calls.push({ op: 'secretStatus', args: [name] });
+    if (this.failOn.has('secretStatus')) return 'unknown';
+    return this.secrets.get(name) ?? 'not_set';
+  }
+
+  async commit(_repo: string, input: CiCommitInput): Promise<{ commitSha: string }> {
+    this.enter('commit', input.branch);
+    this.commits.push(input);
+    const files = new Map(this.snapshots.get(input.parent.commitSha) ?? []);
+    for (const u of input.upserts) files.set(u.path, u.contents);
+    for (const d of input.deletes) files.delete(d);
+    const sha = `c${this.seq++}`;
+    this.snapshots.set(sha, files);
+    if (!input.createBranch && !this.branches.has(input.branch)) throw new CiGitHubError('unexpected', 'branch missing');
+    this.branches.set(input.branch, sha);
+    return { commitSha: sha };
+  }
+
+  async findOpenPr(_repo: string, headBranch: string): Promise<CiPr | null> {
+    this.enter('findOpenPr', headBranch);
+    const pr = this.prs.find((p) => p.head === headBranch && p.state === 'open');
+    return pr ? { url: pr.url, number: pr.number } : null;
+  }
+
+  async openPr(_repo: string, input: { title: string; head: string; base: string; body: string }): Promise<CiPr> {
+    this.enter('openPr', input.title);
+    const number = 100 + this.prs.length;
+    const pr = { number, url: `https://github.com/acme/repo/pull/${number}`, head: input.head, base: input.base, title: input.title, state: 'open' as const };
+    this.prs.push(pr);
+    return { url: pr.url, number };
+  }
+
+  async prState(_repo: string, number: number): Promise<CiPrState> {
+    this.enter('prState', number);
+    return this.prs.find((p) => p.number === number)?.state ?? 'open';
+  }
+
+  async listWorkflowRuns(_repo: string, _file: string, sinceIso: string, limit: number): Promise<CiWorkflowRun[]> {
+    this.enter('listWorkflowRuns', sinceIso);
+    if (this.gate) await this.gate;
+    return this.runs.filter((r) => r.createdAt >= sinceIso).slice(0, limit);
+  }
+
+  async findArtifact(_repo: string, runId: number, name: string): Promise<CiArtifactRef | null> {
+    this.enter('findArtifact', runId);
+    for (const a of this.artifacts.values()) {
+      if (a.runId === runId && a.artifact.name === name) return a.ref;
+    }
+    return null;
+  }
+
+  async downloadArtifactJson(_repo: string, artifactId: number, _max: number): Promise<CiArtifactDownload> {
+    this.enter('downloadArtifactJson', artifactId);
+    const a = this.artifacts.get(artifactId)?.artifact;
+    if (!a || a.download === 'expired') return { kind: 'expired' };
+    if (a.download === 'too_large') return { kind: 'too_large' };
+    return { kind: 'ok', text: a.text ?? '' };
+  }
+}
+
+// ---------- Mock runner bundle ----------
+export class MockRunnerBundle implements RunnerBundle {
+  constructor(private text = '// devdigest runner bundle (mock)\n') {}
+  async read(): Promise<string> {
+    return this.text;
   }
 }
