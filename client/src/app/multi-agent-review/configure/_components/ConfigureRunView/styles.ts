@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 export const s = {
-  page: { padding: 28, maxWidth: 760 } satisfies CSSProperties,
+  page: { padding: 28, maxWidth: 760, marginLeft: "auto", marginRight: "auto" } satisfies CSSProperties,
   h1: { fontSize: 24, fontWeight: 700, color: "var(--text-primary)", margin: 0 } satisfies CSSProperties,
   subtitle: { fontSize: 14, color: "var(--text-secondary)", marginTop: 6, lineHeight: 1.5 } satisfies CSSProperties,
   stepHeader: { display: "flex", alignItems: "center", gap: 10, marginTop: 28, marginBottom: 12 } satisfies CSSProperties,

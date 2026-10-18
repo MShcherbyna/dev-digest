@@ -51,7 +51,7 @@ export function TabsView({
         <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{t("column.noFindings")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {activeColumn.findings.map((f) => {
+          {activeColumn.findings.map((f, i) => {
             const full = findingsById.get(f.id);
             const members = similarMembers(f, columns);
             if (!full) return null;
@@ -62,6 +62,7 @@ export function TabsView({
                   prId={prId}
                   agentId={activeColumn.agent_id}
                   showTranslate={false}
+                  defaultExpanded={i === 0}
                   pending={findingAction.isPending}
                   onAction={(action) => findingAction.mutate({ findingId: f.id, action, prId })}
                 />

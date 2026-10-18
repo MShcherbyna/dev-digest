@@ -55,11 +55,13 @@ export function DisagreementBlock({
         shown.map((conflict, i) => (
           <div key={`${conflict.file}:${conflict.line}:${i}`} style={s.card}>
             <div style={s.cardHead}>
-              <Icon.Code size={13} style={{ color: "var(--text-muted)" }} />
-              <span className="mono" style={{ color: "var(--text-muted)" }}>
-                {conflict.file}:{conflict.line}
-              </span>
-              {conflict.title}
+              <div style={s.cardTitle}>{conflict.title}</div>
+              <div style={s.cardPath} title={`${conflict.file}:${conflict.line}`}>
+                <Icon.Code size={13} style={{ flexShrink: 0 }} />
+                <span className="mono" style={s.cardPathText}>
+                  {conflict.file}:{conflict.line}
+                </span>
+              </div>
             </div>
             <div style={s.cellsRow}>
               {columns.map((col, idx) => {

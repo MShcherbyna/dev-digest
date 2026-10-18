@@ -4,7 +4,7 @@ import { MULTI_AGENT_CONCURRENCY } from './constants.js';
 import { applyGroupIds, buildLocations, groupFindings } from './domain/grouping.js';
 import { aggregateStatus, latestAttempts, totalCost, wallClockMs } from './domain/run-status.js';
 import type { AgentCatalog, MultiRunChildRow, MultiRunStore, PullLookup, ReviewRunPort } from './ports.js';
-import type { AgentColumnView, MultiAgentRunView } from './schemas.js';
+import type { AgentColumnView, MultiAgentRunView, RecentMultiAgentRun } from './schemas.js';
 
 /**
  * Multi-Agent Review service. Depends only on narrow ports (never
@@ -84,6 +84,22 @@ export class MultiAgentRunService {
     const run = await this.store.latestForPull(workspaceId, prId);
     if (!run) throw new NotFoundError('No multi-agent run for this pull request');
     return this.buildView(run);
+  }
+
+  /** AC-36: the landing page's recent-runs list, instead of always forcing a
+   * new Configure run. */
+  async recent(workspaceId: string, limit: number): Promise<RecentMultiAgentRun[]> {
+    const rows = await this.store.recent(workspaceId, limit);
+    return rows.map((r) => ({
+      id: r.id,
+      pr_id: r.prId,
+      pr_number: r.prNumber,
+      pr_title: r.prTitle,
+      repo_full_name: r.repoFullName,
+      ran_at: r.ranAt.toISOString(),
+      agent_count: r.agentCount,
+      cancelled: r.cancelledAt != null,
+    }));
   }
 
   private async buildView(run: {

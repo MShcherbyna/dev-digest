@@ -144,6 +144,19 @@ export interface LastSelectionResponse {
   agent_ids: string[] | null;
 }
 
+/** One row of `GET /multi-agent-runs` — the landing page's recent-runs list
+ * (AC-36). No per-child status: see server's `RecentMultiRunRow`. */
+export interface RecentMultiAgentRun {
+  id: string;
+  pr_id: string;
+  pr_number: number;
+  pr_title: string;
+  repo_full_name: string;
+  ran_at: string;
+  agent_count: number;
+  cancelled: boolean;
+}
+
 export type { Review, Finding, Severity, Verdict } from "@devdigest/shared";
 export type { PrBrief, SmartDiff } from "@devdigest/shared";
 

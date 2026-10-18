@@ -9,7 +9,7 @@ import { queryKeys } from "./keys";
 import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import { api, ApiError } from "../api";
 import type { AgentUsageStats } from "@devdigest/shared";
-import type { LastSelectionResponse, MultiAgentRunView } from "../types";
+import type { LastSelectionResponse, MultiAgentRunView, RecentMultiAgentRun } from "../types";
 
 /** Polls while the run is still in flight (AC-18 / R8: the client-side
  * fallback for a dropped SSE stream — see the plan's "Lane C - step 11"). */
@@ -90,6 +90,16 @@ export function useRetryMultiAgentChild() {
     mutationFn: ({ id, runId }: { id: string; runId: string }) =>
       api.post<MultiAgentRunView>(`/multi-agent-runs/${id}/runs/${runId}/retry`),
     onSuccess: (data) => qc.setQueryData(queryKeys.multiAgentRun(data.id), data),
+  });
+}
+
+/** The workspace's most recent multi-agent runs across all repos, newest
+ * first (AC-36: the landing page shows these instead of forcing a new
+ * Configure run every time). */
+export function useRecentMultiAgentRuns(limit = 10) {
+  return useQuery({
+    queryKey: queryKeys.recentMultiAgentRuns(limit),
+    queryFn: () => api.get<RecentMultiAgentRun[]>(`/multi-agent-runs?limit=${limit}`),
   });
 }
 

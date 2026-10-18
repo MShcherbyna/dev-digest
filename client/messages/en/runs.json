@@ -167,7 +167,14 @@
       "title": "Run not found",
       "body": "This multi-agent run doesn’t exist, or isn’t visible in this workspace."
     },
-    "crumb": "Multi-Agent Review"
+    "crumb": "Multi-Agent Review",
+    "recent": {
+      "heading": "Recent multi-agent runs",
+      "newRun": "Run new multi-agent review",
+      "item": "#{number} · {title}",
+      "agentCount": "{count, plural, one {# agent} other {# agents}}",
+      "cancelledBadge": "cancelled"
+    }
   },
   "configure": {
     "crumb": "Configure run",

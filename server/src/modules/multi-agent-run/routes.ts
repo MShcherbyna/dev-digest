@@ -7,6 +7,8 @@ import {
   LastSelectionResponse,
   MultiRunChildParams,
   MultiRunParams,
+  RecentMultiAgentRun,
+  RecentMultiAgentRunsQuery,
   StartMultiAgentRunBody,
 } from './schemas.js';
 import { MultiAgentRunService } from './service.js';
@@ -16,6 +18,7 @@ import { MultiAgentRunService } from './service.js';
  *   POST /pulls/:id/multi-agent-run                        -> start a run (AC-1)
  *   GET  /multi-agent-runs/:id                              -> one run, by id (AC-2)
  *   GET  /pulls/:id/multi-agent                             -> the PR's latest run (AC-3)
+ *   GET  /multi-agent-runs                                   -> the workspace's recent runs (AC-36)
  *   POST /multi-agent-runs/:id/cancel                       -> cancel the whole run (AC-19)
  *   POST /multi-agent-runs/:id/runs/:runId/cancel           -> cancel one child (AC-19)
  *   POST /multi-agent-runs/:id/runs/:runId/retry            -> retry one failed child (AC-19)
@@ -38,6 +41,15 @@ export default async function multiAgentRunRoutes(appBase: FastifyInstance) {
     async (req) => {
       const { workspaceId } = await getContext(container, req);
       return service.start(workspaceId, req.params.id, req.body.agent_ids);
+    },
+  );
+
+  app.get(
+    '/multi-agent-runs',
+    { schema: { querystring: RecentMultiAgentRunsQuery, response: { 200: RecentMultiAgentRun.array() } } },
+    async (req) => {
+      const { workspaceId } = await getContext(container, req);
+      return service.recent(workspaceId, req.query.limit);
     },
   );
 
