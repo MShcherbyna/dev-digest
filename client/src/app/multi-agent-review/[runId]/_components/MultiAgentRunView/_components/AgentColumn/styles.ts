@@ -6,8 +6,7 @@ export const s = {
       display: "flex",
       flexDirection: "column",
       gap: 10,
-      minWidth: 260,
-      flex: "1 1 260px",
+      minWidth: 0,
       borderTop: `3px solid ${color}`,
       background: "var(--bg-elevated)",
       border: "1px solid var(--border)",
@@ -61,7 +60,17 @@ export const s = {
   } satisfies CSSProperties,
   findingMeta: { fontSize: 11, color: "var(--text-muted)", marginTop: 2 } satisfies CSSProperties,
   alsoFlagged: { fontSize: 10.5, color: "var(--accent-text)", marginTop: 3 } satisfies CSSProperties,
-  footer: { display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 6, borderTop: "1px solid var(--border)" } satisfies CSSProperties,
+  footer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 6,
+    borderTop: "1px solid var(--border)",
+    // Always sits at the card's bottom edge, regardless of how much (or how
+    // little) content is above it — e.g. when flex-stretch makes this card
+    // as tall as a sibling with far more findings.
+    marginTop: "auto",
+  } satisfies CSSProperties,
   footerLink: {
     background: "none",
     border: "none",

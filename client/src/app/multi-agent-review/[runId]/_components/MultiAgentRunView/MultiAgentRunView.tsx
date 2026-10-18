@@ -8,7 +8,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, EmptyState, Skeleton } from "@devdigest/ui";
+import { Button, EmptyState, Icon, Skeleton } from "@devdigest/ui";
 import { AppShell } from "@/components/app-shell";
 import { useMultiAgentRun, useCancelMultiAgentRun, useCancelMultiAgentChild, useRetryMultiAgentChild } from "@/lib/hooks/multi-agent";
 import { usePrReviews } from "@/lib/hooks/reviews";
@@ -108,7 +108,10 @@ export function MultiAgentRunView({ runId }: { runId: string }) {
           <span style={s.prTitle}>
             #{run.pr_number} {/* title not carried on the multi-run view; shown via the PR link above */}
           </span>
-          <span className="mono" style={s.metaMono}>{headerMeta(run, t)}</span>
+          <span className="mono" style={s.metaMono}>
+            <Icon.Workflow size={13} aria-hidden />
+            {headerMeta(run, t)}
+          </span>
         </div>
 
         <div aria-live="polite" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}>

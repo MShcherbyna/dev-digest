@@ -10,7 +10,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Badge, Button, EmptyState, Skeleton } from "@devdigest/ui";
+import { Badge, Button, EmptyState, Icon, Skeleton } from "@devdigest/ui";
 import { AppShell } from "@/components/app-shell";
 import { useAgents } from "@/lib/hooks/agents";
 import { useRecentMultiAgentRuns } from "@/lib/hooks/multi-agent";
@@ -25,6 +25,16 @@ export function MultiAgentLanding() {
 
   const loading = agentsLoading || (hasEnabled && recentLoading);
   const hasRecent = hasEnabled && (recent?.length ?? 0) > 0;
+
+  const [query, setQuery] = React.useState("");
+  const q = query.trim().toLowerCase();
+  const filtered = (recent ?? []).filter(
+    (r) =>
+      !q ||
+      r.pr_title.toLowerCase().includes(q) ||
+      String(r.pr_number).includes(q) ||
+      r.repo_full_name.toLowerCase().includes(q),
+  );
 
   React.useEffect(() => {
     if (!loading && hasEnabled && recent && recent.length === 0) {
@@ -53,27 +63,42 @@ export function MultiAgentLanding() {
                 {t("page.recent.newRun")}
               </Button>
             </div>
-            <div style={s.list}>
-              {(recent ?? []).map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  style={s.row}
-                  onClick={() => router.push(`/multi-agent-review/${r.id}`)}
-                >
-                  <div style={s.rowLeft}>
-                    <span style={s.rowTitle}>{t("page.recent.item", { number: r.pr_number, title: r.pr_title })}</span>
-                    <span style={s.rowMeta}>
-                      {r.repo_full_name} · {new Date(r.ran_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <div style={s.rowRight}>
-                    {r.cancelled && <Badge color="var(--text-muted)">{t("page.recent.cancelledBadge")}</Badge>}
-                    <span style={s.rowMeta}>{t("page.recent.agentCount", { count: r.agent_count })}</span>
-                  </div>
-                </button>
-              ))}
+            <div style={s.searchBox}>
+              <Icon.Search size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("page.recent.searchPlaceholder")}
+                style={s.searchInput}
+              />
             </div>
+            {filtered.length === 0 ? (
+              <div style={s.rowMeta}>{t("page.recent.noMatches")}</div>
+            ) : (
+              <div style={s.list}>
+                {filtered.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    style={s.row}
+                    onClick={() => router.push(`/multi-agent-review/${r.id}`)}
+                  >
+                    <div style={s.rowLeft}>
+                      <span style={s.rowTitle}>
+                        {t("page.recent.item", { number: r.pr_number, title: r.pr_title })}
+                      </span>
+                      <span style={s.rowMeta}>
+                        {r.repo_full_name} · {new Date(r.ran_at).toLocaleString()}
+                      </span>
+                    </div>
+                    <div style={s.rowRight}>
+                      {r.cancelled && <Badge color="var(--text-muted)">{t("page.recent.cancelledBadge")}</Badge>}
+                      <span style={s.rowMeta}>{t("page.recent.agentCount", { count: r.agent_count })}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

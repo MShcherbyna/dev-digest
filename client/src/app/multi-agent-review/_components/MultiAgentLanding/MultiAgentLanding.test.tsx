@@ -123,4 +123,31 @@ describe("MultiAgentLanding (AC-36)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Run new multi-agent review" }));
     expect(push).toHaveBeenCalledWith("/multi-agent-review/configure");
   });
+
+  it("searches the recent-runs list by PR number, title or repo", async () => {
+    serve({
+      agents: [agent({ enabled: true })],
+      runs: [
+        run({ id: "run-1", pr_number: 42, pr_title: "Fix the thing", repo_full_name: "acme/payments-api" }),
+        run({ id: "run-2", pr_number: 7, pr_title: "Add dark mode", repo_full_name: "acme/web" }),
+      ],
+    });
+    renderLanding();
+
+    expect(await screen.findByText("#42 · Fix the thing")).toBeInTheDocument();
+    const search = screen.getByPlaceholderText("Search by PR, title or repo…");
+
+    await userEvent.type(search, "dark");
+    expect(screen.queryByText("#42 · Fix the thing")).not.toBeInTheDocument();
+    expect(screen.getByText("#7 · Add dark mode")).toBeInTheDocument();
+
+    await userEvent.clear(search);
+    await userEvent.type(search, "payments");
+    expect(screen.getByText("#42 · Fix the thing")).toBeInTheDocument();
+    expect(screen.queryByText("#7 · Add dark mode")).not.toBeInTheDocument();
+
+    await userEvent.clear(search);
+    await userEvent.type(search, "999");
+    expect(screen.getByText("No runs match your search.")).toBeInTheDocument();
+  });
 });

@@ -171,6 +171,8 @@
     "recent": {
       "heading": "Recent multi-agent runs",
       "newRun": "Run new multi-agent review",
+      "searchPlaceholder": "Search by PR, title or repo…",
+      "noMatches": "No runs match your search.",
       "item": "#{number} · {title}",
       "agentCount": "{count, plural, one {# agent} other {# agents}}",
       "cancelledBadge": "cancelled"
@@ -186,6 +188,7 @@
     "retry": "Retry",
     "step2": "Agents to run",
     "selectAll": "Select all",
+    "unselectAll": "Unselect all",
     "pickPrFirstTitle": "Pick a pull request first",
     "pickPrFirstBody": "Choose which PR to review above, then select the agents to run on it.",
     "runButton": "Run multi-agent review ({count})",

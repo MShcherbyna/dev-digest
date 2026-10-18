@@ -1,4 +1,5 @@
-/* ColumnsView — S4: one AgentColumn per selected agent, scrolling horizontally. */
+/* ColumnsView — S4: one AgentColumn per selected agent, grid-wrapped at a
+   max of 4 per row. */
 "use client";
 
 import React from "react";
@@ -19,7 +20,7 @@ export function ColumnsView({
   onRetry: (runId: string) => void;
 }) {
   return (
-    <div style={s.row}>
+    <div style={s.row(columns.length)}>
       {columns.map((col) => (
         <AgentColumn
           key={col.run_id}
