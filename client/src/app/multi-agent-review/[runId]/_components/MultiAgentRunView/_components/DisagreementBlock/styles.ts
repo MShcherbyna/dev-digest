@@ -1,0 +1,51 @@
+import type { CSSProperties } from "react";
+
+export const s = {
+  wrap: { display: "flex", flexDirection: "column", gap: 10 } satisfies CSSProperties,
+  headRow: { display: "flex", alignItems: "center", justifyContent: "space-between" } satisfies CSSProperties,
+  heading: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase",
+    color: "var(--text-muted)",
+  } satisfies CSSProperties,
+  toggleRow: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" } satisfies CSSProperties,
+  toggleLabel: { fontSize: 12.5, color: "var(--text-secondary)" } satisfies CSSProperties,
+  card: {
+    border: "1px solid var(--border)",
+    borderRadius: 10,
+    background: "var(--bg-elevated)",
+    overflow: "hidden",
+  } satisfies CSSProperties,
+  cardHead: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "10px 14px",
+    borderBottom: "1px solid var(--border)",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "var(--text-primary)",
+  } satisfies CSSProperties,
+  cellsRow: { display: "flex" } satisfies CSSProperties,
+  cell: { flex: 1, padding: "10px 14px", borderRight: "1px solid var(--border)" } satisfies CSSProperties,
+  cellLast: { flex: 1, padding: "10px 14px" } satisfies CSSProperties,
+  cellAgent: { fontSize: 12.5, fontWeight: 600, color: "var(--text-primary)" } satisfies CSSProperties,
+  cellVerdict: (color: string) =>
+    ({
+      display: "flex",
+      alignItems: "center",
+      gap: 6,
+      fontSize: 11,
+      fontWeight: 700,
+      letterSpacing: "0.03em",
+      color,
+      marginTop: 4,
+    }) satisfies CSSProperties,
+  cellNote: { fontSize: 12, color: "var(--text-muted)", marginTop: 3 } satisfies CSSProperties,
+  empty: { fontSize: 12.5, color: "var(--text-muted)" } satisfies CSSProperties,
+};

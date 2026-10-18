@@ -29,7 +29,15 @@ export type {
   PrStatus,
 } from "@devdigest/shared";
 
-import type { RunTrace } from "@devdigest/shared";
+import type {
+  RunTrace,
+  RunSummary,
+  AgentColumn,
+  AgentColumnFinding,
+  MultiAgentRun,
+} from "@devdigest/shared";
+
+export type { AgentColumn, AgentColumnFinding, MultiAgentRun, Conflict, ConflictTake } from "@devdigest/shared";
 
 /* Project Context wire types. Module-local (Q1-B): `vendor/shared` is
    do-not-touch, so these mirror `server/src/modules/project-context/schemas.ts`. */
@@ -76,8 +84,65 @@ export interface ProjectContextDocEntry {
   tokens?: number;
 }
 
-/** `RunTrace` plus the module-local project-context field (absent on legacy / attachment-free runs). */
-export type RunTraceView = RunTrace & { project_context_docs?: ProjectContextDocEntry[] };
+/** One finding the grounding gate dropped at run time (AC-31/AC-32). Module-local:
+ * the vendored `RunTrace` has no such field. */
+export interface GroundingDrop {
+  title: string;
+  file: string;
+  start_line: number;
+  end_line: number;
+  reason: string;
+}
+
+/** `RunTrace` plus module-local fields (absent on legacy / older runs). */
+export type RunTraceView = RunTrace & {
+  project_context_docs?: ProjectContextDocEntry[];
+  grounding_dropped?: GroundingDrop[];
+};
+
+/* Multi-Agent Review wire-type extensions (Q-1 of the plan): the vendored
+   `AgentColumn` / `AgentColumnFinding` / `MultiAgentRun` are extended here
+   rather than in `vendor/shared` (do-not-touch). Mirrors
+   `server/src/modules/multi-agent-run/schemas.ts`. */
+
+/** One of an `AgentColumn`'s extra states a single-agent run never has. */
+export type AgentColumnStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+
+/** A finding as surfaced in a multi-agent column, with the fields the results
+ * page needs beyond the vendored subset. */
+export type AgentColumnFindingView = AgentColumnFinding & {
+  end_line: number;
+  /** 0..1 on the wire; multiply by 100 only when rendering. */
+  confidence: number;
+  rationale: string;
+  suggested_fix: string | null;
+  /** Set when grouped with similar findings from other agents (AC-20/AC-21). */
+  group_id: string | null;
+};
+
+/** One agent's column in the multi-agent view. */
+export type AgentColumnView = Omit<AgentColumn, "status" | "findings"> & {
+  status: AgentColumnStatus;
+  findings: AgentColumnFindingView[];
+};
+
+/** Aggregate status of a `MultiAgentRunView`, computed from its children (Q-2). */
+export type MultiRunStatus = "running" | "partial" | "done" | "failed" | "cancelled";
+
+export type MultiAgentRunView = Omit<MultiAgentRun, "columns"> & {
+  status: MultiRunStatus;
+  concurrency_limit: number;
+  requested_agent_ids: string[];
+  columns: AgentColumnView[];
+};
+
+/** `RunSummary` (PR run history row) with the multi-run parent link (AC-6). */
+export type RunSummaryWithParent = RunSummary & { multi_agent_run_id: string | null };
+
+/** Response of `GET /repos/:id/multi-agent/last-selection` (Q-6). */
+export interface LastSelectionResponse {
+  agent_ids: string[] | null;
+}
 
 export type { Review, Finding, Severity, Verdict } from "@devdigest/shared";
 export type { PrBrief, SmartDiff } from "@devdigest/shared";

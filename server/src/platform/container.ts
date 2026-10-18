@@ -62,6 +62,9 @@ import { BriefService } from '../modules/brief/service.js';
 import { BRIEF_TIMEOUT_MS } from '../modules/brief/constants.js';
 import { classifyFile } from '../modules/reviews/smart-diff/classify.js';
 import type { EvalCaseLinks } from '../modules/reviews/ports.js';
+import { ReviewRunPortImpl } from '../modules/reviews/run-port.js';
+import { MultiAgentRunRepository, MultiAgentPullLookup } from '../modules/multi-agent-run/repository.js';
+import { MultiAgentRunService } from '../modules/multi-agent-run/service.js';
 import { EvalRepository } from '../modules/eval/repository.js';
 import { EvalService } from '../modules/eval/service.js';
 import { createAgentConfigs } from '../modules/eval/agent-configs.js';
@@ -135,6 +138,7 @@ export class Container {
   private _brief?: BriefService;
   private _eval?: EvalService;
   private _evalRepo?: EvalRepository;
+  private _multiAgentRun?: MultiAgentRunService;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -344,6 +348,27 @@ export class Container {
   /** Finding -> eval case links for the reviews read (reviews port, implemented by the eval repository). */
   get evalCaseLinks(): EvalCaseLinks {
     return this.evalRepo;
+  }
+
+  /**
+   * Multi-Agent Review (SPEC-2026-10-16). A singleton per container on
+   * purpose: it owns the per-multi-run `Limiter` map, which must be shared
+   * across the start/retry calls of the same run. Reaches review execution
+   * ONLY through `ReviewRunPortImpl` (never `reviews/repository*` or
+   * `run-executor.ts` directly — architecture constraint).
+   */
+  get multiAgentRun(): MultiAgentRunService {
+    if (!this._multiAgentRun) {
+      const store = new MultiAgentRunRepository(this.db);
+      const runPort = new ReviewRunPortImpl(this, this.reviewRepo, this.agentsRepo);
+      this._multiAgentRun = new MultiAgentRunService(
+        store,
+        runPort,
+        { listEnabled: (workspaceId) => this.agentsRepo.listEnabled(workspaceId) },
+        new MultiAgentPullLookup(this.db),
+      );
+    }
+    return this._multiAgentRun;
   }
 
   get codeIndex(): CodeIndex {

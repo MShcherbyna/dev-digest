@@ -65,8 +65,18 @@
     "error": "error",
     "cancelled": "cancelled",
     "running": "running",
+    "queued": "queued",
     "findings": "{count} finding(s)",
     "blockers": " · {count} blockers"
+  },
+  "picker": {
+    "heading": "Pick agents to run",
+    "clear": "Clear",
+    "runMulti": "Run multi-agent review ({count})",
+    "configureAgents": "Configure agents…",
+    "noEstimateYet": "no estimate yet",
+    "maxReached": "Up to {max} agents per run",
+    "noAgentsEnabled": "No agents enabled — enable one in Settings → Agents"
   },
   "smartDiff": {
     "coreLabel": "Core logic",
@@ -142,6 +152,8 @@
   "timeline": {
     "goToReview": "Jump to this run’s findings below",
     "openTrace": "Open run trace & logs",
-    "deleteRun": "Delete run"
+    "deleteRun": "Delete run",
+    "partOfMultiRun": "part of multi-run",
+    "latestMultiRun": "Latest multi-agent run"
   }
 }

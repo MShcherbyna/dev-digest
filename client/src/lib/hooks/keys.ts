@@ -66,4 +66,8 @@ export const queryKeys = {
       : (["agent-eval-dashboard", agentId, range] as const),
   evalCompare: (a: string | null | undefined, b: string | null | undefined) => ["eval-compare", a, b] as const,
   runTrace: (runId: string | null | undefined) => ["run-trace", runId] as const,
+
+  multiAgentRun: (id: string | null | undefined) => ["multi-agent-run", id] as const,
+  prLatestMultiAgent: (prId: string | null | undefined) => ["pr-latest-multi-agent", prId] as const,
+  repoLastSelection: (repoId: string | null | undefined) => ["repo-last-selection", repoId] as const,
 };

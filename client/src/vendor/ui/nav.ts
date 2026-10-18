@@ -36,6 +36,12 @@ export const NAV: NavGroup[] = [
       { key: "conventions", label: "Conventions", icon: "ListChecks", href: "/conventions", gKey: "c" },
     ],
   },
+  {
+    section: "GLOBAL",
+    items: [
+      { key: "multi-agent", label: "Multi-Agent Review", icon: "Users", href: "/multi-agent-review" },
+    ],
+  },
 ];
 
 export const SETTINGS_ITEM: NavItemDef = {
