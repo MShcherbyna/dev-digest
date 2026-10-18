@@ -255,14 +255,15 @@ Actions на кожному pull request.
     Configure;
   - по одному job на кожного встановленого агента, id job — slug агента;
     експорт додає або замінює лише свій job;
-  - job агента пропускається для PR, у яких head-репозиторій — форк, і для
-    власного PR інсталяції/видалення DevDigest із гілки `devdigest/ci` (у його
-    базі ще немає маніфесту агента, якого він додає);
+  - job агента пропускається для PR, у яких head-репозиторій — форк;
   - дозволи job обмежено `contents: read` і `pull-requests: write`;
-  - робить checkout базового коміту PR (`pull_request.base.sha`; diff береться
-    з API, а в гілці PR, створеній до злиття CI-файлів, `.devdigest/` немає) і
-    запускає збандлений runner `node .devdigest/runner/index.js` на Node 22 або
-    новішому;
+  - робить checkout merge-коміту PR (типова поведінка `actions/checkout`): у
+    ньому є `.devdigest/` з основної гілки навіть для гілки PR, створеної до
+    злиття CI-файлів, і власні файли PR, тож PR інсталяції DevDigest запускає
+    агента, якого додає. PR з того самого репозиторію може змінити runner чи
+    маніфести, якими його рев'юять (прийнятий компроміс; PR із форків не
+    запускаються). Запускає збандлений runner `node .devdigest/runner/index.js`
+    на Node 22 або новішому;
   - передає `OPENROUTER_API_KEY` із секретів репозиторію, `GITHUB_TOKEN`
     workflow, репозиторій, номер PR, `DEVDIGEST_POST_AS` і
     `DEVDIGEST_AGENT=<agent-slug>` (D-MA-2);

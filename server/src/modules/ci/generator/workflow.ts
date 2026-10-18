@@ -1,7 +1,7 @@
 import { Document, isMap, parseDocument, type YAMLMap } from 'yaml';
 import type { CiPostAs, CiTrigger } from '@devdigest/shared';
 import { AppError } from '../../../platform/errors.js';
-import { CI_BRANCH, RUNNER_PATH, resultArtifactName } from '../constants.js';
+import { RUNNER_PATH, resultArtifactName } from '../constants.js';
 
 const TRIGGER_ORDER: CiTrigger[] = ['opened', 'synchronize', 'reopened'];
 
@@ -12,18 +12,18 @@ export function normalizeTriggers(triggers: CiTrigger[]): CiTrigger[] {
 
 /**
  * One agent's job (AC-8). The job id is the agent slug; forks are skipped; permissions are minimal.
- * The checkout is the PR's BASE commit: the runner only reads `.devdigest/**` from disk (the diff
- * comes from the API), and a PR branch cut before the CI files were merged has no `.devdigest/`.
- * It also keeps a PR from swapping the runner or manifests that review it. DevDigest's own
- * install/remove PR (`devdigest/ci`) is skipped: its base has no manifest for the agent it adds.
+ * The checkout is the default one, the PR's MERGE commit: it holds the default branch's
+ * `.devdigest/` (so a PR branch cut before the CI files were merged still has them) plus the PR's
+ * own changes (so DevDigest's install PR runs with the agent it adds). Trade-off: a same-repo PR
+ * can change the runner/manifests that review it; fork PRs never run.
  */
 export function renderAgentJob(slug: string, postAs: CiPostAs): Record<string, unknown> {
   return {
-    if: `github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != '${CI_BRANCH}'`,
+    if: 'github.event.pull_request.head.repo.full_name == github.repository',
     'runs-on': 'ubuntu-latest',
     permissions: { contents: 'read', 'pull-requests': 'write' },
     steps: [
-      { uses: 'actions/checkout@v4', with: { ref: '${{ github.event.pull_request.base.sha }}' } },
+      { uses: 'actions/checkout@v4' },
       { uses: 'actions/setup-node@v4', with: { 'node-version': 22 } },
       {
         name: 'Run DevDigest review',
