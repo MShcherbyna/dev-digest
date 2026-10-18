@@ -55,6 +55,8 @@ interface Head {
   head: BranchHead;
   /** true = `devdigest/ci` does not exist yet and is created from the default branch. */
   createBranch: boolean;
+  /** The open PR from `devdigest/ci`, when there is one (reused instead of opening another). */
+  openPr: CiPr | null;
 }
 
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
@@ -369,21 +371,28 @@ export class CiService {
     }
   }
 
-  /** `devdigest/ci` when it exists, else the default branch (the branch is then created). */
+  /** Where the next commit goes: the open `devdigest/ci` PR, a fresh start from the default branch, or an unmerged leftover branch. */
   private async resolveHead(gh: CiGitHub, repo: RepoRecord): Promise<Head> {
-    const onBranch = await gh.getBranchHead(repo.fullName, CI_BRANCH);
-    if (onBranch) return { head: onBranch, createBranch: false };
-    const onDefault = await gh.getBranchHead(repo.fullName, repo.defaultBranch);
+    const [onBranch, onDefault] = await Promise.all([
+      gh.getBranchHead(repo.fullName, CI_BRANCH),
+      gh.getBranchHead(repo.fullName, repo.defaultBranch),
+    ]);
     if (!onDefault) throw new CiGitHubError('unexpected', 'The default branch was not found on GitHub');
-    return { head: onDefault, createBranch: true };
+    if (!onBranch) return { head: onDefault, createBranch: true, openPr: null };
+    const openPr = await gh.findOpenPr(repo.fullName, CI_BRANCH);
+    if (openPr) return { head: onBranch, createBranch: false, openPr };
+    // A `devdigest/ci` left behind by an already merged PR: start again from the default
+    // branch (a fast-forward of the old branch), so the new PR never rewrites files with
+    // their stale pre-merge copies. An unmerged leftover keeps its commits (E-4).
+    if (await gh.isMerged(repo.fullName, repo.defaultBranch, CI_BRANCH)) {
+      return { head: onDefault, createBranch: false, openPr: null };
+    }
+    return { head: onBranch, createBranch: false, openPr: null };
   }
 
-  /** Reuse the open PR from `devdigest/ci`, otherwise open one (a new branch cannot have a PR yet). */
+  /** Reuse the open PR from `devdigest/ci`, otherwise open one. */
   private async findOrOpenPr(gh: CiGitHub, repo: RepoRecord, target: Head, title: string, body: string): Promise<CiPr> {
-    if (!target.createBranch) {
-      const open = await gh.findOpenPr(repo.fullName, CI_BRANCH);
-      if (open) return open;
-    }
+    if (target.openPr) return target.openPr;
     return gh.openPr(repo.fullName, { title, head: CI_BRANCH, base: repo.defaultBranch, body });
   }
 
