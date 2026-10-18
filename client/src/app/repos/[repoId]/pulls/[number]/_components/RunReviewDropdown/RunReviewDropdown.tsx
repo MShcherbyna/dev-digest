@@ -1,15 +1,14 @@
-/* RunReviewDropdown — ported from components2.jsx.
-   "Run all enabled agents" / a specific agent → kicks off POST /pulls/:id/review
-   and hands the resulting runIds up so the parent can stream SSE live status. */
+/* RunReviewDropdown — trigger button ("Run Review") + the AgentPicker popover
+   (S1, Q-7: full replacement of the old per-agent dropdown). 1 agent checked
+   still calls the unchanged single-agent POST /pulls/:id/review (AC-8); 2+
+   starts a multi-agent run and navigates to its results page (AC-9). */
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Button, Dropdown, type DropdownItemDef } from "@devdigest/ui";
-import { useAgents } from "@/lib/hooks/agents";
-import { useRunReview } from "@/lib/hooks/reviews";
-import { DROPDOWN_WIDTH } from "./constants";
+import { Button } from "@devdigest/ui";
+import { useActiveRepo } from "@/lib/repo-context";
+import { AgentPicker } from "../AgentPicker";
 
 export function RunReviewDropdown({
   prId,
@@ -32,67 +31,22 @@ export function RunReviewDropdown({
   onRunSettled?: () => void;
 }) {
   const t = useTranslations("prReview");
-  const router = useRouter();
-  const { data: agents } = useAgents();
-  const run = useRunReview();
-  const all = agents ?? [];
-  const hasEnabled = all.some((a) => a.enabled);
-
-  const kick = async (opts: { all?: boolean; agentId?: string }) => {
-    onRunStart?.();
-    try {
-      const res = await run.mutateAsync({ prId, ...opts });
-      onRunsStarted?.(res.runs.map((r) => r.run_id));
-    } finally {
-      onRunSettled?.();
-    }
-  };
-
-  // List EVERY agent (not just enabled) so they're always visible; a specific
-  // agent can be run regardless of its enabled flag. "Run all" still targets
-  // only enabled agents.
-  const agentItems: DropdownItemDef[] = all.length
-    ? all.map((a) => ({
-        label: a.name,
-        icon: "Cpu" as const,
-        hint: a.enabled ? a.model : `${a.model} · disabled`,
-        onClick: () => kick({ agentId: a.id }),
-      }))
-    : [{ label: "No agents yet — create one", icon: "Plus", muted: true, onClick: () => router.push("/agents") }];
-
-  const items: DropdownItemDef[] = [
-    // Merged/closed PRs can still be reviewed (informational only); lead with a
-    // muted, non-actionable warning so the intent is clear.
-    ...(warnMerged
-      ? [
-          { label: t("runReview.mergedWarning"), icon: "AlertTriangle" as const, muted: true },
-          { divider: true } as DropdownItemDef,
-        ]
-      : []),
-    {
-      label: t("runReview.runAll"),
-      icon: "Play",
-      ...(hasEnabled ? {} : { muted: true }),
-      onClick: () => kick({ all: true }),
-    },
-    { divider: true },
-    ...agentItems,
-    { divider: true },
-    { label: t("runReview.configureAgents"), icon: "Settings", muted: true, onClick: () => router.push("/agents") },
-  ];
+  const { repoId } = useActiveRepo();
 
   return (
-    <Dropdown
-      width={DROPDOWN_WIDTH}
-      align="right"
-      items={items}
+    <AgentPicker
+      prId={prId}
+      repoId={repoId}
+      onRunStart={onRunStart}
+      onRunsStarted={onRunsStarted}
+      onRunSettled={onRunSettled}
       trigger={
         <span
           title={warnMerged ? t("runReview.mergedTooltip") : undefined}
           style={warnMerged ? { opacity: 0.6 } : undefined}
         >
-          <Button kind={kind} size={size} iconRight="ChevronDown" icon="Sparkles" loading={run.isPending}>
-            {run.isPending ? t("runReview.running") : t("runReview.runReview")}
+          <Button kind={kind} size={size} iconRight="ChevronDown" icon="Sparkles">
+            {t("runReview.runReview")}
           </Button>
         </span>
       }

@@ -71,6 +71,9 @@ flowchart TB
   subgraph Review["Review & runs"]
     reviews["reviews<br/>/pulls/:id/review · /reviews · /findings/:id/(accept|dismiss)<br/>/runs/:id/(events|trace)"]
   end
+  subgraph MultiAgent["Multi-Agent Review"]
+    multiAgentRun["multi-agent-run<br/>/pulls/:id/multi-agent-run · /multi-agent-runs/:id<br/>/pulls/:id/multi-agent · /multi-agent-runs/:id/cancel<br/>/multi-agent-runs/:id/runs/:runId/(cancel|retry)<br/>/repos/:id/multi-agent/last-selection"]
+  end
   subgraph Agents["Agents"]
     agents["agents<br/>/agents · /agents/:id"]
   end

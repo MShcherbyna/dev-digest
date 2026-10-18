@@ -100,6 +100,20 @@ describe("FindingCard eval-case action", () => {
   });
 });
 
+describe("FindingCard showTranslate (default unchanged)", () => {
+  it("shows Translate by default (no showTranslate prop), matching every pre-existing caller", () => {
+    // Catches: the Multi-Agent Review `showTranslate={false}` addition flipping
+    // the default for every other caller that doesn't pass the prop.
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded onAction={() => {}} />);
+    expect(screen.getByRole("button", { name: "Translate" })).toBeInTheDocument();
+  });
+
+  it("hides Translate when explicitly showTranslate={false} (the Multi-Agent Review Tabs view)", () => {
+    renderWithIntl(<FindingCard f={FINDING} defaultExpanded onAction={() => {}} showTranslate={false} />);
+    expect(screen.queryByRole("button", { name: "Translate" })).not.toBeInTheDocument();
+  });
+});
+
 describe("FindingCard translation", () => {
   const RESPONSE = {
     language: "uk",

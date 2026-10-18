@@ -5,16 +5,31 @@
   },
   "column": {
     "noFindings": "No findings.",
-    "findingsCount": "{count, plural, one {# finding} other {# findings}}"
+    "findingsCount": "{count, plural, one {# finding} other {# findings}}",
+    "alsoFlaggedBy": "also flagged by: {agents}",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "statusChip": {
+      "queued": "queued",
+      "running": "running",
+      "failed": "failed, no verdict",
+      "cancelled": "cancelled"
+    }
   },
   "conflicts": {
     "title": "Where agents disagree",
     "onlyConflicts": "Show only conflicts",
     "empty": "No conflicts — the agents agree on every flagged location.",
-    "didNotFlag": "did not flag"
+    "didNotFlag": "did not flag",
+    "failedNoVerdict": "failed, no verdict",
+    "cancelled": "cancelled",
+    "queued": "queued",
+    "running": "running",
+    "noVerdictYet": "No agent has produced a verdict for this run yet."
   },
   "tabs": {
-    "noSummary": "No summary."
+    "noSummary": "No summary.",
+    "similarFindings": "Similar findings"
   },
   "trace": {
     "configuration": "Configuration",
@@ -23,6 +38,9 @@
     "toolCalls": "Tool calls",
     "rawOutput": "Raw output",
     "noToolCalls": "No tool calls recorded.",
+    "groundingDropped": {
+      "title": "Dropped by the grounding gate"
+    },
     "findings": "Findings",
     "noFindings": "No findings for this run.",
     "suggestedFix": "Suggested fix:",
@@ -122,12 +140,16 @@
     "selectPr": "Select PR",
     "prItem": "#{number} · {title}",
     "view": {
-      "columns": "columns",
-      "tabs": "tabs"
+      "columns": "Columns",
+      "tabs": "Tabs"
     },
     "runAll": "Run all agents",
     "running": "Running…",
-    "meta": "{count} agents · fan-out via p-queue · {duration}s total · {cost}",
+    "meta": "{count} agents · parallel fan-out · {duration}s total · {cost}",
+    "metaPartial": "{count} agents · parallel fan-out · {duration}s total · {cost} · partial",
+    "selectedCount": "{count} selected agents · parallel",
+    "configureRun": "Configure run",
+    "cancelRun": "Cancel run",
     "noAgents": {
       "title": "Enable agents to run reviews",
       "body": "Multi-agent review runs the PR through every enabled agent in parallel. You have no agents enabled yet.",
@@ -139,6 +161,26 @@
       "bodySelect": "Select a PR to begin.",
       "cta": "Run all agents"
     },
+    "notFound": {
+      "title": "Run not found",
+      "body": "This multi-agent run doesn’t exist, or isn’t visible in this workspace."
+    },
     "crumb": "Multi-Agent Review"
+  },
+  "configure": {
+    "crumb": "Configure run",
+    "title": "Run a Multi-Agent Review",
+    "subtitle": "Pick a pull request and choose which agents to fan out — they run in parallel and you compare their findings side by side.",
+    "step1": "Pull request",
+    "selectPrPlaceholder": "Select a pull request…",
+    "prListError": "Couldn’t load pull requests.",
+    "retry": "Retry",
+    "step2": "Agents to run",
+    "selectAll": "Select all",
+    "pickPrFirstTitle": "Pick a pull request first",
+    "pickPrFirstBody": "Choose which PR to review above, then select the agents to run on it.",
+    "runButton": "Run multi-agent review ({count})",
+    "parallelFanOut": "parallel fan-out",
+    "noEstimateYet": "no estimate yet"
   }
 }

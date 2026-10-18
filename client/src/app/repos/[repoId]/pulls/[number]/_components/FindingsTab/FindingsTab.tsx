@@ -6,7 +6,8 @@ import { RunStatus } from "../RunStatus";
 import { RunHistory } from "../RunHistory/RunHistory";
 import { ReviewRunAccordion } from "../ReviewRunAccordion";
 import { s } from "./styles";
-import type { FindingRecord, ReviewRecord, RunSummary, PrCommit } from "@devdigest/shared";
+import type { FindingRecord, ReviewRecord, PrCommit } from "@devdigest/shared";
+import type { RunSummaryWithParent } from "@/lib/types";
 
 interface FindingsTabProps {
   prId: string | null;
@@ -14,7 +15,7 @@ interface FindingsTabProps {
   reviewRunning: boolean;
   lethalTrifecta: FindingRecord[];
   runs: ReviewRecord[];
-  prRuns: RunSummary[] | undefined;
+  prRuns: RunSummaryWithParent[] | undefined;
   prCommits: PrCommit[];
   cancelMutation: { mutate: (runId: string) => void; isPending: boolean };
   /** owner/repo + head sha — used to deep-link a finding's file:line to GitHub. */

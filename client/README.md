@@ -31,11 +31,16 @@ flowchart TD
   AGENTS["/agents"] --> AGENT["/agents/:id<br/>editor (config)"]
   SETTINGS["/settings/:section<br/>API keys · models"]
 
+  MAR["/multi-agent-review<br/>landing"] --> MARC["/multi-agent-review/configure<br/>pick agents, start run"]
+  MARC --> MARR["/multi-agent-review/:runId<br/>results (Columns/Tabs + detail)"]
+
   PULLS -->|"GET /repos/:id/pulls · /repos/:id/index-state"| API
   PR -->|"GET /pulls/:id · /reviews · /pulls/:id/comments<br/>POST /pulls/:id/review · /findings/:id/(accept|dismiss)"| API
   TOUR -->|"GET · POST /repos/:id/onboarding"| API
   AGENTS -->|"/agents · /agents/:id"| API
   SETTINGS -->|"/settings · /providers"| API
+  MARC -->|"GET /repos/:id/multi-agent/last-selection"| API
+  MARR -->|"POST /pulls/:id/multi-agent-run · GET /multi-agent-runs/:id<br/>GET /pulls/:id/multi-agent · POST /multi-agent-runs/:id/cancel<br/>POST /multi-agent-runs/:id/runs/:runId/(cancel|retry)"| API
 ```
 
 Cross-cutting chrome lives in `src/components/app-shell` (nav, breadcrumbs,

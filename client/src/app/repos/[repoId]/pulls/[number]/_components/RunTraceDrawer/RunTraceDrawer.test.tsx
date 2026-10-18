@@ -150,3 +150,37 @@ describe("Run Trace drawer — project context (AC-33/34)", () => {
     expect(within(screen.getByText("Specs read").parentElement as HTMLElement).getByText("none")).toBeInTheDocument();
   });
 });
+
+describe("Run Trace drawer — grounding-drop list (AC-31)", () => {
+  afterEach(() => {
+    delete (TRACE as unknown as Record<string, unknown>).grounding_dropped;
+  });
+
+  it("renders every dropped finding's title, file:lines and reason, alongside the existing pass/fail summary", () => {
+    // Catches: the grounding drops persisted by AC-32 never surfacing in the
+    // drawer, or only showing some of the fields (title/lines/reason).
+    Object.assign(TRACE, {
+      grounding_dropped: [
+        { title: "Unverified SQL injection claim", file: "src/db.ts", start_line: 10, end_line: 14, reason: "no matching citation in the diff" },
+        { title: "Hallucinated API call", file: "src/api.ts", start_line: 40, end_line: 40, reason: "file not present in this PR's diff" },
+      ],
+    });
+    renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
+
+    // The existing pass/fail summary (Stats badge) is still shown alongside.
+    expect(screen.getByText("2/2 passed")).toBeInTheDocument();
+
+    expect(screen.getByText("Dropped by the grounding gate")).toBeInTheDocument();
+    expect(screen.getByText("Unverified SQL injection claim")).toBeInTheDocument();
+    expect(screen.getByText("src/db.ts:10-14")).toBeInTheDocument();
+    expect(screen.getByText("no matching citation in the diff")).toBeInTheDocument();
+    expect(screen.getByText("Hallucinated API call")).toBeInTheDocument();
+    expect(screen.getByText("src/api.ts:40")).toBeInTheDocument();
+    expect(screen.getByText("file not present in this PR's diff")).toBeInTheDocument();
+  });
+
+  it("omits the section entirely when nothing was dropped", () => {
+    renderWithIntl(<RunTraceDrawer runId="r1" agentName="Security" prNumber={482} onClose={() => {}} />);
+    expect(screen.queryByText("Dropped by the grounding gate")).not.toBeInTheDocument();
+  });
+});
