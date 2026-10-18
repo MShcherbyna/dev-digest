@@ -58,7 +58,14 @@ export const s = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   } satisfies CSSProperties,
-  findingMeta: { fontSize: 11, color: "var(--text-muted)", marginTop: 2 } satisfies CSSProperties,
+  findingMeta: {
+    fontSize: 11,
+    color: "var(--text-muted)",
+    marginTop: 2,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  } satisfies CSSProperties,
   alsoFlagged: { fontSize: 10.5, color: "var(--accent-text)", marginTop: 3 } satisfies CSSProperties,
   footer: {
     display: "flex",
