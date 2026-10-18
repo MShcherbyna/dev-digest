@@ -249,7 +249,9 @@ team's repositories on GitHub.
     or replaces only its own job;
   - the agent's job is skipped for PRs whose head repository is a fork;
   - job permissions limited to `contents: read` and `pull-requests: write`;
-  - checks out the PR and runs the bundled runner `node
+  - checks out the PR's base commit (`pull_request.base.sha`; the diff comes
+    from the API, and a PR branch cut before the CI files were merged has no
+    `.devdigest/`) and runs the bundled runner `node
     .devdigest/runner/index.js` on Node 22 or newer;
   - passes `OPENROUTER_API_KEY` from repository secrets, the workflow's
     `GITHUB_TOKEN`, the repository, the PR number, `DEVDIGEST_POST_AS` and

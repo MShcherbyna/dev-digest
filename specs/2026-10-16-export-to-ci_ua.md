@@ -257,8 +257,10 @@ Actions на кожному pull request.
     експорт додає або замінює лише свій job;
   - job агента пропускається для PR, у яких head-репозиторій — форк;
   - дозволи job обмежено `contents: read` і `pull-requests: write`;
-  - робить checkout PR і запускає збандлений runner `node
-    .devdigest/runner/index.js` на Node 22 або новішому;
+  - робить checkout базового коміту PR (`pull_request.base.sha`; diff береться
+    з API, а в гілці PR, створеній до злиття CI-файлів, `.devdigest/` немає) і
+    запускає збандлений runner `node .devdigest/runner/index.js` на Node 22 або
+    новішому;
   - передає `OPENROUTER_API_KEY` із секретів репозиторію, `GITHUB_TOKEN`
     workflow, репозиторій, номер PR, `DEVDIGEST_POST_AS` і
     `DEVDIGEST_AGENT=<agent-slug>` (D-MA-2);

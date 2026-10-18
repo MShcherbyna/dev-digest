@@ -10,14 +10,19 @@ export function normalizeTriggers(triggers: CiTrigger[]): CiTrigger[] {
   return TRIGGER_ORDER.filter((t) => triggers.includes(t));
 }
 
-/** One agent's job (AC-8). The job id is the agent slug; forks are skipped; permissions are minimal. */
+/**
+ * One agent's job (AC-8). The job id is the agent slug; forks are skipped; permissions are minimal.
+ * The checkout is the PR's BASE commit: the runner only reads `.devdigest/**` from disk (the diff
+ * comes from the API), and a PR branch cut before the CI files were merged has no `.devdigest/`.
+ * It also keeps a PR from swapping the runner or manifests that review it.
+ */
 export function renderAgentJob(slug: string, postAs: CiPostAs): Record<string, unknown> {
   return {
     if: 'github.event.pull_request.head.repo.full_name == github.repository',
     'runs-on': 'ubuntu-latest',
     permissions: { contents: 'read', 'pull-requests': 'write' },
     steps: [
-      { uses: 'actions/checkout@v4', with: { ref: '${{ github.event.pull_request.head.sha }}' } },
+      { uses: 'actions/checkout@v4', with: { ref: '${{ github.event.pull_request.base.sha }}' } },
       { uses: 'actions/setup-node@v4', with: { 'node-version': 22 } },
       {
         name: 'Run DevDigest review',
