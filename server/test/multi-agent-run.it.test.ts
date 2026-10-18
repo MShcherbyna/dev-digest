@@ -742,4 +742,35 @@ d('Multi-Agent Review (Testcontainers pg)', () => {
     await app.inject({ method: 'POST', url: `/multi-agent-runs/${secondBody.id}/cancel` });
     await app.close();
   });
+
+  it('AC-36: GET /multi-agent-runs lists the workspace recent runs with PR/repo info, newest first', async () => {
+    const app = await appWith({ 'rec-a': { summary: 'a' } });
+    const { repo, pr } = await setupRepoAndPr(pg.handle.db, workspaceId);
+    const a = await createAgent(app, 'RecA', 'rec-a');
+
+    const started = await app.inject({
+      method: 'POST',
+      url: `/pulls/${pr.id}/multi-agent-run`,
+      payload: { agent_ids: [a.id] },
+    });
+    const body = started.json();
+    await pollMultiRun(app, body.id, (v) => v.status === 'done');
+
+    const res = await app.inject({ method: 'GET', url: '/multi-agent-runs?limit=5' });
+    expect(res.statusCode).toBe(200);
+    const list = res.json() as Array<Record<string, unknown>>;
+    // Newest-first: this run (just started) is the first entry.
+    expect(list[0]).toMatchObject({
+      id: body.id,
+      pr_id: pr.id,
+      pr_number: pr.number,
+      pr_title: pr.title,
+      repo_full_name: repo.fullName,
+      agent_count: 1,
+      cancelled: false,
+    });
+    expect(typeof list[0]!.ran_at).toBe('string');
+
+    await app.close();
+  });
 });

@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
-import type { MultiRunChildRow, MultiRunRow, MultiRunStore, PullLookup } from './ports.js';
+import type { MultiRunChildRow, MultiRunRow, MultiRunStore, PullLookup, RecentMultiRunRow } from './ports.js';
 import type { AgentColumnFindingView } from './schemas.js';
 
 /**
@@ -106,6 +106,32 @@ export class MultiAgentRunRepository implements MultiRunStore {
       .orderBy(desc(t.multiAgentRuns.ranAt))
       .limit(1);
     return row ? this.toMultiRunRow(row.run, row.prNumber ?? null) : undefined;
+  }
+
+  async recent(workspaceId: string, limit: number): Promise<RecentMultiRunRow[]> {
+    const rows = await this.db
+      .select({
+        run: t.multiAgentRuns,
+        prNumber: t.pullRequests.number,
+        prTitle: t.pullRequests.title,
+        repoFullName: t.repos.fullName,
+      })
+      .from(t.multiAgentRuns)
+      .innerJoin(t.pullRequests, eq(t.pullRequests.id, t.multiAgentRuns.prId))
+      .innerJoin(t.repos, eq(t.repos.id, t.pullRequests.repoId))
+      .where(eq(t.multiAgentRuns.workspaceId, workspaceId))
+      .orderBy(desc(t.multiAgentRuns.ranAt))
+      .limit(limit);
+    return rows.map(({ run, prNumber, prTitle, repoFullName }) => ({
+      id: run.id,
+      prId: run.prId,
+      prNumber,
+      prTitle,
+      repoFullName,
+      ranAt: run.ranAt,
+      agentCount: run.requestedAgentIds.length,
+      cancelledAt: run.cancelledAt,
+    }));
   }
 
   async childrenWithFindings(id: string): Promise<MultiRunChildRow[]> {

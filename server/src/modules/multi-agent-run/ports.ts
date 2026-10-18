@@ -36,6 +36,20 @@ export interface MultiRunRow {
   cancelledAt: Date | null;
 }
 
+/** One row of the workspace's recent-runs list (landing page, AC-36). A
+ * lighter summary than `MultiRunRow` — no per-child aggregate status, to
+ * avoid an N+1 `childrenWithFindings` fetch per listed run. */
+export interface RecentMultiRunRow {
+  id: string;
+  prId: string;
+  prNumber: number;
+  prTitle: string;
+  repoFullName: string;
+  ranAt: Date;
+  agentCount: number;
+  cancelledAt: Date | null;
+}
+
 /** Persistence port for the multi-agent-run module's own data + the shared
  * `agent_runs`/`reviews`/`findings` tables it reads (allowed by the
  * architecture constraints: this module may query those tables directly). */
@@ -55,6 +69,11 @@ export interface MultiRunStore {
   getById(workspaceId: string, id: string): Promise<MultiRunRow | undefined>;
 
   latestForPull(workspaceId: string, prId: string): Promise<MultiRunRow | undefined>;
+
+  /** The workspace's most recent multi-agent runs across all repos, newest
+   * first (AC-36: the landing page shows these instead of forcing a new
+   * Configure run every time). */
+  recent(workspaceId: string, limit: number): Promise<RecentMultiRunRow[]>;
 
   /** Every child (any status, any attempt) of a multi-run, with its findings. */
   childrenWithFindings(id: string): Promise<MultiRunChildRow[]>;

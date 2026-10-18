@@ -107,13 +107,14 @@ describe("TabsView", () => {
     await userEvent.click(screen.getAllByText("View trace")[0]!);
     expect(onOpenTrace).toHaveBeenCalledWith("r1", "Security");
 
-    await userEvent.click(screen.getByText("Hardcoded secret"));
+    // The first (and only) finding is expanded by default, so its detail —
+    // including the absent/present SUGGESTED FIX block — is visible without
+    // an extra click.
     expect(screen.queryByText("Suggested fix")).not.toBeInTheDocument();
     cleanup();
 
     findingsById.set("f1", fullFinding({ suggestion: "Move it to an env var." }));
     renderWithIntl(<TabsView columns={columns} prId="pr1" findingsById={findingsById} onOpenTrace={noop} />);
-    await userEvent.click(screen.getByText("Hardcoded secret"));
     expect(screen.getByText("Suggested fix")).toBeInTheDocument();
   });
 
@@ -122,9 +123,8 @@ describe("TabsView", () => {
     const findingsById = new Map<string, EvalAwareFinding>([["f1", fullFinding({})]]);
     renderWithIntl(<TabsView columns={columns} prId="pr1" findingsById={findingsById} onOpenTrace={noop} />);
 
-    // The action row is only shown once the card is expanded.
-    await userEvent.click(screen.getByText("Hardcoded secret"));
-
+    // The action row is only shown once the card is expanded — the first
+    // (and only) finding here is expanded by default.
     expect(screen.getByRole("button", { name: "Accept" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Turn into eval case" })).toBeInTheDocument();

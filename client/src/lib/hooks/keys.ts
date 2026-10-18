@@ -70,4 +70,5 @@ export const queryKeys = {
   multiAgentRun: (id: string | null | undefined) => ["multi-agent-run", id] as const,
   prLatestMultiAgent: (prId: string | null | undefined) => ["pr-latest-multi-agent", prId] as const,
   repoLastSelection: (repoId: string | null | undefined) => ["repo-last-selection", repoId] as const,
+  recentMultiAgentRuns: (limit: number) => ["recent-multi-agent-runs", limit] as const,
 };

@@ -78,3 +78,22 @@ export const LastSelectionResponse = z.object({
   agent_ids: z.array(z.string().uuid()).nullable(),
 });
 export type LastSelectionResponse = z.infer<typeof LastSelectionResponse>;
+
+/** One row of `GET /multi-agent-runs` — the landing page's recent-runs list
+ * (AC-36). No per-child status: see `RecentMultiRunRow`. */
+export const RecentMultiAgentRun = z.object({
+  id: z.string().uuid(),
+  pr_id: z.string().uuid(),
+  pr_number: z.number().int(),
+  pr_title: z.string(),
+  repo_full_name: z.string(),
+  ran_at: z.string(),
+  agent_count: z.number().int(),
+  cancelled: z.boolean(),
+});
+export type RecentMultiAgentRun = z.infer<typeof RecentMultiAgentRun>;
+
+export const RecentMultiAgentRunsQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(10),
+});
+export type RecentMultiAgentRunsQuery = z.infer<typeof RecentMultiAgentRunsQuery>;
