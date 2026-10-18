@@ -150,7 +150,7 @@ d('POST /agents/:id/export-ci (Testcontainers pg)', () => {
     expect(gh.prs.filter((p) => p.state === 'open')).toHaveLength(1);
     const wf = gh.filesOf('devdigest/ci')[WORKFLOW_PATH]!;
     expect(wf).toContain('  keep-agent:');
-    expect(wf).toContain("github.head_ref != 'devdigest/ci'");
+    expect(wf).not.toContain('head_ref');
   });
 
   it('AC-28: an update reuses the open PR from devdigest/ci', async () => {
