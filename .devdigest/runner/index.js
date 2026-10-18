@@ -20899,6 +20899,7 @@ async function reviewPullRequest(input) {
             schemaName: 'Review',
             messages: a.messages,
             maxRetries,
+            ...(input.maxTokens ? { maxTokens: input.maxTokens } : {}),
             ...(input.sessionId ? { sessionId: input.sessionId } : {}),
         });
         tokensIn += res.tokensIn;
@@ -39099,7 +39100,10 @@ function loadMemory(devdigestDir, readFile = external_node_fs_namespaceObject.re
  * manifest's `skills` slugs, in order. These are RESOLVED skill bodies (not
  * slugs) — `reviewPullRequest` (reviewer-core) takes `PromptSkill[]`, exactly like the
  * studio resolves slugs to DB rows before calling the same engine (AC-36
- * parity: both callers hand the engine already-resolved `PromptSkill`s).
+ * parity: both callers hand the engine already-resolved bodies).
+ *
+ * `trusted: false`: the files come from the PR checkout, so a PR author can
+ * edit them — the engine wraps untrusted bodies in `<untrusted>` delimiters.
  */
 function loadSkillBodies(devdigestDir, slugs, readFile = external_node_fs_namespaceObject.readFileSync) {
     return slugs.map((slug) => {
@@ -39493,6 +39497,35 @@ function buildResultArtifact(input) {
 
 
 
+/**
+ * `runCi` — the runner's single orchestration entry point (T8). Mirrors the
+ * pipeline a local studio review runs (assemblePrompt/wrapUntrusted →
+ * completeStructured → groundFindings, all INSIDE `reviewPullRequest`) so CI
+ * and local stay in parity (AC-36): this file never re-implements or
+ * hand-rolls any of that — it only resolves CI-specific inputs (manifest,
+ * skills, diff, PR context) and hands them to the SAME reviewer-core engine
+ * the studio calls, then turns the grounded result into GitHub side effects.
+ *
+ * Deterministic gate (AC-23): the GitHub review event + blocker count are
+ * computed from `countBlockers`/`gateTriggered` + the manifest's `ci_fail_on`
+ * against the GROUNDED findings — never from `review.verdict` (the model's
+ * self-report), which is discarded here on purpose.
+ *
+ * Hard-fail (Q5): a single try/catch wraps the ENTIRE pipeline. Any failure —
+ * invalid manifest (AC-20), missing skill file, unresolvable CI context,
+ * diff-fetch failure, or an LLM/model-call error inside `reviewPullRequest` —
+ * short-circuits to `{ exitCode: 1, artifact: null, posted: null }` before any
+ * GitHub post or artifact write. Do not add per-stage catches that post partial
+ * state; the whole point is that a failure anywhere upstream of "we have a
+ * grounded review" produces NOTHING (no synthetic review skeleton).
+ */
+/**
+ * Output-token cap per review call. Without an explicit `max_tokens`,
+ * OpenRouter reserves the model's full output window (e.g. 131072) against
+ * the context length, so a large diff fails with "maximum context length"
+ * even though a structured review never needs that many output tokens.
+ */
+const CI_REVIEW_MAX_TOKENS = 16384;
 async function runCi(deps) {
     const readFile = deps.readFile ?? external_node_fs_namespaceObject.readFileSync;
     const readDir = deps.readDir ?? external_node_fs_namespaceObject.readdirSync;
@@ -39537,6 +39570,7 @@ async function runCi(deps) {
             memory: memory.map((m) => wrapUntrusted('memory', m.content)),
             prDescription: ctx.body,
             task: `Review PR #${ctx.prNumber}: ${ctx.title}`,
+            maxTokens: CI_REVIEW_MAX_TOKENS,
         });
         const durationMs = now() - start;
         // 5. Deterministic verdict/gate from GROUNDED findings + `ci_fail_on`
