@@ -1,7 +1,7 @@
 import { Document, isMap, parseDocument, type YAMLMap } from 'yaml';
 import type { CiPostAs, CiTrigger } from '@devdigest/shared';
 import { AppError } from '../../../platform/errors.js';
-import { RUNNER_PATH, resultArtifactName } from '../constants.js';
+import { CI_BRANCH, RUNNER_PATH, resultArtifactName } from '../constants.js';
 
 const TRIGGER_ORDER: CiTrigger[] = ['opened', 'synchronize', 'reopened'];
 
@@ -14,11 +14,12 @@ export function normalizeTriggers(triggers: CiTrigger[]): CiTrigger[] {
  * One agent's job (AC-8). The job id is the agent slug; forks are skipped; permissions are minimal.
  * The checkout is the PR's BASE commit: the runner only reads `.devdigest/**` from disk (the diff
  * comes from the API), and a PR branch cut before the CI files were merged has no `.devdigest/`.
- * It also keeps a PR from swapping the runner or manifests that review it.
+ * It also keeps a PR from swapping the runner or manifests that review it. DevDigest's own
+ * install/remove PR (`devdigest/ci`) is skipped: its base has no manifest for the agent it adds.
  */
 export function renderAgentJob(slug: string, postAs: CiPostAs): Record<string, unknown> {
   return {
-    if: 'github.event.pull_request.head.repo.full_name == github.repository',
+    if: `github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != '${CI_BRANCH}'`,
     'runs-on': 'ubuntu-latest',
     permissions: { contents: 'read', 'pull-requests': 'write' },
     steps: [
