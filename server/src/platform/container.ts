@@ -69,6 +69,13 @@ import { EVAL_LLM } from '../modules/eval/constants.js';
 import { sameAgentConfig } from '../modules/agents/helpers.js';
 import type { AgentSource, EvalAgent, LlmProviderId } from '../modules/eval/ports.js';
 import { parseUnifiedDiff } from '../adapters/git/diff-parser.js';
+import type { CiGitHub, AgentSource as CiAgentSource } from '../modules/ci/ports.js';
+import { CiRepository } from '../modules/ci/repository.js';
+import { CiService } from '../modules/ci/service.js';
+import { CiIngestService } from '../modules/ci/ingest.js';
+import { OctokitCiGitHub } from '../adapters/github/ci.js';
+import { FsRunnerBundle } from '../adapters/runner-bundle/fs.js';
+import type { RunnerBundle } from '../modules/ci/ports.js';
 import { buildLineIndex, buildTaskLine, isFullFileKind, reviewPullRequest } from '@devdigest/reviewer-core';
 
 /**
@@ -100,6 +107,10 @@ export interface ContainerOverrides {
   repoDocs?: RepoDocsSource;
   /** Onboarding repo-clone reader — tests inject `MockRepoFiles`. */
   repoFiles?: RepoFiles;
+  /** Export to CI GitHub port — tests inject `MockCiGitHub` so no GITHUB_TOKEN is used. */
+  ciGitHub?: CiGitHub;
+  /** Export to CI runner bundle — tests inject `MockRunnerBundle`. */
+  runnerBundle?: RunnerBundle;
 }
 
 export class Container {
@@ -135,6 +146,10 @@ export class Container {
   private _brief?: BriefService;
   private _eval?: EvalService;
   private _evalRepo?: EvalRepository;
+  private _ciGitHub?: CiGitHub;
+  private _ci?: CiService;
+  private _ciRepo?: CiRepository;
+  private _ciIngest?: CiIngestService;
 
   constructor(config: AppConfig, db: Db, private overrides: ContainerOverrides = {}) {
     this.config = config;
@@ -346,6 +361,63 @@ export class Container {
     return this.evalRepo;
   }
 
+  private get ciRepo(): CiRepository {
+    return (this._ciRepo ??= new CiRepository(this.db));
+  }
+
+  /** Export to CI: preview / export / remove / installations / runs list. */
+  get ci(): CiService {
+    if (!this._ci) {
+      const agents: CiAgentSource = {
+        get: async (workspaceId, agentId) => {
+          const a = await this.agentsRepo.getById(workspaceId, agentId);
+          return a
+            ? {
+                id: a.id,
+                name: a.name,
+                provider: a.provider,
+                model: a.model,
+                systemPrompt: a.systemPrompt,
+                strategy: a.strategy,
+                ciFailOn: a.ciFailOn,
+                version: a.version,
+              }
+            : undefined;
+        },
+        enabledSkills: async (agentId) =>
+          (await this.agentsRepo.linkedSkills(agentId))
+            .filter((l) => l.enabled && l.skill.enabled)
+            .map((l) => ({ id: l.skill.id, name: l.skill.name, body: l.skill.body })),
+      };
+      this._ci = new CiService({
+        store: this.ciRepo,
+        agents,
+        github: () => this.ciGitHub(),
+        bundle: this.overrides.runnerBundle ?? new FsRunnerBundle(this.config.ciRunnerBundlePath),
+      });
+    }
+    return this._ci;
+  }
+
+  /**
+   * Pull-ingest of CI result artifacts. A singleton per container on purpose:
+   * its in-flight map (one ingest per installation at a time) must be shared.
+   */
+  get ciIngest(): CiIngestService {
+    this._ciIngest ??= new CiIngestService({ store: this.ciRepo, github: () => this.ciGitHub() });
+    return this._ciIngest;
+  }
+
+  /** Export to CI GitHub port; throws `ConfigError` when no GITHUB_TOKEN is configured. */
+  async ciGitHub(): Promise<CiGitHub> {
+    if (this.overrides.ciGitHub) return this.overrides.ciGitHub;
+    if (this._ciGitHub) return this._ciGitHub;
+    const token = await this.secrets.get('GITHUB_TOKEN');
+    if (!token) throw new ConfigError('GITHUB_TOKEN is not configured');
+    this._ciGitHub = new OctokitCiGitHub(token);
+    return this._ciGitHub;
+  }
+
   get codeIndex(): CodeIndex {
     if (this.overrides.codeIndex) return this.overrides.codeIndex;
     this._codeIndex ??= new RipgrepCodeIndex(this.git);
@@ -491,6 +563,7 @@ export class Container {
     this.evalLlmCache.clear();
     this._github = undefined;
     this._priorPrs = undefined;
+    this._ciGitHub = undefined;
     this._embedder = undefined;
   }
 }

@@ -1,7 +1,9 @@
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import type { LLMProvider, GitHubReviewPayload, CiResultArtifact } from '@devdigest/shared';
-import { reviewPullRequest, toReviewPayload, gateTriggered, countBlockers } from '@devdigest/reviewer-core';
-import { loadManifest } from './manifest.js';
+import { reviewPullRequest, toReviewPayload, gateTriggered, countBlockers, wrapUntrusted } from '@devdigest/reviewer-core';
+import path from 'node:path';
+import { loadManifestWithSlug } from './manifest.js';
+import { loadMemory } from './memory.js';
 import { loadSkillBodies } from './skills.js';
 import { resolvePrContext, type CiEnv } from './context.js';
 import { parseUnifiedDiff, stripIgnoredFiles } from './diff.js';
@@ -42,8 +44,10 @@ export interface RunCiDeps {
   llm: LLMProvider;
   /** How to post the result — `'github_review' | 'pr_comment' | 'none'` (AC-24). */
   postAs: PostAs;
-  /** Absolute path to write the `CiResultArtifact` JSON to. */
-  resultPath: string;
+  /** Directory the slug-named result file is written to (`devdigest-result-<slug>.json`). */
+  resultDir: string;
+  /** Explicit full result path; overrides `resultDir` + slug naming (`DEVDIGEST_RESULT_PATH`). */
+  resultPath?: string;
   fetchImpl?: FetchLike;
   readFile?: typeof readFileSync;
   readDir?: typeof readdirSync;
@@ -90,8 +94,17 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
 
   try {
     // 1. Load + validate the manifest BEFORE it is used for anything (AC-20).
-    const manifest = loadManifest(deps.devdigestDir, { readFile, readDir });
+    // NOTE: selecting the manifest by `DEVDIGEST_AGENT` is D-MA-1, external to
+    // this plan; today exactly one manifest is expected, so the file name is the
+    // fallback slug when `DEVDIGEST_AGENT` is unset.
+    const { manifest, slug: manifestSlug } = loadManifestWithSlug(deps.devdigestDir, {
+      readFile,
+      readDir,
+    });
+    const slug = deps.env.DEVDIGEST_AGENT || manifestSlug;
     const skills = loadSkillBodies(deps.devdigestDir, manifest.skills, readFile);
+    // A malformed memory.jsonl throws -> hard-fail like an invalid manifest.
+    const memory = loadMemory(deps.devdigestDir, readFile);
 
     // 2. Resolve CI context (PR number/title/body/repo) from env + event payload.
     const ctx = resolvePrContext(deps.env, readFile);
@@ -122,6 +135,7 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
       llm: deps.llm,
       strategy: manifest.strategy,
       skills,
+      memory: memory.map((m) => wrapUntrusted('memory', m.content)),
       prDescription: ctx.body,
       task: `Review PR #${ctx.prNumber}: ${ctx.title}`,
     });
@@ -145,8 +159,18 @@ export async function runCi(deps: RunCiDeps): Promise<RunCiResult> {
       durationMs,
       agent: manifest.name,
       prNumber: ctx.prNumber,
+      event: payload.event,
+      blockers,
+      agentSlug: slug,
+      agentId: manifest.agent_id ?? null,
+      manifestVersion: manifest.manifest_version ?? null,
+      provider: manifest.provider,
+      model: manifest.model,
+      commitSha: ctx.headSha,
+      repo: `${ctx.owner}/${ctx.repo}`,
     });
-    writeFile(deps.resultPath, `${JSON.stringify(artifact, null, 2)}\n`);
+    const resultPath = deps.resultPath ?? path.join(deps.resultDir, `devdigest-result-${slug}.json`);
+    writeFile(resultPath, `${JSON.stringify(artifact, null, 2)}\n`);
 
     // 7. Post per `post_as` (AC-24).
     if (deps.postAs === 'github_review') {

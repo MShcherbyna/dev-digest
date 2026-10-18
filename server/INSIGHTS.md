@@ -14,6 +14,18 @@ read by the `engineering-insights` skill.
 
 ## Codebase Patterns
 
+- **2026-10-17** — CI ingest (`modules/ci`) writes `ci_runs` FIRST, as an
+  `onConflictDoUpdate` on the unique `(github_run_id, agent_slug)`, and only then
+  inserts `agent_runs` + `run_traces` when the returned row has no
+  `agent_run_id`. The upsert's row lock serializes two concurrent ingests of the
+  same run, so the second never creates a second agent run; inserting the agent
+  run first would leave an orphan on a race. The `ci_runs` identity columns
+  (`agent_slug`, `github_run_id`, `workspace_id`) are nullable in the DB only
+  because the table pre-dates them; the mapper turns null into `''`. The runner
+  bundle is excluded from the `secret_in_export` scan on purpose (server-owned,
+  1.7 MB minified; it matched no pattern when checked).
+  `server/src/modules/ci/repository.ts` `ingestRun`.
+
 - **2026-10-15** — Eval case routes set a per-route `bodyLimit` (4 MiB) on
   purpose: Fastify's default 1 MiB limit would reject a max-size diff
   (`DIFF_MAX_CHARS` = 1M chars, multi-byte) with a bare 413 before the
@@ -171,6 +183,13 @@ read by the `engineering-insights` skill.
   vanish (`available:false`).
 
 ## Recurring Errors & Fixes
+
+- **2026-10-17** — The `implementer-guard.sh` PreToolUse hook rejects ANY Bash
+  command whose text contains the string `pnpm db:migrate`, even inside a
+  heredoc that is only writing documentation ("DB migrations are run manually
+  by the user"). Write README/docs text that mentions it with the Edit/Write
+  tool, or word it without the literal command. Reproduce:
+  `python3 - <<'EOF' ... pnpm db:migrate ... EOF`.
 
 - **2026-10-12** — Flaky `.it` suites (`project-context.it` AC-28/29/31 and
   AC-32 `specs_read`/`project_context_docs` undefined; `reviews.it` A2

@@ -35,3 +35,18 @@ export function githubBlobUrl(
   }
   return url;
 }
+
+/**
+ * True only for plain `https://github.com/...` URLs (https, host exactly github.com, no
+ * userinfo). URLs from CI artifacts / GitHub responses are untrusted: anything else must
+ * be shown as text, never as a link.
+ */
+export function isGithubUrl(value: string | null | undefined): value is string {
+  if (!value) return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === "https:" && u.hostname === "github.com" && u.username === "" && u.password === "";
+  } catch {
+    return false;
+  }
+}

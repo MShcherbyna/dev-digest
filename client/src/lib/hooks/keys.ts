@@ -65,5 +65,12 @@ export const queryKeys = {
       ? (["agent-eval-dashboard", agentId] as const)
       : (["agent-eval-dashboard", agentId, range] as const),
   evalCompare: (a: string | null | undefined, b: string | null | undefined) => ["eval-compare", a, b] as const,
+  /** Prefix of every agent's CI installations list. */
+  ciInstallationsAll: () => ["ci-installations"] as const,
+  ciInstallations: (agentId: string | null | undefined) => ["ci-installations", agentId] as const,
+  /** Prefix of every filtered CI runs list. */
+  ciRunsAll: () => ["ci-runs"] as const,
+  ciRuns: (query: object) => ["ci-runs", query] as const,
+  ciRefresh: (agentId: string | null | undefined) => ["ci-refresh", agentId ?? null] as const,
   runTrace: (runId: string | null | undefined) => ["run-trace", runId] as const,
 };

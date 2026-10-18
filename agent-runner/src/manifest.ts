@@ -81,3 +81,17 @@ export function loadManifest(devdigestDir: string, deps: FsDeps = {}): AgentMani
   const manifestPath = findManifestPath(devdigestDir, deps);
   return loadAgentManifest(manifestPath, deps);
 }
+
+/**
+ * Like `loadManifest`, but also returns the slug (manifest file name without
+ * its extension). Selecting the manifest by `DEVDIGEST_AGENT` is D-MA-1 and is
+ * external to this plan; today exactly one manifest is expected.
+ */
+export function loadManifestWithSlug(
+  devdigestDir: string,
+  deps: FsDeps = {},
+): { manifest: AgentManifest; slug: string } {
+  const manifestPath = findManifestPath(devdigestDir, deps);
+  const slug = path.basename(manifestPath, path.extname(manifestPath));
+  return { manifest: loadAgentManifest(manifestPath, deps), slug };
+}
