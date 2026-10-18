@@ -54,6 +54,17 @@ export function AgentColumn({
             {t(`column.statusChip.${column.status as "queued" | "running" | "failed" | "cancelled"}`)}
           </Badge>
         )}
+        {column.status === "failed" && (
+          <button
+            type="button"
+            style={s.retryIconBtn}
+            onClick={onRetry}
+            title={t("column.retry")}
+            aria-label={t("column.retry")}
+          >
+            <Icon.RefreshCw size={14} />
+          </button>
+        )}
       </div>
 
       {column.status === "running" ? (
@@ -85,11 +96,7 @@ export function AgentColumn({
         <button type="button" style={s.footerLink} onClick={onOpenTrace}>
           {t("viewTrace")}
         </button>
-        {column.status === "failed" ? (
-          <button type="button" style={s.footerLink} onClick={onRetry}>
-            {t("column.retry")}
-          </button>
-        ) : column.status === "queued" || column.status === "running" ? (
+        {column.status === "queued" || column.status === "running" ? (
           <button type="button" style={s.footerLink} onClick={onCancel}>
             {t("column.cancel")}
           </button>

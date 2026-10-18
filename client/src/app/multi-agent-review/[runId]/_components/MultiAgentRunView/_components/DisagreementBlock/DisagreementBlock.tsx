@@ -6,7 +6,7 @@
 
 import React from "react";
 import { useTranslations } from "next-intl";
-import { Icon, Toggle } from "@devdigest/ui";
+import { EmptyState, Icon, Toggle } from "@devdigest/ui";
 import { SEV } from "@devdigest/ui";
 import type { AgentColumnView, Conflict } from "@/lib/types";
 import { cellFor, isConflict } from "../../helpers";
@@ -48,9 +48,9 @@ export function DisagreementBlock({
       </div>
 
       {!anyVerdict ? (
-        <div style={s.empty}>{t("conflicts.noVerdictYet")}</div>
+        <EmptyState icon="Users" title={t("conflicts.noVerdictTitle")} body={t("conflicts.noVerdictYet")} />
       ) : shown.length === 0 ? (
-        <div style={s.empty}>{t("conflicts.empty")}</div>
+        <EmptyState icon="Users" title={t("conflicts.emptyTitle")} body={t("conflicts.empty")} />
       ) : (
         shown.map((conflict, i) => (
           <div key={`${conflict.file}:${conflict.line}:${i}`} style={s.card}>

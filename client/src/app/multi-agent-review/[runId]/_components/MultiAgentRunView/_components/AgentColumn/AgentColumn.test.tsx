@@ -83,7 +83,7 @@ describe("AgentColumn", () => {
     expect(titleEl).toHaveAttribute("title", f.title);
   });
 
-  it("AC-28/AC-19: 'View trace' opens this column's own run id; the footer action matches status (retry on failed, cancel on running, count on done)", async () => {
+  it("AC-28/AC-19: 'View trace' opens this column's own run id; the footer action matches status (cancel on running, count on failed/done)", async () => {
     const onOpenTrace = vi.fn();
     const onRetry = vi.fn();
     renderWithIntl(
@@ -91,7 +91,8 @@ describe("AgentColumn", () => {
     );
     await userEvent.click(screen.getByText("View trace"));
     expect(onOpenTrace).toHaveBeenCalledTimes(1);
-    await userEvent.click(screen.getByText("Retry"));
+    // Retry lives next to the status badge, not the footer, for a failed agent.
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Cancel")).not.toBeInTheDocument();
     cleanup();
@@ -102,12 +103,14 @@ describe("AgentColumn", () => {
     );
     await userEvent.click(screen.getByText("Cancel"));
     expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
     cleanup();
 
     renderWithIntl(
       <AgentColumn column={column({ status: "done", findings: [finding({})] })} onOpenTrace={noop} onCancel={noop} onRetry={noop} similarAgentNames={() => []} />,
     );
-    expect(screen.queryByText("Retry")).not.toBeInTheDocument();
+    // A done agent already has a score ring; retry is only offered on failed (AC-19: only a failed attempt is retryable).
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
     expect(screen.queryByText("Cancel")).not.toBeInTheDocument();
     expect(screen.getByText("1 finding")).toBeInTheDocument();
   });

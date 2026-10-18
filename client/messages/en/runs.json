@@ -19,12 +19,14 @@
   "conflicts": {
     "title": "Where agents disagree",
     "onlyConflicts": "Show only conflicts",
-    "empty": "No conflicts — the agents agree on every flagged location.",
+    "emptyTitle": "No overlapping findings",
+    "empty": "No two agents flagged the same location in this run.",
     "didNotFlag": "did not flag",
     "failedNoVerdict": "failed, no verdict",
     "cancelled": "cancelled",
     "queued": "queued",
     "running": "running",
+    "noVerdictTitle": "No verdicts yet",
     "noVerdictYet": "No agent has produced a verdict for this run yet."
   },
   "tabs": {
