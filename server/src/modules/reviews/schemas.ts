@@ -14,8 +14,8 @@ import { RunTraceWithContext } from '../project-context/schemas.js';
 export const GroundingDrop = z.object({
   title: z.string(),
   file: z.string(),
-  start_line: z.number().int(),
-  end_line: z.number().int(),
+  start_line: z.number().int().nonnegative(),
+  end_line: z.number().int().nonnegative(),
   reason: z.string(),
 });
 export type GroundingDrop = z.infer<typeof GroundingDrop>;
@@ -31,6 +31,6 @@ export type RunTraceStored = z.infer<typeof RunTraceStored>;
 /** One row of `GET /pulls/:id/runs`, with the multi-run link (AC-6). Null for
  * a single-agent run; the parent `multi_agent_runs.id` for a multi-run child. */
 export const RunSummaryWithParent = RunSummary.extend({
-  multi_agent_run_id: z.string().nullable(),
+  multi_agent_run_id: z.string().uuid().nullable(),
 });
 export type RunSummaryWithParent = z.infer<typeof RunSummaryWithParent>;

@@ -42,15 +42,21 @@ export function AgentCard({
       }}
       style={{ ...s.card(checked, look.color), opacity: disabled ? 0.5 : 1 }}
     >
-      <Checkbox
-        checked={checked}
-        onChange={() => !disabled && onToggle()}
-        label={
-          <span style={s.srOnly}>
-            {agent.name} {estimate ? formatEstimate(estimate) : noEstimateLabel}
-          </span>
-        }
-      />
+      {/* Stop the click from also bubbling to the card's own onClick above —
+          the Checkbox's internal button already fires onChange for it, so
+          without this a click directly on the checkbox toggles twice (net
+          no-op). */}
+      <span onClick={(e) => e.stopPropagation()}>
+        <Checkbox
+          checked={checked}
+          onChange={() => !disabled && onToggle()}
+          label={
+            <span style={s.srOnly}>
+              {agent.name} {estimate ? formatEstimate(estimate) : noEstimateLabel}
+            </span>
+          }
+        />
+      </span>
       <div style={s.iconTile(look.color)}>
         <Icn size={16} />
       </div>

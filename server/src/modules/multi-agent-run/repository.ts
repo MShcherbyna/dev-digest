@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.js';
 import * as t from '../../db/schema.js';
 import type { MultiRunChildRow, MultiRunRow, MultiRunStore, PullLookup } from './ports.js';
@@ -113,7 +113,13 @@ export class MultiAgentRunRepository implements MultiRunStore {
       .select({ run: t.agentRuns, agentName: t.agents.name })
       .from(t.agentRuns)
       .leftJoin(t.agents, eq(t.agents.id, t.agentRuns.agentId))
-      .where(eq(t.agentRuns.multiAgentRunId, id));
+      .where(eq(t.agentRuns.multiAgentRunId, id))
+      // Deterministic creation order: ranAt is NOT NULL/defaultNow(), but
+      // several children can share the same millisecond (batch insert), so
+      // id breaks ties. Without this, Postgres gives no row-order guarantee
+      // and `createdOrder`'s `i`-fallback below would not be stable across
+      // calls.
+      .orderBy(asc(t.agentRuns.ranAt), asc(t.agentRuns.id));
     if (children.length === 0) return [];
 
     const runIds = children.map((c) => c.run.id);

@@ -1,5 +1,5 @@
 import type { AgentColumnFindingView, AgentColumnView } from '../schemas.js';
-import type { Conflict, ConflictTake } from '@devdigest/shared';
+import type { Conflict, ConflictTake, Severity } from '@devdigest/shared';
 
 /**
  * AC-20/AC-21/AC-22/AC-23/AC-24/AC-25 — similarity grouping and the "Where
@@ -14,7 +14,7 @@ export interface GroupedFinding {
   file: string;
   startLine: number;
   endLine: number;
-  severity: string;
+  severity: Severity;
   title: string;
 }
 
@@ -121,7 +121,7 @@ export function buildLocations(groups: GroupedFinding[][], columns: AgentColumnV
       return {
         agent_id: col.agent_id,
         persona: col.agent_name,
-        verdict: member ? (member.severity as ConflictTake['verdict']) : 'ignored',
+        verdict: member ? member.severity : 'ignored',
         note: member ? member.title : '',
       };
     });

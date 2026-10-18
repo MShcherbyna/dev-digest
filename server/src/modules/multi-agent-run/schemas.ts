@@ -20,7 +20,7 @@ export { Conflict, ConflictTake };
 /** A finding as surfaced in a multi-agent column, with the extra fields the
  * results page needs beyond the vendored subset. */
 export const AgentColumnFindingView = AgentColumnFinding.extend({
-  end_line: z.number().int(),
+  end_line: z.number().int().nonnegative(),
   /** 0..1 on the wire (same scale as the vendored `Finding.confidence`); the
    * client multiplies by 100 only when rendering (`ConfidenceNum`). */
   confidence: z.number().min(0).max(1),
@@ -75,6 +75,6 @@ export type MultiRunChildParams = z.infer<typeof MultiRunChildParams>;
 
 /** Response of `GET /repos/:id/multi-agent/last-selection` (Q-6). */
 export const LastSelectionResponse = z.object({
-  agent_ids: z.array(z.string()).nullable(),
+  agent_ids: z.array(z.string().uuid()).nullable(),
 });
 export type LastSelectionResponse = z.infer<typeof LastSelectionResponse>;

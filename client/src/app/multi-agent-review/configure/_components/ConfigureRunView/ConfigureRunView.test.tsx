@@ -148,6 +148,27 @@ describe("ConfigureRunView", () => {
     expect(await screen.findByRole("button", { name: /Select a pull request/ })).toBeInTheDocument();
   });
 
+  it("clicking an agent card's checkbox toggles it exactly once (not a double-fire no-op)", async () => {
+    // Regression: AgentCard used to wrap the Checkbox in its own clickable
+    // card div, so a click on the checkbox bubbled into the card's onClick
+    // too and toggled twice (checked -> unchecked -> checked again).
+    serve({ agents: [agent({ id: "a1", name: "Security" }), agent({ id: "a2", name: "Performance" })], pulls: [pr({})] });
+    renderConfigure();
+
+    await userEvent.click(screen.getByRole("button", { name: /Select a pull request/ }));
+    await userEvent.click(await screen.findByText("#42 · Fix the thing"));
+    await screen.findByText("Security");
+
+    const checkbox = screen.getByRole("checkbox", { name: /Security/ });
+    expect(checkbox).toBeChecked(); // AC-10 default: all enabled agents pre-checked.
+
+    await userEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
+
+    await userEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+  });
+
   it("Select all respects the 8-agent cap", async () => {
     const agents = Array.from({ length: 10 }, (_, i) => agent({ id: `a${i}`, name: `Agent ${i}` }));
     serve({ agents, pulls: [pr({})] });
