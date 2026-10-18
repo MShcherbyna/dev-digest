@@ -80,7 +80,7 @@ export function AgentColumn({
                 <div style={s.findingTitle} title={f.title}>
                   {f.title}
                 </div>
-                <div className="mono" style={s.findingMeta}>
+                <div className="mono" style={s.findingMeta} title={lineLabel(f)}>
                   {lineLabel(f)}
                 </div>
                 {others.length > 0 && (
